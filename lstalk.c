@@ -4,6 +4,13 @@
 #include <stdlib.h>
 
 //
+// Version infor
+//
+
+#define MAJOR 0
+#define MINOR 0
+#define REVISION 1
+//
 // Dynamic Array
 //
 // Very simple dynamic array structure to aid in managing storage and
@@ -69,7 +76,7 @@ char* vector_get(Vector* vector, size_t index) {
 // This is the beginning of the exposed API functions for the library.
 
 int lstalk_init() {
-    printf("Initialized lstalk version 0.0.1!\n");
+    printf("Initialized lstalk version %d.%d.%d!\n", MAJOR, MINOR, REVISION);
     return 1;
 }
 
