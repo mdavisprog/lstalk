@@ -1,6 +1,12 @@
 #include <stdio.h>
+#include "lstalk.h"
 
 int main(int argc, char** argv) {
-    printf("Hello lstalk!\n");
+    if (!lstalk_init()) {
+        return -1;
+    }
+
+    lstalk_shutdown();
+
     return 0;
 }

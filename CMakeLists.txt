@@ -8,6 +8,7 @@ set(BIN_DIR ${PROJECT_SOURCE_DIR}/bin)
 
 add_executable(
     lstalk
+    lstalk.c
     main.c
 )
 
