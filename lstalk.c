@@ -26,6 +26,15 @@
 #endif
 
 //
+// Platform includes
+//
+
+#if WINDOWS
+    #define WIN32_LEAN_AND_MEAN
+    #include <Windows.h>
+#endif
+
+//
 // Dynamic Array
 //
 // Very simple dynamic array structure to aid in managing storage and
@@ -83,6 +92,193 @@ char* vector_get(Vector* vector, size_t index) {
     }
 
     return &vector->data[vector->element_size * index];
+}
+
+//
+// Process Management
+//
+// This section will manage the creation/destruction of a process. All platform implementations should be
+// provided here.
+
+struct Process;
+
+#if WINDOWS
+
+//
+// Process Management Windows
+//
+
+#define PATH_MAX 32767
+
+typedef struct StdHandles {
+    HANDLE child_stdin_read;
+    HANDLE child_stdin_write;
+    HANDLE child_stdout_read;
+    HANDLE child_stdout_write;
+} StdHandles;
+
+void close_handles(StdHandles* handles) {
+    CloseHandle(handles->child_stdin_read);
+    CloseHandle(handles->child_stdin_write);
+    CloseHandle(handles->child_stdout_read);
+    CloseHandle(handles->child_stdout_write);
+}
+
+typedef struct Process {
+    StdHandles std_handles;
+    PROCESS_INFORMATION info;
+} Process;
+
+Process* create_process_windows(const char* path) {
+    StdHandles handles;
+    handles.child_stdin_read = NULL;
+    handles.child_stdin_write = NULL;
+    handles.child_stdout_read = NULL;
+    handles.child_stdout_write = NULL;
+
+    SECURITY_ATTRIBUTES security_attr;
+    ZeroMemory(&security_attr, sizeof(security_attr));
+    security_attr.bInheritHandle = TRUE;
+    security_attr.lpSecurityDescriptor = NULL;
+
+    // https://stackoverflow.com/questions/60645/overlapped-i-o-on-anonymous-pipe
+    // TODO: Implement above for asynchronous anonymous pipe communication.
+
+    if (!CreatePipe(&handles.child_stdout_read, &handles.child_stdout_write, &security_attr, 0)) {
+        printf("Failed to create stdout pipe!\n");
+        return NULL;
+    }
+
+    if (!SetHandleInformation(handles.child_stdout_read, HANDLE_FLAG_INHERIT, 0)) {
+        printf("Failed to set handle information for stdout read!\n");
+        return NULL;
+    }
+
+    if (!CreatePipe(&handles.child_stdin_read, &handles.child_stdin_write, &security_attr, 0)) {
+        printf("Failed to create stdin pipe!\n");
+        return NULL;
+    }
+
+    if (!SetHandleInformation(handles.child_stdin_write, HANDLE_FLAG_INHERIT, 0)) {
+        printf("Failed to set handle information for stdin write!\n");
+        return NULL;
+    }
+
+    STARTUPINFOW startup_info;
+    ZeroMemory(&startup_info, sizeof(startup_info));
+    startup_info.cb = sizeof(startup_info);
+    startup_info.hStdError = handles.child_stdout_write;
+    startup_info.hStdOutput = handles.child_stdout_write;
+    startup_info.hStdInput = handles.child_stdin_read;
+    startup_info.dwFlags |= STARTF_USESTDHANDLES;
+
+    PROCESS_INFORMATION process_info;
+    ZeroMemory(&process_info, sizeof(process_info));
+
+    // CreateProcessW does not accept a path larger than 32767.
+    wchar_t wpath[PATH_MAX];
+    mbstowcs(wpath, path, PATH_MAX);
+
+    BOOL result = CreateProcessW(wpath, NULL, NULL, NULL, TRUE, 0, NULL, NULL, &startup_info, &process_info);
+    if (!result) {
+        printf("Failed to create child process.\n");
+        close_handles(&handles);
+        return NULL;
+    }
+
+    // This is temporary to allow child process to startup.
+    Sleep(500);
+
+    Process* process = (Process*)malloc(sizeof(Process));
+    process->std_handles = handles;
+    process->info = process_info;
+    return process;
+}
+
+void close_process_windows(Process* process) {
+    if (process == NULL) {
+        return;
+    }
+
+    TerminateProcess(process->info.hProcess, 0);
+    close_handles(&process->std_handles);
+    free(process);
+}
+
+void read_response_windows(Process* process) {
+    if (process == NULL) {
+        return;
+    }
+
+    char read_buffer[PATH_MAX];
+    DWORD read = 0;
+    BOOL read_result = ReadFile(process->std_handles.child_stdout_read, read_buffer, sizeof(read_buffer), &read, NULL);
+    if (!read_result || read == 0) {
+        printf("Failed to read from process stdout.\n");
+    }
+    read_buffer[read] = 0;
+
+    printf("%s\n", read_buffer);
+}
+
+void write_request_windows(Process* process, const char* request) {
+    if (process == NULL) {
+        return;
+    }
+
+    DWORD written = 0;
+    if (!WriteFile(process->std_handles.child_stdin_write, (void*)request, strlen(request), &written, NULL)) {
+        printf("Failed to write to process stdin.\n");
+    }
+}
+#endif
+
+//
+// Process Management functions
+//
+
+Process* create_process(const char* path) {
+#if WINDOWS
+    return create_process_windows(path);
+#else
+    #error "Current platform does not implement create_process"
+#endif
+}
+
+void close_process(Process* process) {
+#if WINDOWS
+    close_process_windows(process);
+#else
+    #error "Current platform does not implement close_process"
+#endif
+}
+
+void read_response(Process* process) {
+#if WINDOWS
+    read_response_windows(process);
+#else
+    #error "Current platform does not implement read_response"
+#endif
+}
+
+void write_request(Process* process, const char* request) {
+#if WINDOWS
+    write_request_windows(process, request);
+#else
+    #error "Current platform does not implement write_request"
+#endif
+}
+
+void make_request(Process* process, const char* request) {
+    const char* content_length = "Content-Length:";
+    size_t length = strlen(request);
+
+    // Temporary buffer length.
+    // TODO: Is there a way to eliminate this heap allocation?
+    char* buffer = (char*)malloc(length + 40);
+    sprintf(buffer, "Content-Length: %zu\r\n\r\n%s", length, request);
+    write_request(process, buffer);
+    free(buffer);
 }
 
 //
