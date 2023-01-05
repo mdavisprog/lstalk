@@ -10,6 +10,21 @@
 #define MAJOR 0
 #define MINOR 0
 #define REVISION 1
+
+//
+// Platform definitions
+//
+
+#if _WIN32 || _WIN64
+    #define WINDOWS 1
+#elif __APPLE__
+    #define APPLE 1
+#elif __linux__
+    #define LINUX 1
+#else
+    #error "Current platform is not supported."
+#endif
+
 //
 // Dynamic Array
 //
