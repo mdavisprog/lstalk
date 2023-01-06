@@ -246,22 +246,65 @@ void write_request_windows(Process* process, const char* request) {
 // Process Management Posix
 //
 
-typedef struct StdHandles {
-    int child_stdin_read;
-    int child_stdin_write;
-    int child_stdout_read;
-    int child_stdout_write;
-} StdHandles;
+#define PIPE_READ 0
+#define PIPE_WRITE 1
+
+typedef struct Pipes {
+    int in[2];
+    int out[2];
+} Pipes;
+
+void close_pipes(Pipes* pipes) {
+    if (pipes == NULL) {
+        return;
+    }
+
+    close(pipes->in[PIPE_READ]);
+    close(pipes->in[PIPE_WRITE]);
+    close(pipes->out[PIPE_READ]);
+    close(pipes->out[PIPE_WRITE]);
+}
 
 typedef struct Process {
-    StdHandles std_handles;
+    Pipes pipes;
     pid_t pid;
 } Process;
 
 Process* create_process_posix(const char* path) {
+    Pipes pipes;
+
+    if (pipe(pipes.in) < 0) {
+        printf("Failed to create stdin pipes!\n");
+        return NULL;
+    }
+
+    if (pipe(pipes.out) < 0) {
+        printf("Failed to create stdout pipes!\n");
+        close_pipes(&pipes);
+        return NULL;
+    }
+
     pid_t pid = fork();
 
     if (pid == 0) {
+        if (dup2(pipes.in[PIPE_READ], STDIN_FILENO) < 0) {
+            printf("Failed to duplicate stdin read pipe.\n");
+            exit(-1);
+        }
+
+        if (dup2(pipes.out[PIPE_WRITE], STDOUT_FILENO) < 0) {
+            printf("Failed to duplicate stdout write pipe.\n");
+            exit(-1);
+        }
+
+        if (dup2(pipes.out[PIPE_WRITE], STDERR_FILENO) < 0) {
+            printf("Failed to duplicate stderr write pipe.\n");
+            exit(-1);
+        }
+
+        // Close pipes that are used by the parent process.
+        close_pipes(&pipes);
+
         char** args = NULL;
         int error = execv(path, args);
         if (error == -1) {
@@ -273,7 +316,11 @@ Process* create_process_posix(const char* path) {
         return NULL;
     }
 
+    close(pipes.in[PIPE_READ]);
+    close(pipes.out[PIPE_WRITE]);
+
     Process* process = (Process*)malloc(sizeof(Process));
+    process->pipes = pipes;
     process->pid = pid;
 
     sleep(1);
@@ -286,14 +333,34 @@ void close_process_posix(Process* process) {
         return;
     }
 
+    close_pipes(&process->pipes);
     kill(process->pid, SIGKILL);
     free(process);
 }
 
 void read_response_posix(Process* process) {
+    if (process == NULL) {
+        return;
+    }
+
+    char buffer[32676];
+    int bytes_read = read(process->pipes.out[PIPE_READ], (void*)buffer, sizeof(buffer));
+    if (bytes_read < 0) {
+        printf("Failed to read from child process.\n");
+    }
+    buffer[bytes_read] = 0;
+    printf("%s\n", buffer);
 }
 
 void write_request_posix(Process* process, const char* request) {
+    if (process == NULL) {
+        return;
+    }
+
+    ssize_t bytes_written = write(process->pipes.in[PIPE_WRITE], (void*)request, strlen(request));
+    if (bytes_written < 0) {
+        printf("Failed to write to child process.\n");
+    }
 }
 
 #endif
