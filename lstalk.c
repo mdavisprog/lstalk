@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 //
 // Version infor
@@ -25,6 +26,10 @@
     #error "Current platform is not supported."
 #endif
 
+#if APPLE || LINUX
+    #define POSIX 1
+#endif
+
 //
 // Platform includes
 //
@@ -32,6 +37,9 @@
 #if WINDOWS
     #define WIN32_LEAN_AND_MEAN
     #include <Windows.h>
+#elif POSIX
+    #include <signal.h>
+    #include <unistd.h>
 #endif
 
 //
@@ -231,6 +239,63 @@ void write_request_windows(Process* process, const char* request) {
         printf("Failed to write to process stdin.\n");
     }
 }
+
+#elif POSIX
+
+//
+// Process Management Posix
+//
+
+typedef struct StdHandles {
+    int child_stdin_read;
+    int child_stdin_write;
+    int child_stdout_read;
+    int child_stdout_write;
+} StdHandles;
+
+typedef struct Process {
+    StdHandles std_handles;
+    pid_t pid;
+} Process;
+
+Process* create_process_posix(const char* path) {
+    pid_t pid = fork();
+
+    if (pid == 0) {
+        char** args = NULL;
+        int error = execv(path, args);
+        if (error == -1) {
+            printf("Failed to execv child process!\n");
+            exit(-1);
+        }
+    } else if (pid < 0) {
+        printf("Failed to create child process!\n");
+        return NULL;
+    }
+
+    Process* process = (Process*)malloc(sizeof(Process));
+    process->pid = pid;
+
+    sleep(1);
+
+    return process;
+}
+
+void close_process_posix(Process* process) {
+    if (process == NULL) {
+        return;
+    }
+
+    kill(process->pid, SIGKILL);
+    free(process);
+}
+
+void read_response_posix(Process* process) {
+}
+
+void write_request_posix(Process* process, const char* request) {
+}
+
 #endif
 
 //
@@ -240,6 +305,8 @@ void write_request_windows(Process* process, const char* request) {
 Process* create_process(const char* path) {
 #if WINDOWS
     return create_process_windows(path);
+#elif POSIX
+    return create_process_posix(path);
 #else
     #error "Current platform does not implement create_process"
 #endif
@@ -248,6 +315,8 @@ Process* create_process(const char* path) {
 void close_process(Process* process) {
 #if WINDOWS
     close_process_windows(process);
+#elif POSIX
+    close_process_posix(process);
 #else
     #error "Current platform does not implement close_process"
 #endif
@@ -256,6 +325,8 @@ void close_process(Process* process) {
 void read_response(Process* process) {
 #if WINDOWS
     read_response_windows(process);
+#elif POSIX
+    read_response_posix(process);
 #else
     #error "Current platform does not implement read_response"
 #endif
@@ -264,6 +335,8 @@ void read_response(Process* process) {
 void write_request(Process* process, const char* request) {
 #if WINDOWS
     write_request_windows(process, request);
+#elif POSIX
+    write_request_posix(process, request);
 #else
     #error "Current platform does not implement write_request"
 #endif
