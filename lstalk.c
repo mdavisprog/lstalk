@@ -5,7 +5,7 @@
 #include <string.h>
 
 //
-// Version infor
+// Version information
 //
 
 #define MAJOR 0
