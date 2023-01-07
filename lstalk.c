@@ -161,7 +161,7 @@ typedef struct StdHandles {
     HANDLE child_stdout_write;
 } StdHandles;
 
-void close_handles(StdHandles* handles) {
+void process_close_handles(StdHandles* handles) {
     CloseHandle(handles->child_stdin_read);
     CloseHandle(handles->child_stdin_write);
     CloseHandle(handles->child_stdout_read);
@@ -173,7 +173,7 @@ typedef struct Process {
     PROCESS_INFORMATION info;
 } Process;
 
-Process* create_process_windows(const char* path) {
+Process* process_create_windows(const char* path) {
     StdHandles handles;
     handles.child_stdin_read = NULL;
     handles.child_stdin_write = NULL;
@@ -226,7 +226,7 @@ Process* create_process_windows(const char* path) {
     BOOL result = CreateProcessW(wpath, NULL, NULL, NULL, TRUE, 0, NULL, NULL, &startup_info, &process_info);
     if (!result) {
         printf("Failed to create child process.\n");
-        close_handles(&handles);
+        process_close_handles(&handles);
         return NULL;
     }
 
@@ -239,17 +239,17 @@ Process* create_process_windows(const char* path) {
     return process;
 }
 
-void close_process_windows(Process* process) {
+void process_close_windows(Process* process) {
     if (process == NULL) {
         return;
     }
 
     TerminateProcess(process->info.hProcess, 0);
-    close_handles(&process->std_handles);
+    process_close_handles(&process->std_handles);
     free(process);
 }
 
-void read_response_windows(Process* process) {
+void process_read_windows(Process* process) {
     if (process == NULL) {
         return;
     }
@@ -265,7 +265,7 @@ void read_response_windows(Process* process) {
     printf("%s\n", read_buffer);
 }
 
-void write_request_windows(Process* process, const char* request) {
+void process_write_windows(Process* process, const char* request) {
     if (process == NULL) {
         return;
     }
@@ -405,9 +405,9 @@ void write_request_posix(Process* process, const char* request) {
 // Process Management functions
 //
 
-Process* create_process(const char* path) {
+Process* process_create(const char* path) {
 #if WINDOWS
-    return create_process_windows(path);
+    return process_create_windows(path);
 #elif POSIX
     return create_process_posix(path);
 #else
@@ -415,9 +415,9 @@ Process* create_process(const char* path) {
 #endif
 }
 
-void close_process(Process* process) {
+void process_close(Process* process) {
 #if WINDOWS
-    close_process_windows(process);
+    process_close_windows(process);
 #elif POSIX
     close_process_posix(process);
 #else
@@ -425,9 +425,9 @@ void close_process(Process* process) {
 #endif
 }
 
-void read_response(Process* process) {
+void process_read(Process* process) {
 #if WINDOWS
-    read_response_windows(process);
+    process_read_windows(process);
 #elif POSIX
     read_response_posix(process);
 #else
@@ -435,9 +435,9 @@ void read_response(Process* process) {
 #endif
 }
 
-void write_request(Process* process, const char* request) {
+void process_write(Process* process, const char* request) {
 #if WINDOWS
-    write_request_windows(process, request);
+    process_write_windows(process, request);
 #elif POSIX
     write_request_posix(process, request);
 #else
@@ -445,7 +445,7 @@ void write_request(Process* process, const char* request) {
 #endif
 }
 
-void make_request(Process* process, const char* request) {
+void process_request(Process* process, const char* request) {
     const char* content_length = "Content-Length:";
     size_t length = strlen(request);
 
@@ -453,7 +453,7 @@ void make_request(Process* process, const char* request) {
     // TODO: Is there a way to eliminate this heap allocation?
     char* buffer = (char*)malloc(length + 40);
     sprintf(buffer, "Content-Length: %zu\r\n\r\n%s", length, request);
-    write_request(process, buffer);
+    process_write(process, buffer);
     free(buffer);
 }
 
