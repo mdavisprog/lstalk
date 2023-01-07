@@ -465,6 +465,7 @@ void make_request(Process* process, const char* request) {
 
 typedef enum {
     JSON_VALUE_NULL,
+    JSON_VALUE_BOOLEAN,
     JSON_VALUE_INT,
     JSON_VALUE_FLOAT,
     JSON_VALUE_STRING,
@@ -476,6 +477,7 @@ typedef enum {
 
 const char* json_type_to_string(JSON_VALUE_TYPE type) {
     switch (type) {
+        case JSON_VALUE_BOOLEAN: return "BOOLEAN";
         case JSON_VALUE_INT: return "INT";
         case JSON_VALUE_FLOAT: return "FLOAT";
         case JSON_VALUE_STRING: return "STRING";
@@ -494,6 +496,7 @@ struct JSONArray;
 
 typedef struct JSONValue {
     union {
+        char bool_value;
         int int_value;
         float float_value;
         char* string_value;
@@ -566,6 +569,14 @@ void json_to_string(JSONValue* value, Vector* vector) {
     }
 
     switch (value->type) {
+        case JSON_VALUE_BOOLEAN: {
+            if (value->value.bool_value) {
+                vector_append(vector, (void*)"true", 4);
+            } else {
+                vector_append(vector, (void*)"false", 5);
+            }
+        } break;
+
         case JSON_VALUE_INT: {
             char buffer[40];
             sprintf(buffer, "%d", value->value.int_value);
@@ -640,6 +651,13 @@ void json_destroy_value(JSONValue* value) {
 
     value->type = JSON_VALUE_NULL;
     value->value.int_value = 0;
+}
+
+JSONValue json_make_boolean(char value) {
+    JSONValue result;
+    result.type = JSON_VALUE_BOOLEAN;
+    result.value.bool_value = value;
+    return result;
 }
 
 JSONValue json_make_int(int value) {
