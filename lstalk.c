@@ -458,6 +458,223 @@ void make_request(Process* process, const char* request) {
 }
 
 //
+// JSON API
+//
+// This section contains all functionality for interacting with JSON objects
+// and streams.
+
+typedef enum {
+    JSON_VALUE_NULL,
+    JSON_VALUE_INT,
+    JSON_VALUE_FLOAT,
+    JSON_VALUE_STRING,
+    // Special type used to point to a const string that doesn't need to be freed.
+    JSON_VALUE_STRING_CONST,
+    JSON_VALUE_OBJECT,
+    JSON_VALUE_ARRAY,
+} JSON_VALUE_TYPE;
+
+const char* json_type_to_string(JSON_VALUE_TYPE type) {
+    switch (type) {
+        case JSON_VALUE_INT: return "INT";
+        case JSON_VALUE_FLOAT: return "FLOAT";
+        case JSON_VALUE_STRING: return "STRING";
+        case JSON_VALUE_STRING_CONST: return "STRING CONST";
+        case JSON_VALUE_OBJECT: return "OBJECT";
+        case JSON_VALUE_ARRAY: return "ARRAY";
+        case JSON_VALUE_NULL:
+        default: break;
+    }
+
+    return "NULL";
+}
+
+struct JSONObject;
+
+typedef struct JSONValue {
+    union {
+        int int_value;
+        float float_value;
+        char* string_value;
+        struct JSONObject* object_value;
+    } value;
+    JSON_VALUE_TYPE type;
+} JSONValue;
+
+typedef struct JSONPair {
+    // Should either be a JSON_VALUE_STRING or JSON_VALUE_STRING_CONST
+    JSONValue key;
+    JSONValue value;
+} JSONPair;
+
+typedef struct JSONObject {
+    Vector pairs;
+} JSONObject;
+
+typedef struct JSONEncoder {
+    Vector string;
+} JSONEncoder;
+
+void json_to_string(JSONValue* value, Vector* vector);
+void json_object_to_string(JSONObject* object, Vector* vector) {
+    if (object == NULL || vector == NULL || vector->element_size != 1) {
+        return;
+    }
+
+    vector_append(vector, (void*)"{", 1);
+    for (size_t i = 0; i < object->pairs.length; i++) {
+        JSONPair* pair = (JSONPair*)vector_get(&object->pairs, i);
+        json_to_string(&pair->key, vector);
+        vector_append(vector, (void*)": ", 2);
+        json_to_string(&pair->value, vector);
+
+        if (i + 1 < object->pairs.length) {
+            vector_append(vector, (void*)", ", 2);
+        }
+    }
+    vector_append(vector, (void*)"}", 1);
+}
+
+void json_to_string(JSONValue* value, Vector* vector) {
+    // The vector object must be created with an element size of 1.
+
+    if (value == NULL || vector == NULL || vector->element_size != 1) {
+        return;
+    }
+
+    switch (value->type) {
+        case JSON_VALUE_INT: {
+            char buffer[40];
+            sprintf(buffer, "%d", value->value.int_value);
+            vector_append(vector, (void*)buffer, strlen(buffer));
+        } break;
+
+        case JSON_VALUE_FLOAT: {
+            char buffer[40];
+            sprintf(buffer, "%f", value->value.float_value);
+            vector_append(vector, (void*)buffer, strlen(buffer));
+        } break;
+
+        case JSON_VALUE_STRING_CONST:
+        case JSON_VALUE_STRING: {
+            vector_append(vector, (void*)"\"", 1);
+            vector_append(vector, (void*)value->value.string_value, strlen(value->value.string_value));
+            vector_append(vector, (void*)"\"", 1);
+        } break;
+
+        case JSON_VALUE_OBJECT: {
+            json_object_to_string(value->value.object_value, vector);
+        } break;
+
+        case JSON_VALUE_NULL:
+        default: break;
+    }
+}
+
+void json_destroy_value(JSONValue* value) {
+    if (value == NULL) {
+        return;
+    }
+
+    switch (value->type) {
+        case JSON_VALUE_STRING: {
+            if (value->value.string_value != NULL) {
+                free(value->value.string_value);
+            }
+        } break;
+
+        case JSON_VALUE_OBJECT: {
+            JSONObject* object = value->value.object_value;
+            if (object != NULL) {
+                for (size_t i = 0; i < object->pairs.length; i++) {
+                    JSONPair* pair = (JSONPair*)vector_get(&object->pairs, i);
+                    json_destroy_value(&pair->key);
+                    json_destroy_value(&pair->value);
+                }
+                vector_destroy(&object->pairs);
+                free(object);
+            }
+        } break;
+
+        default: break;
+    }
+
+    value->type = JSON_VALUE_NULL;
+    value->value.int_value = 0;
+}
+
+JSONValue json_make_int(int value) {
+    JSONValue result;
+    result.type = JSON_VALUE_INT;
+    result.value.int_value = value;
+    return result;
+}
+
+JSONValue json_make_float(float value) {
+    JSONValue result;
+    result.type = JSON_VALUE_FLOAT;
+    result.value.float_value = value;
+    return result;
+}
+
+JSONValue json_make_string(char* value) {
+    JSONValue result;
+    result.type = JSON_VALUE_STRING;
+    result.value.string_value = string_alloc_copy(value);
+    return result;
+}
+
+JSONValue json_make_string_const(char* value) {
+    JSONValue result;
+    result.type = JSON_VALUE_STRING_CONST;
+    result.value.string_value = value;
+    return result;
+}
+
+JSONValue json_make_object() {
+    JSONValue result;
+    result.type = JSON_VALUE_OBJECT;
+    result.value.object_value = (JSONObject*)malloc(sizeof(JSONObject));
+    result.value.object_value->pairs = vector_create(sizeof(JSONPair));
+    return result;
+}
+
+void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
+    if (object == NULL || object->value.object_value == NULL || object->type != JSON_VALUE_OBJECT) {
+        return;
+    }
+
+    if (key.type != JSON_VALUE_STRING && key.type != JSON_VALUE_STRING_CONST) {
+        return;
+    }
+
+    JSONPair pair;
+    pair.key = key;
+    pair.value = value;
+    vector_push(&object->value.object_value->pairs, (void*)&pair);
+}
+
+void json_object_key_set(JSONValue* object, char* key, JSONValue value) {
+    json_object_set(object, json_make_string(key), value);
+}
+
+void json_object_const_key_set(JSONValue* object, char* key, JSONValue value) {
+    json_object_set(object, json_make_string_const(key), value);
+}
+
+JSONEncoder json_encode(JSONValue* value) {
+    JSONEncoder encoder;
+    encoder.string = vector_create(sizeof(char));
+    json_to_string(value, &encoder.string);
+    vector_append(&encoder.string, (void*)"\0", 1);
+    return encoder;
+}
+
+void json_destroy_encoder(JSONEncoder* encoder) {
+    vector_destroy(&encoder->string);
+}
+
+//
 // lstalk API
 //
 // This is the beginning of the exposed API functions for the library.
