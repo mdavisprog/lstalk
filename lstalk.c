@@ -490,6 +490,7 @@ const char* json_type_to_string(JSON_VALUE_TYPE type) {
 }
 
 struct JSONObject;
+struct JSONArray;
 
 typedef struct JSONValue {
     union {
@@ -497,6 +498,7 @@ typedef struct JSONValue {
         float float_value;
         char* string_value;
         struct JSONObject* object_value;
+        struct JSONArray* array_value;
     } value;
     JSON_VALUE_TYPE type;
 } JSONValue;
@@ -510,6 +512,10 @@ typedef struct JSONPair {
 typedef struct JSONObject {
     Vector pairs;
 } JSONObject;
+
+typedef struct JSONArray {
+    Vector values;
+} JSONArray;
 
 typedef struct JSONEncoder {
     Vector string;
@@ -533,6 +539,23 @@ void json_object_to_string(JSONObject* object, Vector* vector) {
         }
     }
     vector_append(vector, (void*)"}", 1);
+}
+
+void json_array_to_string(JSONArray* array, Vector* vector) {
+    if (array == NULL || vector == NULL || vector->element_size != 1) {
+        return;
+    }
+
+    vector_append(vector, (void*)"[", 1);
+    for (size_t i = 0; i < array->values.length; i++) {
+        JSONValue* value = (JSONValue*)vector_get(&array->values, i);
+        json_to_string(value, vector);
+
+        if (i + 1 < array->values.length) {
+            vector_append(vector, (void*)", ", 2);
+        }
+    }
+    vector_append(vector, (void*)"]", 1);
 }
 
 void json_to_string(JSONValue* value, Vector* vector) {
@@ -566,6 +589,10 @@ void json_to_string(JSONValue* value, Vector* vector) {
             json_object_to_string(value->value.object_value, vector);
         } break;
 
+        case JSON_VALUE_ARRAY: {
+            json_array_to_string(value->value.array_value, vector);
+        } break;
+
         case JSON_VALUE_NULL:
         default: break;
     }
@@ -593,6 +620,18 @@ void json_destroy_value(JSONValue* value) {
                 }
                 vector_destroy(&object->pairs);
                 free(object);
+            }
+        } break;
+
+        case JSON_VALUE_ARRAY: {
+            JSONArray* array = value->value.array_value;
+            if (array != NULL) {
+                for (size_t i = 0; i < array->values.length; i++) {
+                    JSONValue* item = (JSONValue*)vector_get(&array->values, i);
+                    json_destroy_value(item);
+                }
+                vector_destroy(&array->values);
+                free(array);
             }
         } break;
 
@@ -639,6 +678,14 @@ JSONValue json_make_object() {
     return result;
 }
 
+JSONValue json_make_array() {
+    JSONValue result;
+    result.type = JSON_VALUE_ARRAY;
+    result.value.array_value = (JSONArray*)malloc(sizeof(JSONArray));
+    result.value.array_value->values = vector_create(sizeof(JSONValue));
+    return result;
+}
+
 void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
     if (object == NULL || object->value.object_value == NULL || object->type != JSON_VALUE_OBJECT) {
         return;
@@ -660,6 +707,15 @@ void json_object_key_set(JSONValue* object, char* key, JSONValue value) {
 
 void json_object_const_key_set(JSONValue* object, char* key, JSONValue value) {
     json_object_set(object, json_make_string_const(key), value);
+}
+
+void json_array_push(JSONValue* array, JSONValue value) {
+    if (array == NULL || array->type != JSON_VALUE_ARRAY) {
+        return;
+    }
+
+    JSONArray* arr = array->value.array_value;
+    vector_push(&arr->values, (void*)&value);
 }
 
 JSONEncoder json_encode(JSONValue* value) {
