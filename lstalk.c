@@ -127,6 +127,18 @@ char* vector_get(Vector* vector, size_t index) {
 }
 
 //
+// String Functions
+//
+// Section that contains functions to help manage strings.
+
+char* string_alloc_copy(const char* source) {
+    size_t length = strlen(source);
+    char* result = (char*)malloc(length + 1);
+    strcpy(result, source);
+    return result;
+}
+
+//
 // Process Management
 //
 // This section will manage the creation/destruction of a process. All platform implementations should be
