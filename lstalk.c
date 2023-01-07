@@ -695,10 +695,29 @@ void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
         return;
     }
 
-    JSONPair pair;
-    pair.key = key;
-    pair.value = value;
-    vector_push(&object->value.object_value->pairs, (void*)&pair);
+    int found = 0;
+    JSONObject* obj = object->value.object_value;
+    for (size_t i = 0; i < obj->pairs.length; i++) {
+        JSONPair* pair = (JSONPair*)vector_get(&obj->pairs, i);
+
+        if (pair->key.type != JSON_VALUE_STRING && pair->key.type != JSON_VALUE_STRING_CONST) {
+            continue;
+        }
+
+        if (strcmp(pair->key.value.string_value, key.value.string_value) == 0) {
+            json_destroy_value(&pair->value);
+            pair->value = value;
+            found = 1;
+            break;
+        }
+    }
+
+    if (!found) {
+        JSONPair pair;
+        pair.key = key;
+        pair.value = value;
+        vector_push(&object->value.object_value->pairs, (void*)&pair);
+    }
 }
 
 void json_object_key_set(JSONValue* object, char* key, JSONValue value) {
