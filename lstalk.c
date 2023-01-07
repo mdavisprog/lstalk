@@ -79,19 +79,43 @@ void vector_destroy(Vector* vector) {
     vector->capacity = 0;
 }
 
+void vector_resize(Vector* vector, size_t capacity) {
+    if (vector == NULL || vector->element_size == 0) {
+        return;
+    }
+
+    vector->capacity = capacity;
+    vector->data = realloc(vector->data, vector->element_size * vector->capacity);
+}
+
 void vector_push(Vector* vector, void* element) {
     if (vector == NULL || element == NULL || vector->element_size == 0) {
         return;
     }
 
     if (vector->length == vector->capacity) {
-        vector->capacity = vector->capacity * 2;
-        vector->data = realloc(vector->data, vector->element_size * vector->capacity);
+        vector_resize(vector, vector->capacity * 2);
     }
 
     size_t offset = vector->length * vector->element_size;
     memcpy(vector->data + offset, element, vector->element_size);
     vector->length++;
+}
+
+void vector_append(Vector* vector, void* elements, size_t count) {
+    if (vector == NULL || elements == NULL || vector->element_size == 0) {
+        return;
+    }
+
+    size_t remaining = vector->capacity - vector->length;
+
+    if (count > remaining) {
+        vector_resize(vector, vector->capacity + (count - remaining) * 2);
+    }
+
+    size_t offset = vector->length * vector->element_size;
+    memcpy(vector->data + offset, elements, count * vector->element_size);
+    vector->length += count;
 }
 
 char* vector_get(Vector* vector, size_t index) {
