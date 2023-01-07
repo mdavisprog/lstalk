@@ -290,7 +290,7 @@ typedef struct Pipes {
     int out[2];
 } Pipes;
 
-void close_pipes(Pipes* pipes) {
+void process_close_pipes(Pipes* pipes) {
     if (pipes == NULL) {
         return;
     }
@@ -306,7 +306,7 @@ typedef struct Process {
     pid_t pid;
 } Process;
 
-Process* create_process_posix(const char* path) {
+Process* process_create_posix(const char* path) {
     Pipes pipes;
 
     if (pipe(pipes.in) < 0) {
@@ -316,7 +316,7 @@ Process* create_process_posix(const char* path) {
 
     if (pipe(pipes.out) < 0) {
         printf("Failed to create stdout pipes!\n");
-        close_pipes(&pipes);
+        process_close_pipes(&pipes);
         return NULL;
     }
 
@@ -339,7 +339,7 @@ Process* create_process_posix(const char* path) {
         }
 
         // Close pipes that are used by the parent process.
-        close_pipes(&pipes);
+        process_close_pipes(&pipes);
 
         char** args = NULL;
         int error = execv(path, args);
@@ -364,17 +364,17 @@ Process* create_process_posix(const char* path) {
     return process;
 }
 
-void close_process_posix(Process* process) {
+void process_close_posix(Process* process) {
     if (process == NULL) {
         return;
     }
 
-    close_pipes(&process->pipes);
+    process_close_pipes(&process->pipes);
     kill(process->pid, SIGKILL);
     free(process);
 }
 
-void read_response_posix(Process* process) {
+void process_read_posix(Process* process) {
     if (process == NULL) {
         return;
     }
@@ -388,7 +388,7 @@ void read_response_posix(Process* process) {
     printf("%s\n", buffer);
 }
 
-void write_request_posix(Process* process, const char* request) {
+void process_write_posix(Process* process, const char* request) {
     if (process == NULL) {
         return;
     }
@@ -409,7 +409,7 @@ Process* process_create(const char* path) {
 #if WINDOWS
     return process_create_windows(path);
 #elif POSIX
-    return create_process_posix(path);
+    return process_create_posix(path);
 #else
     #error "Current platform does not implement create_process"
 #endif
@@ -419,7 +419,7 @@ void process_close(Process* process) {
 #if WINDOWS
     process_close_windows(process);
 #elif POSIX
-    close_process_posix(process);
+    process_close_posix(process);
 #else
     #error "Current platform does not implement close_process"
 #endif
@@ -429,7 +429,7 @@ void process_read(Process* process) {
 #if WINDOWS
     process_read_windows(process);
 #elif POSIX
-    read_response_posix(process);
+    process_read_posix(process);
 #else
     #error "Current platform does not implement read_response"
 #endif
@@ -439,7 +439,7 @@ void process_write(Process* process, const char* request) {
 #if WINDOWS
     process_write_windows(process, request);
 #elif POSIX
-    write_request_posix(process, request);
+    process_write_posix(process, request);
 #else
     #error "Current platform does not implement write_request"
 #endif
