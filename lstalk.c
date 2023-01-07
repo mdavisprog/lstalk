@@ -604,7 +604,10 @@ void json_to_string(JSONValue* value, Vector* vector) {
             json_array_to_string(value->value.array_value, vector);
         } break;
 
-        case JSON_VALUE_NULL:
+        case JSON_VALUE_NULL: {
+            vector_append(vector, (void*)"null", 4);
+        } break;
+
         default: break;
     }
 }
@@ -651,6 +654,13 @@ void json_destroy_value(JSONValue* value) {
 
     value->type = JSON_VALUE_NULL;
     value->value.int_value = 0;
+}
+
+JSONValue json_make_null() {
+    JSONValue result;
+    result.type = JSON_VALUE_NULL;
+    result.value.int_value = 0;
+    return result;
 }
 
 JSONValue json_make_boolean(char value) {
