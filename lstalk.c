@@ -403,6 +403,10 @@ void process_write_posix(Process* process, const char* request) {
     }
 }
 
+int process_get_current_id_posix() {
+    return (int)getpid();
+}
+
 #endif
 
 //
@@ -452,6 +456,8 @@ void process_write(Process* process, const char* request) {
 int process_get_current_id() {
 #if WINDOWS
     return process_get_current_id_windows();
+#elif POSIX
+    return process_get_current_id_posix();
 #else
     #error "Current platform does not implement get_current_process_id"
 #endif
