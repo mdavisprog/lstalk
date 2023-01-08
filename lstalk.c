@@ -790,6 +790,46 @@ void json_destroy_encoder(JSONEncoder* encoder) {
 }
 
 //
+// RPC Functions
+//
+// This section will contain functions to create JSON-RPC objects that can be encoded and sent
+// to the language server.
+
+void rpc_message(JSONValue* object) {
+    if (object == NULL || object->type != JSON_VALUE_OBJECT) {
+        return;
+    }
+
+    json_object_const_key_set(object, "jsonrpc", json_make_string_const("2.0"));
+}
+
+void rpc_request(JSONValue* object, char* method, JSONValue params) {
+    if (object == NULL || object->type != JSON_VALUE_OBJECT) {
+        return;
+    }
+
+    rpc_message(object);
+    json_object_const_key_set(object, "id", json_make_int(1));
+    json_object_const_key_set(object, "method", json_make_string_const(method));
+
+    if (params.type == JSON_VALUE_OBJECT || params.type == JSON_VALUE_ARRAY) {
+        json_object_const_key_set(object, "params", params);
+    }
+}
+
+void rpc_initialize(JSONValue* object) {
+    if (object == NULL || object->type != JSON_VALUE_OBJECT) {
+        return;
+    }
+
+    JSONValue params = json_make_object();
+    json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
+    json_object_const_key_set(&params, "rootUri", json_make_null());
+    json_object_const_key_set(&params, "clientCapabilities", json_make_object());
+    rpc_request(object, "initialize", params);
+}
+
+//
 // lstalk API
 //
 // This is the beginning of the exposed API functions for the library.
