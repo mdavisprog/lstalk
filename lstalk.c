@@ -276,6 +276,10 @@ void process_write_windows(Process* process, const char* request) {
     }
 }
 
+int process_get_current_id_windows() {
+    return (int)GetCurrentProcessId();
+}
+
 #elif POSIX
 
 //
@@ -442,6 +446,14 @@ void process_write(Process* process, const char* request) {
     process_write_posix(process, request);
 #else
     #error "Current platform does not implement write_request"
+#endif
+}
+
+int process_get_current_id() {
+#if WINDOWS
+    return process_get_current_id_windows();
+#else
+    #error "Current platform does not implement get_current_process_id"
 #endif
 }
 
