@@ -55,7 +55,7 @@ typedef struct Vector {
     size_t capacity;
 } Vector;
 
-Vector vector_create(size_t element_size) {
+static Vector vector_create(size_t element_size) {
     Vector result;
     result.element_size = element_size;
     result.length = 0;
@@ -64,7 +64,7 @@ Vector vector_create(size_t element_size) {
     return result;
 }
 
-void vector_destroy(Vector* vector) {
+static void vector_destroy(Vector* vector) {
     if (vector == NULL) {
         return;
     }
@@ -79,7 +79,7 @@ void vector_destroy(Vector* vector) {
     vector->capacity = 0;
 }
 
-void vector_resize(Vector* vector, size_t capacity) {
+static void vector_resize(Vector* vector, size_t capacity) {
     if (vector == NULL || vector->element_size == 0) {
         return;
     }
@@ -88,7 +88,7 @@ void vector_resize(Vector* vector, size_t capacity) {
     vector->data = realloc(vector->data, vector->element_size * vector->capacity);
 }
 
-void vector_push(Vector* vector, void* element) {
+static void vector_push(Vector* vector, void* element) {
     if (vector == NULL || element == NULL || vector->element_size == 0) {
         return;
     }
@@ -102,7 +102,7 @@ void vector_push(Vector* vector, void* element) {
     vector->length++;
 }
 
-void vector_append(Vector* vector, void* elements, size_t count) {
+static void vector_append(Vector* vector, void* elements, size_t count) {
     if (vector == NULL || elements == NULL || vector->element_size == 0) {
         return;
     }
@@ -118,7 +118,7 @@ void vector_append(Vector* vector, void* elements, size_t count) {
     vector->length += count;
 }
 
-char* vector_get(Vector* vector, size_t index) {
+static char* vector_get(Vector* vector, size_t index) {
     if (vector == NULL || vector->element_size == 0 || index >= vector->length) {
         return NULL;
     }
@@ -131,7 +131,7 @@ char* vector_get(Vector* vector, size_t index) {
 //
 // Section that contains functions to help manage strings.
 
-char* string_alloc_copy(const char* source) {
+static char* string_alloc_copy(const char* source) {
     size_t length = strlen(source);
     char* result = (char*)malloc(length + 1);
     strcpy(result, source);
@@ -161,7 +161,7 @@ typedef struct StdHandles {
     HANDLE child_stdout_write;
 } StdHandles;
 
-void process_close_handles(StdHandles* handles) {
+static void process_close_handles(StdHandles* handles) {
     CloseHandle(handles->child_stdin_read);
     CloseHandle(handles->child_stdin_write);
     CloseHandle(handles->child_stdout_read);
@@ -173,7 +173,7 @@ typedef struct Process {
     PROCESS_INFORMATION info;
 } Process;
 
-Process* process_create_windows(const char* path) {
+static Process* process_create_windows(const char* path) {
     StdHandles handles;
     handles.child_stdin_read = NULL;
     handles.child_stdin_write = NULL;
@@ -239,7 +239,7 @@ Process* process_create_windows(const char* path) {
     return process;
 }
 
-void process_close_windows(Process* process) {
+static void process_close_windows(Process* process) {
     if (process == NULL) {
         return;
     }
@@ -249,7 +249,7 @@ void process_close_windows(Process* process) {
     free(process);
 }
 
-void process_read_windows(Process* process) {
+static void process_read_windows(Process* process) {
     if (process == NULL) {
         return;
     }
@@ -265,7 +265,7 @@ void process_read_windows(Process* process) {
     printf("%s\n", read_buffer);
 }
 
-void process_write_windows(Process* process, const char* request) {
+static void process_write_windows(Process* process, const char* request) {
     if (process == NULL) {
         return;
     }
@@ -276,7 +276,7 @@ void process_write_windows(Process* process, const char* request) {
     }
 }
 
-int process_get_current_id_windows() {
+static int process_get_current_id_windows() {
     return (int)GetCurrentProcessId();
 }
 
@@ -294,7 +294,7 @@ typedef struct Pipes {
     int out[2];
 } Pipes;
 
-void process_close_pipes(Pipes* pipes) {
+static void process_close_pipes(Pipes* pipes) {
     if (pipes == NULL) {
         return;
     }
@@ -310,7 +310,7 @@ typedef struct Process {
     pid_t pid;
 } Process;
 
-Process* process_create_posix(const char* path) {
+static Process* process_create_posix(const char* path) {
     Pipes pipes;
 
     if (pipe(pipes.in) < 0) {
@@ -368,7 +368,7 @@ Process* process_create_posix(const char* path) {
     return process;
 }
 
-void process_close_posix(Process* process) {
+static void process_close_posix(Process* process) {
     if (process == NULL) {
         return;
     }
@@ -378,7 +378,7 @@ void process_close_posix(Process* process) {
     free(process);
 }
 
-void process_read_posix(Process* process) {
+static void process_read_posix(Process* process) {
     if (process == NULL) {
         return;
     }
@@ -392,7 +392,7 @@ void process_read_posix(Process* process) {
     printf("%s\n", buffer);
 }
 
-void process_write_posix(Process* process, const char* request) {
+static void process_write_posix(Process* process, const char* request) {
     if (process == NULL) {
         return;
     }
@@ -403,7 +403,7 @@ void process_write_posix(Process* process, const char* request) {
     }
 }
 
-int process_get_current_id_posix() {
+static int process_get_current_id_posix() {
     return (int)getpid();
 }
 
@@ -413,7 +413,7 @@ int process_get_current_id_posix() {
 // Process Management functions
 //
 
-Process* process_create(const char* path) {
+static Process* process_create(const char* path) {
 #if WINDOWS
     return process_create_windows(path);
 #elif POSIX
@@ -423,7 +423,7 @@ Process* process_create(const char* path) {
 #endif
 }
 
-void process_close(Process* process) {
+static void process_close(Process* process) {
 #if WINDOWS
     process_close_windows(process);
 #elif POSIX
@@ -433,7 +433,7 @@ void process_close(Process* process) {
 #endif
 }
 
-void process_read(Process* process) {
+static void process_read(Process* process) {
 #if WINDOWS
     process_read_windows(process);
 #elif POSIX
@@ -443,7 +443,7 @@ void process_read(Process* process) {
 #endif
 }
 
-void process_write(Process* process, const char* request) {
+static void process_write(Process* process, const char* request) {
 #if WINDOWS
     process_write_windows(process, request);
 #elif POSIX
@@ -453,7 +453,7 @@ void process_write(Process* process, const char* request) {
 #endif
 }
 
-int process_get_current_id() {
+static int process_get_current_id() {
 #if WINDOWS
     return process_get_current_id_windows();
 #elif POSIX
@@ -463,7 +463,7 @@ int process_get_current_id() {
 #endif
 }
 
-void process_request(Process* process, const char* request) {
+static void process_request(Process* process, const char* request) {
     const char* content_length = "Content-Length:";
     size_t length = strlen(request);
 
@@ -493,7 +493,7 @@ typedef enum {
     JSON_VALUE_ARRAY,
 } JSON_VALUE_TYPE;
 
-const char* json_type_to_string(JSON_VALUE_TYPE type) {
+static const char* json_type_to_string(JSON_VALUE_TYPE type) {
     switch (type) {
         case JSON_VALUE_BOOLEAN: return "BOOLEAN";
         case JSON_VALUE_INT: return "INT";
@@ -542,8 +542,8 @@ typedef struct JSONEncoder {
     Vector string;
 } JSONEncoder;
 
-void json_to_string(JSONValue* value, Vector* vector);
-void json_object_to_string(JSONObject* object, Vector* vector) {
+static void json_to_string(JSONValue* value, Vector* vector);
+static void json_object_to_string(JSONObject* object, Vector* vector) {
     if (object == NULL || vector == NULL || vector->element_size != 1) {
         return;
     }
@@ -562,7 +562,7 @@ void json_object_to_string(JSONObject* object, Vector* vector) {
     vector_append(vector, (void*)"}", 1);
 }
 
-void json_array_to_string(JSONArray* array, Vector* vector) {
+static void json_array_to_string(JSONArray* array, Vector* vector) {
     if (array == NULL || vector == NULL || vector->element_size != 1) {
         return;
     }
@@ -579,7 +579,7 @@ void json_array_to_string(JSONArray* array, Vector* vector) {
     vector_append(vector, (void*)"]", 1);
 }
 
-void json_to_string(JSONValue* value, Vector* vector) {
+static void json_to_string(JSONValue* value, Vector* vector) {
     // The vector object must be created with an element size of 1.
 
     if (value == NULL || vector == NULL || vector->element_size != 1) {
@@ -630,7 +630,7 @@ void json_to_string(JSONValue* value, Vector* vector) {
     }
 }
 
-void json_destroy_value(JSONValue* value) {
+static void json_destroy_value(JSONValue* value) {
     if (value == NULL) {
         return;
     }
@@ -674,49 +674,49 @@ void json_destroy_value(JSONValue* value) {
     value->value.int_value = 0;
 }
 
-JSONValue json_make_null() {
+static JSONValue json_make_null() {
     JSONValue result;
     result.type = JSON_VALUE_NULL;
     result.value.int_value = 0;
     return result;
 }
 
-JSONValue json_make_boolean(char value) {
+static JSONValue json_make_boolean(char value) {
     JSONValue result;
     result.type = JSON_VALUE_BOOLEAN;
     result.value.bool_value = value;
     return result;
 }
 
-JSONValue json_make_int(int value) {
+static JSONValue json_make_int(int value) {
     JSONValue result;
     result.type = JSON_VALUE_INT;
     result.value.int_value = value;
     return result;
 }
 
-JSONValue json_make_float(float value) {
+static JSONValue json_make_float(float value) {
     JSONValue result;
     result.type = JSON_VALUE_FLOAT;
     result.value.float_value = value;
     return result;
 }
 
-JSONValue json_make_string(char* value) {
+static JSONValue json_make_string(char* value) {
     JSONValue result;
     result.type = JSON_VALUE_STRING;
     result.value.string_value = string_alloc_copy(value);
     return result;
 }
 
-JSONValue json_make_string_const(char* value) {
+static JSONValue json_make_string_const(char* value) {
     JSONValue result;
     result.type = JSON_VALUE_STRING_CONST;
     result.value.string_value = value;
     return result;
 }
 
-JSONValue json_make_object() {
+static JSONValue json_make_object() {
     JSONValue result;
     result.type = JSON_VALUE_OBJECT;
     result.value.object_value = (JSONObject*)malloc(sizeof(JSONObject));
@@ -724,7 +724,7 @@ JSONValue json_make_object() {
     return result;
 }
 
-JSONValue json_make_array() {
+static JSONValue json_make_array() {
     JSONValue result;
     result.type = JSON_VALUE_ARRAY;
     result.value.array_value = (JSONArray*)malloc(sizeof(JSONArray));
@@ -732,7 +732,7 @@ JSONValue json_make_array() {
     return result;
 }
 
-JSONValue json_object_get(JSONValue* object, char* key) {
+static JSONValue json_object_get(JSONValue* object, char* key) {
     JSONValue result = json_make_null();
 
     if (object == NULL) {
@@ -752,7 +752,7 @@ JSONValue json_object_get(JSONValue* object, char* key) {
     return result;
 }
 
-void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
+static void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
     if (object == NULL || object->value.object_value == NULL || object->type != JSON_VALUE_OBJECT) {
         return;
     }
@@ -786,15 +786,15 @@ void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
     }
 }
 
-void json_object_key_set(JSONValue* object, char* key, JSONValue value) {
+static void json_object_key_set(JSONValue* object, char* key, JSONValue value) {
     json_object_set(object, json_make_string(key), value);
 }
 
-void json_object_const_key_set(JSONValue* object, char* key, JSONValue value) {
+static void json_object_const_key_set(JSONValue* object, char* key, JSONValue value) {
     json_object_set(object, json_make_string_const(key), value);
 }
 
-void json_array_push(JSONValue* array, JSONValue value) {
+static void json_array_push(JSONValue* array, JSONValue value) {
     if (array == NULL || array->type != JSON_VALUE_ARRAY) {
         return;
     }
@@ -803,7 +803,7 @@ void json_array_push(JSONValue* array, JSONValue value) {
     vector_push(&arr->values, (void*)&value);
 }
 
-JSONValue json_array_get(JSONValue* array, size_t index) {
+static JSONValue json_array_get(JSONValue* array, size_t index) {
     JSONValue result = json_make_null();
 
     if (array == NULL) {
@@ -821,7 +821,7 @@ JSONValue json_array_get(JSONValue* array, size_t index) {
     return result;
 }
 
-JSONEncoder json_encode(JSONValue* value) {
+static JSONEncoder json_encode(JSONValue* value) {
     JSONEncoder encoder;
     encoder.string = vector_create(sizeof(char));
     json_to_string(value, &encoder.string);
@@ -829,7 +829,7 @@ JSONEncoder json_encode(JSONValue* value) {
     return encoder;
 }
 
-void json_destroy_encoder(JSONEncoder* encoder) {
+static void json_destroy_encoder(JSONEncoder* encoder) {
     vector_destroy(&encoder->string);
 }
 
@@ -849,7 +849,7 @@ typedef struct Token {
     size_t length;
 } Token;
 
-int token_compare(Token* token, const char* value) {
+static int token_compare(Token* token, const char* value) {
     if (token == NULL || token->length == 0) {
         return 0;
     }
@@ -857,7 +857,7 @@ int token_compare(Token* token, const char* value) {
     return strncmp(token->ptr, value, token->length) == 0;
 }
 
-char* token_make_string(Token* token) {
+static char* token_make_string(Token* token) {
     if (token == NULL) {
         return NULL;
     }
@@ -868,7 +868,7 @@ char* token_make_string(Token* token) {
     return result;
 }
 
-Lexer lexer_init(char* buffer, char* delimiters) {
+static Lexer lexer_init(char* buffer, char* delimiters) {
     Lexer result;
     result.buffer = buffer;
     result.delimiters = delimiters;
@@ -876,7 +876,7 @@ Lexer lexer_init(char* buffer, char* delimiters) {
     return result;
 }
 
-Token lexer_get_token(Lexer* lexer) {
+static Token lexer_get_token(Lexer* lexer) {
     Token result;
     result.ptr = NULL;
     result.length = 0;
@@ -932,7 +932,7 @@ Token lexer_get_token(Lexer* lexer) {
     return result;
 }
 
-Token lexer_parse_until(Lexer* lexer, char term) {
+static Token lexer_parse_until(Lexer* lexer, char term) {
     char* ptr = lexer->ptr;
     while (*ptr != 0 && *ptr != term) {
         ptr++;
@@ -952,7 +952,7 @@ Token lexer_parse_until(Lexer* lexer, char term) {
     return result;
 }
 
-JSONValue json_decode_number(Token* token) {
+static JSONValue json_decode_number(Token* token) {
     JSONValue result = json_make_null();
 
     if (token == NULL || token->length == 0) {
@@ -973,8 +973,8 @@ JSONValue json_decode_number(Token* token) {
     return result;
 }
 
-JSONValue json_decode_value(Lexer* lexer);
-JSONValue json_decode_object(Lexer* lexer) {
+static JSONValue json_decode_value(Lexer* lexer);
+static JSONValue json_decode_object(Lexer* lexer) {
     JSONValue result = json_make_null();
 
     if (lexer == NULL) {
@@ -1026,7 +1026,7 @@ JSONValue json_decode_object(Lexer* lexer) {
     return result;
 }
 
-JSONValue json_decode_array(Lexer* lexer) {
+static JSONValue json_decode_array(Lexer* lexer) {
     JSONValue result = json_make_null();
 
     if (lexer == NULL) {
@@ -1057,7 +1057,7 @@ JSONValue json_decode_array(Lexer* lexer) {
     return result;
 }
 
-JSONValue json_decode_value(Lexer* lexer) {
+static JSONValue json_decode_value(Lexer* lexer) {
     JSONValue result = json_make_null();
 
     Token token = lexer_get_token(lexer);
@@ -1087,7 +1087,7 @@ JSONValue json_decode_value(Lexer* lexer) {
     return result;
 }
 
-JSONValue json_decode(char* stream) {
+static JSONValue json_decode(char* stream) {
     Lexer lexer;
     lexer.buffer = stream;
     lexer.delimiters = "\":{}[],";
@@ -1101,7 +1101,7 @@ JSONValue json_decode(char* stream) {
 // This section will contain functions to create JSON-RPC objects that can be encoded and sent
 // to the language server.
 
-void rpc_message(JSONValue* object) {
+static void rpc_message(JSONValue* object) {
     if (object == NULL || object->type != JSON_VALUE_OBJECT) {
         return;
     }
@@ -1109,7 +1109,7 @@ void rpc_message(JSONValue* object) {
     json_object_const_key_set(object, "jsonrpc", json_make_string_const("2.0"));
 }
 
-void rpc_request(JSONValue* object, char* method, JSONValue params) {
+static void rpc_request(JSONValue* object, char* method, JSONValue params) {
     if (object == NULL || object->type != JSON_VALUE_OBJECT) {
         return;
     }
@@ -1123,7 +1123,7 @@ void rpc_request(JSONValue* object, char* method, JSONValue params) {
     }
 }
 
-void rpc_initialize(JSONValue* object) {
+static void rpc_initialize(JSONValue* object) {
     if (object == NULL || object->type != JSON_VALUE_OBJECT) {
         return;
     }
