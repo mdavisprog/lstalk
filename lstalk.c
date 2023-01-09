@@ -834,6 +834,268 @@ void json_destroy_encoder(JSONEncoder* encoder) {
 }
 
 //
+// JSON Parsing Functions
+//
+// This section contains functions that parses a JSON stream into a JSONValue.
+
+typedef struct Lexer {
+    char* buffer;
+    char* delimiters;
+    char* ptr;
+} Lexer;
+
+typedef struct Token {
+    char* ptr;
+    size_t length;
+} Token;
+
+int token_compare(Token* token, const char* value) {
+    if (token == NULL || token->length == 0) {
+        return 0;
+    }
+
+    return strncmp(token->ptr, value, token->length) == 0;
+}
+
+char* token_make_string(Token* token) {
+    if (token == NULL) {
+        return NULL;
+    }
+
+    char* result = (char*)malloc(sizeof(char) * token->length + 1);
+    strncpy(result, token->ptr, token->length);
+    result[token->length] = 0;
+    return result;
+}
+
+Lexer lexer_init(char* buffer, char* delimiters) {
+    Lexer result;
+    result.buffer = buffer;
+    result.delimiters = delimiters;
+    result.ptr = buffer;
+    return result;
+}
+
+Token lexer_get_token(Lexer* lexer) {
+    Token result;
+    result.ptr = NULL;
+    result.length = 0;
+
+    int length = 0;
+    char* ptr = lexer->ptr;
+    while (*ptr != 0) {
+        char ch = *ptr;
+        ptr++;
+        length = ptr - lexer->ptr;
+
+        if (isspace(ch)) {
+            // If there are valid characters to make a token, return the result here.
+            if (length > 1) {
+                result.ptr = lexer->ptr;
+                result.length = ptr - lexer->ptr;
+                lexer->ptr = ptr;
+                return result;
+            }
+
+            // If we have reached a space character and there is no token, then update the current
+            // lexer pointer to remove the space from consideration of a token.
+            lexer->ptr = ptr;
+        }
+
+        // Check if this character is a delimiter.
+        char* delimiter = lexer->delimiters;
+        while (*delimiter != 0) {
+            if (ch == *delimiter) {
+                int length = ptr - lexer->ptr;
+                // If there is enough to create a separate token, then adjust the pointer to remove
+                // the delimiter and apply that on the next token.
+                if (length > 1) {
+                    length--;
+                    ptr--;
+                }
+                result.ptr = lexer->ptr;
+                result.length = ptr - lexer->ptr;
+                lexer->ptr = ptr;
+                return result;
+            }
+            delimiter++;
+        }
+    }
+
+    // The end of the lexing stream has been found. Return whatever token is left.
+    if (length > 0) {
+        result.ptr = lexer->ptr;
+        result.length = ptr - lexer->ptr;
+        lexer->ptr = ptr;
+    }
+
+    return result;
+}
+
+Token lexer_parse_until(Lexer* lexer, char term) {
+    char* ptr = lexer->ptr;
+    while (*ptr != 0 && *ptr != term) {
+        ptr++;
+    }
+
+    Token result;
+    // Don't include the terminator in the string.
+    result.ptr = lexer->ptr;
+    result.length = (ptr - lexer->ptr);
+    lexer->ptr = ptr;
+
+    // Advance the pointer if we are not at the end.
+    if (*lexer->ptr != 0) {
+        lexer->ptr++;
+    }
+
+    return result;
+}
+
+JSONValue json_decode_number(Token* token) {
+    JSONValue result = json_make_null();
+
+    if (token == NULL || token->length == 0) {
+        return result;
+    }
+
+    char buffer[UCHAR_MAX];
+    memcpy(buffer, token->ptr, token->length + 1);
+    buffer[token->length] = '\0';
+
+    char* end = NULL;
+    if (strchr(buffer, '.') == NULL) {
+        result = json_make_int(strtol(buffer, &end, 10));
+    } else {
+        result = json_make_float(strtof(buffer, &end));
+    }
+
+    return result;
+}
+
+JSONValue json_decode_value(Lexer* lexer);
+JSONValue json_decode_object(Lexer* lexer) {
+    JSONValue result = json_make_null();
+
+    if (lexer == NULL) {
+        return result;
+    }
+
+    Token token = lexer_get_token(lexer);
+    if (token.length == 0) {
+        return result;
+    }
+
+    result = json_make_object();
+
+    // Could be an empty object.
+    while (!token_compare(&token, "}")) {
+        if (!token_compare(&token, "\"")) {
+            json_destroy_value(&result);
+            return result;
+        }
+
+        token = lexer_parse_until(lexer, '"');
+        JSONValue key;
+        key.type = JSON_VALUE_STRING;
+        key.value.string_value = token_make_string(&token);
+
+        token = lexer_get_token(lexer);
+        if (!token_compare(&token, ":")) {
+            json_destroy_value(&key);
+            json_destroy_value(&result);
+            return result;
+        }
+
+        JSONValue value = json_decode_value(lexer);
+        json_object_set(&result, key, value);
+
+        token = lexer_get_token(lexer);
+        if (token_compare(&token, "}")) {
+            break;
+        }
+
+        if (!token_compare(&token, ",")) {
+            json_destroy_value(&result);
+            break;
+        }
+
+        token = lexer_get_token(lexer);
+    }
+
+    return result;
+}
+
+JSONValue json_decode_array(Lexer* lexer) {
+    JSONValue result = json_make_null();
+
+    if (lexer == NULL) {
+        return result;
+    }
+
+    result = json_make_array();
+
+    Token token;
+    token.ptr = NULL;
+    token.length = 0;
+
+    while (!token_compare(&token, "]")) {
+        JSONValue value = json_decode_value(lexer);
+        json_array_push(&result, value);
+
+        token = lexer_get_token(lexer);
+        if (token_compare(&token, "]")) {
+            break;
+        }
+
+        if (!token_compare(&token, ",")) {
+            json_destroy_value(&result);
+            break;
+        }
+    }
+
+    return result;
+}
+
+JSONValue json_decode_value(Lexer* lexer) {
+    JSONValue result = json_make_null();
+
+    Token token = lexer_get_token(lexer);
+    if (token.length > 0)
+    {
+        if (token_compare(&token, "{")) {
+            result = json_decode_object(lexer);
+        } else if (token_compare(&token, "[")) {
+            result = json_decode_array(lexer);
+        } else if (token_compare(&token, "\"")) {
+            Token literal = lexer_parse_until(lexer, '"');
+            // Need to create the string value manually due to allocating a copy of the
+            // token.
+            result.type = JSON_VALUE_STRING;
+            result.value.string_value = token_make_string(&literal);
+        } else if (token_compare(&token, "true")) {
+            result = json_make_boolean(1);
+        } else if (token_compare(&token, "false")) {
+            result = json_make_boolean(0);
+        } else if (token_compare(&token, "null")) {
+            result = json_make_null();
+        } else {
+            result = json_decode_number(&token);
+        }
+    }
+
+    return result;
+}
+
+JSONValue json_decode(char* stream) {
+    Lexer lexer;
+    lexer.buffer = stream;
+    lexer.delimiters = "\":{}[],";
+    lexer.ptr = stream;
+    return json_decode_value(&lexer);
+}
+
+//
 // RPC Functions
 //
 // This section will contain functions to create JSON-RPC objects that can be encoded and sent
