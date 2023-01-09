@@ -732,6 +732,26 @@ JSONValue json_make_array() {
     return result;
 }
 
+JSONValue json_object_get(JSONValue* object, char* key) {
+    JSONValue result = json_make_null();
+
+    if (object == NULL) {
+        return result;
+    }
+
+    JSONObject* obj = object->value.object_value;
+    for (size_t i = 0; i < obj->pairs.length; i++) {
+        JSONPair* pair = (JSONPair*)vector_get(&obj->pairs, i);
+
+        if (strcmp(pair->key.value.string_value, key) == 0) {
+            result = pair->value;
+            break;
+        }
+    }
+
+    return result;
+}
+
 void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
     if (object == NULL || object->value.object_value == NULL || object->type != JSON_VALUE_OBJECT) {
         return;
