@@ -783,6 +783,24 @@ void json_array_push(JSONValue* array, JSONValue value) {
     vector_push(&arr->values, (void*)&value);
 }
 
+JSONValue json_array_get(JSONValue* array, size_t index) {
+    JSONValue result = json_make_null();
+
+    if (array == NULL) {
+        return result;
+    }
+
+    JSONArray* arr = array->value.array_value;
+
+    if (index >= arr->values.length) {
+        return result;
+    }
+
+    result = *(JSONValue*)vector_get(&arr->values, index);
+
+    return result;
+}
+
 JSONEncoder json_encode(JSONValue* value) {
     JSONEncoder encoder;
     encoder.string = vector_create(sizeof(char));
