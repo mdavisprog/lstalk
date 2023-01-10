@@ -1147,3 +1147,212 @@ int lstalk_init() {
 
 void lstalk_shutdown() {
 }
+
+
+#ifdef LSTALK_TESTS
+
+//
+// Testing Framework
+//
+
+typedef int (*TestCaseFn)();
+typedef struct TestCase {
+    TestCaseFn fn;
+    char* name;
+} TestCase;
+
+typedef struct TestResults {
+    int pass;
+    int fail;
+} TestResults;
+
+static void add_test(Vector* tests, TestCaseFn fn, char* name) {
+    if (tests == NULL) {
+        return;
+    }
+
+    TestCase test_case;
+    test_case.fn = fn;
+    test_case.name = name;
+    vector_push(tests, &test_case);
+}
+
+#define REGISTER_TEST(tests, fn) add_test(tests, fn, #fn)
+#define RED_TEXT(text) printf("\033[0;31m"); printf("%s", text); printf("\033[0m");
+#define GREEN_TEXT(text) printf("\033[0;32m"); printf("%s", text); printf("\033[0m");
+
+static int tests_run(Vector* tests) {
+    if (tests == NULL || tests->element_size != sizeof(TestCase)) {
+        return 0;
+    }
+
+    printf("Running %zu tests...\n", tests->length);
+
+    int failed = 0;
+    for (size_t i = 0; i < tests->length; i++) {
+        TestCase* test_case = (TestCase*)vector_get(tests, i);
+
+        int success = test_case->fn();
+        if (success) {
+            GREEN_TEXT("PASS");
+        } else {
+            RED_TEXT("FAIL");
+            failed++;
+        }
+
+        printf(" ... %s\n", test_case->name);
+    }
+
+    return failed;
+}
+
+// Vector Tests
+
+static int test_vector_create() {
+    Vector vector = vector_create(sizeof(int));
+    const size_t capacity = vector.capacity;
+    const size_t element_size = vector.element_size;
+    vector_destroy(&vector);
+    return capacity == 1 && element_size == sizeof(int);
+}
+
+static int test_vector_destroy() {
+    Vector vector = vector_create(sizeof(int));
+    vector_destroy(&vector);
+    return vector.length == 0 && vector.data == NULL;
+}
+
+static int test_vector_resize() {
+    int result = 1;
+    Vector vector = vector_create(sizeof(int));
+    if (vector.length != 0 && vector.capacity != 1) {
+        result = 0;
+        goto end;
+    }
+    vector_resize(&vector, 5);
+    if (vector.length != 0 && vector.capacity != 5) {
+        result = 0;
+        goto end;
+    }
+end:
+    vector_destroy(&vector);
+    return result;
+}
+
+static int test_vector_push() {
+    int result = 1;
+    Vector vector = vector_create(sizeof(int));
+    int i = 5;
+    vector_push(&vector, &i);
+    i = 10;
+    vector_push(&vector, &i);
+    if (vector.length != 2) {
+        result = 0;
+        goto end;
+    }
+end:
+    vector_destroy(&vector);
+    return result;
+}
+
+static int test_vector_append() {
+    int result = 1;
+    Vector vector = vector_create(sizeof(char));
+    vector_append(&vector, (void*)"Hello", 5);
+    if (strncmp(vector.data, "Hello", 5) != 0) {
+        result = 0;
+        goto end;
+    }
+    vector_append(&vector, (void*)" World", 6);
+    if (strncmp(vector.data, "Hello World", 11) != 0) {
+        result = 0;
+        goto end;
+    }
+end:
+    vector_destroy(&vector);
+    return result;
+}
+
+static int test_vector_get() {
+    int result = 1;
+    Vector vector = vector_create(sizeof(int));
+    int i = 5;
+    vector_push(&vector, &i);
+    i = 10;
+    vector_push(&vector, &i);
+    if (*(int*)vector_get(&vector, 0) != 5) {
+        result = 0;
+        goto end;
+    }
+    if (*(int*)vector_get(&vector, 1) != 10) {
+        result = 0;
+        goto end;
+    }
+end:
+    vector_destroy(&vector);
+    return result;
+}
+
+static TestResults tests_vector() {
+    Vector tests = vector_create(sizeof(TestCase));
+    TestResults result;
+
+    REGISTER_TEST(&tests, test_vector_create);
+    REGISTER_TEST(&tests, test_vector_destroy);
+    REGISTER_TEST(&tests, test_vector_resize);
+    REGISTER_TEST(&tests, test_vector_push);
+    REGISTER_TEST(&tests, test_vector_append);
+    REGISTER_TEST(&tests, test_vector_get);
+
+    result.fail = tests_run(&tests);
+    result.pass = tests.length - result.fail;
+    vector_destroy(&tests);
+
+    return result;
+}
+
+typedef struct TestSuite {
+    TestResults (*fn)();
+    char* name;
+} TestSuite;
+
+void add_test_suite(Vector* suites, TestResults (*fn)(), char* name) {
+    if (suites == NULL) {
+        return;
+    }
+
+    TestSuite suite;
+    suite.fn = fn;
+    suite.name = name;
+    vector_push(suites, &suite);
+}
+
+#define ADD_TEST_SUITE(suites, fn) add_test_suite(suites, fn, #fn)
+
+void lstalk_tests() {
+    printf("Running tests for lstalk...\n\n");
+
+    Vector suites = vector_create(sizeof(TestSuite));
+    ADD_TEST_SUITE(&suites, tests_vector);
+
+    TestResults results;
+    results.pass = 0;
+    results.fail = 0;
+
+    for (size_t i = 0; i < suites.length; i++) {
+        TestSuite* suite = (TestSuite*)vector_get(&suites, i);
+
+        printf("Test suite %s\n", suite->name);
+        TestResults suite_results = suite->fn();
+        results.fail += suite_results.fail;
+        results.pass += suite_results.pass;
+        printf("\n");
+    }
+
+    printf("TESTS PASSED: %d\n", results.pass);
+    printf("TESTS FAILED: %d\n", results.fail);
+
+    vector_destroy(&suites);
+}
+
+#endif

@@ -5,4 +5,8 @@
 int lstalk_init();
 void lstalk_shutdown();
 
+#ifdef LSTALK_TESTS
+void lstalk_tests();
+#endif
+
 #endif
