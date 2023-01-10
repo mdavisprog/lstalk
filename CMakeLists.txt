@@ -19,3 +19,11 @@ set_target_properties(
     RUNTIME_OUTPUT_DIRECTORY_DEBUG ${BIN_DIR}
     RUNTIME_OUTPUT_DIRECTORY_RELEASE ${BIN_DIR}
 )
+
+if(WITH_TESTS)
+target_compile_definitions(
+    lstalk
+    PUBLIC
+    LSTALK_TESTS
+)
+endif()
