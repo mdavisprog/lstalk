@@ -1296,8 +1296,8 @@ end:
 }
 
 static TestResults tests_vector() {
-    Vector tests = vector_create(sizeof(TestCase));
     TestResults result;
+    Vector tests = vector_create(sizeof(TestCase));
 
     REGISTER_TEST(&tests, test_vector_create);
     REGISTER_TEST(&tests, test_vector_destroy);
@@ -1310,6 +1310,192 @@ static TestResults tests_vector() {
     result.pass = tests.length - result.fail;
     vector_destroy(&tests);
 
+    return result;
+}
+
+// JSON Tests
+
+static int test_json_decode_boolean_false() {
+    JSONValue value = json_decode("false");
+    return value.type == JSON_VALUE_BOOLEAN && value.value.bool_value == 0;
+}
+
+static int test_json_decode_boolean_true() {
+    JSONValue value = json_decode("true");
+    return value.type == JSON_VALUE_BOOLEAN && value.value.bool_value == 1;
+}
+
+static int test_json_decode_int() {
+    JSONValue value = json_decode("42");
+    return value.type == JSON_VALUE_INT && value.value.int_value == 42;
+}
+
+static int test_json_decode_float() {
+    JSONValue value = json_decode("3.14");
+    return value.type == JSON_VALUE_FLOAT && value.value.float_value == 3.14f;
+}
+
+static int test_json_decode_string() {
+    JSONValue value = json_decode("\"Hello World\"");
+    int result = value.type == JSON_VALUE_STRING && strcmp(value.value.string_value, "Hello World") == 0;
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_decode_object() {
+    JSONValue value = json_decode("{\"Int\": 42, \"Float\": 3.14}");
+    int result = json_object_get(&value, "Int").value.int_value == 42 && json_object_get(&value, "Float").value.float_value == 3.14f;
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_decode_sub_object() {
+    JSONValue value = json_decode("{\"object\": {\"Int\": 42, \"Float\": 3.14}}");
+    JSONValue object = json_object_get(&value, "object");
+    int result = json_object_get(&object, "Int").value.int_value == 42 && json_object_get(&object, "Float").value.float_value == 3.14f;
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_decode_array() {
+    JSONValue value = json_decode("[42, 3.14, \"Hello World\"]");
+    int result = json_array_get(&value, 0).value.int_value == 42;
+    result &= json_array_get(&value, 1).value.float_value == 3.14f;
+    result &= strcmp(json_array_get(&value, 2).value.string_value, "Hello World") == 0;
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_decode_array_of_objects() {
+    JSONValue value = json_decode("[{\"Int\": 42}, {\"Float\": 3.14}]");
+    JSONValue object = json_array_get(&value, 0);
+    int result = json_object_get(&object, "Int").value.int_value == 42;
+    object = json_array_get(&value, 1);
+    result &= json_object_get(&object, "Float").value.float_value == 3.14f;
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_encode_boolean_false() {
+    JSONValue value = json_make_boolean(0);
+    JSONEncoder encoder = json_encode(&value);
+    int result = strcmp(encoder.string.data, "false") == 0;
+    json_destroy_encoder(&encoder);
+    return result;
+}
+
+static int test_json_encode_boolean_true() {
+    JSONValue value = json_make_boolean(1);
+    JSONEncoder encoder = json_encode(&value);
+    int result = strcmp(encoder.string.data, "true") == 0;
+    json_destroy_encoder(&encoder);
+    return result;
+}
+
+static int test_json_encode_int() {
+    JSONValue value = json_make_int(42);
+    JSONEncoder encoder = json_encode(&value);
+    int result = strcmp(encoder.string.data, "42") == 0;
+    json_destroy_encoder(&encoder);
+    return result;
+}
+
+static int test_json_encode_float() {
+    JSONValue value = json_make_float(3.14f);
+    JSONEncoder encoder = json_encode(&value);
+    char buffer[40];
+    sprintf(buffer, "%f", 3.14f);
+    int result = strcmp(encoder.string.data, buffer) == 0;
+    json_destroy_encoder(&encoder);
+    return result;
+}
+
+static int test_json_encode_string() {
+    JSONValue value = json_make_string("Hello World");
+    JSONEncoder encoder = json_encode(&value);
+    int result = strcmp(encoder.string.data, "\"Hello World\"") == 0;
+    json_destroy_encoder(&encoder);
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_encode_object() {
+    JSONValue value = json_make_object();
+    json_object_const_key_set(&value, "Int", json_make_int(42));
+    json_object_const_key_set(&value, "String", json_make_string_const("Hello World"));
+    JSONEncoder encoder = json_encode(&value);
+    int result = strcmp(encoder.string.data, "{\"Int\": 42, \"String\": \"Hello World\"}") == 0;
+    json_destroy_encoder(&encoder);
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_encode_sub_object() {
+    JSONValue object = json_make_object();
+    json_object_const_key_set(&object, "Int", json_make_int(42));
+    json_object_const_key_set(&object, "String", json_make_string_const("Hello World"));
+    JSONValue value = json_make_object();
+    json_object_const_key_set(&value, "object", object);
+    JSONEncoder encoder = json_encode(&value);
+    int result = strcmp(encoder.string.data, "{\"object\": {\"Int\": 42, \"String\": \"Hello World\"}}") == 0;
+    json_destroy_encoder(&encoder);
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_encode_array() {
+    JSONValue value = json_make_array();
+    json_array_push(&value, json_make_int(42));
+    json_array_push(&value, json_make_string("Hello World"));
+    JSONEncoder encoder = json_encode(&value);
+    int result = strcmp(encoder.string.data, "[42, \"Hello World\"]") == 0;
+    json_destroy_encoder(&encoder);
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_encode_array_of_objects() {
+    JSONValue value = json_make_array();
+    JSONValue object = json_make_object();
+    json_object_const_key_set(&object, "Int", json_make_int(42));
+    json_array_push(&value, object);
+    object = json_make_object();
+    json_object_const_key_set(&object, "String", json_make_string_const("Hello World"));
+    json_array_push(&value, object);
+    JSONEncoder encoder = json_encode(&value);
+    int result = strcmp(encoder.string.data, "[{\"Int\": 42}, {\"String\": \"Hello World\"}]") == 0;
+    json_destroy_encoder(&encoder);
+    json_destroy_value(&value);
+    return result;
+}
+
+static TestResults tests_json() {
+    TestResults result;
+    Vector tests = vector_create(sizeof(TestCase));
+
+    REGISTER_TEST(&tests, test_json_decode_boolean_false);
+    REGISTER_TEST(&tests, test_json_decode_boolean_true);
+    REGISTER_TEST(&tests, test_json_decode_int);
+    REGISTER_TEST(&tests, test_json_decode_float);
+    REGISTER_TEST(&tests, test_json_decode_string);
+    REGISTER_TEST(&tests, test_json_decode_object);
+    REGISTER_TEST(&tests, test_json_decode_sub_object);
+    REGISTER_TEST(&tests, test_json_decode_array);
+    REGISTER_TEST(&tests, test_json_decode_array_of_objects);
+    REGISTER_TEST(&tests, test_json_encode_boolean_false);
+    REGISTER_TEST(&tests, test_json_encode_boolean_true);
+    REGISTER_TEST(&tests, test_json_encode_int);
+    REGISTER_TEST(&tests, test_json_encode_float);
+    REGISTER_TEST(&tests, test_json_encode_string);
+    REGISTER_TEST(&tests, test_json_encode_object);
+    REGISTER_TEST(&tests, test_json_encode_array);
+    REGISTER_TEST(&tests, test_json_encode_sub_object);
+    REGISTER_TEST(&tests, test_json_encode_array_of_objects);
+
+    result.fail = tests_run(&tests);
+    result.pass = tests.length - result.fail;
+
+    vector_destroy(&tests);
     return result;
 }
 
@@ -1336,6 +1522,7 @@ void lstalk_tests() {
 
     Vector suites = vector_create(sizeof(TestSuite));
     ADD_TEST_SUITE(&suites, tests_vector);
+    ADD_TEST_SUITE(&suites, tests_json);
 
     TestResults results;
     results.pass = 0;
