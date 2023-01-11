@@ -1225,72 +1225,42 @@ static int test_vector_destroy() {
 }
 
 static int test_vector_resize() {
-    int result = 1;
     Vector vector = vector_create(sizeof(int));
-    if (vector.length != 0 && vector.capacity != 1) {
-        result = 0;
-        goto end;
-    }
+    int result = vector.length == 0 && vector.capacity == 1;
     vector_resize(&vector, 5);
-    if (vector.length != 0 && vector.capacity != 5) {
-        result = 0;
-        goto end;
-    }
-end:
+    result &= vector.length == 0 && vector.capacity == 5;
     vector_destroy(&vector);
     return result;
 }
 
 static int test_vector_push() {
-    int result = 1;
     Vector vector = vector_create(sizeof(int));
     int i = 5;
     vector_push(&vector, &i);
     i = 10;
     vector_push(&vector, &i);
-    if (vector.length != 2) {
-        result = 0;
-        goto end;
-    }
-end:
+    int result = vector.length == 2;
     vector_destroy(&vector);
     return result;
 }
 
 static int test_vector_append() {
-    int result = 1;
     Vector vector = vector_create(sizeof(char));
     vector_append(&vector, (void*)"Hello", 5);
-    if (strncmp(vector.data, "Hello", 5) != 0) {
-        result = 0;
-        goto end;
-    }
+    int result = strncmp(vector.data, "Hello", 5) == 0;
     vector_append(&vector, (void*)" World", 6);
-    if (strncmp(vector.data, "Hello World", 11) != 0) {
-        result = 0;
-        goto end;
-    }
-end:
+    result &= strncmp(vector.data, "Hello World", 11) == 0;
     vector_destroy(&vector);
     return result;
 }
 
 static int test_vector_get() {
-    int result = 1;
     Vector vector = vector_create(sizeof(int));
     int i = 5;
     vector_push(&vector, &i);
     i = 10;
     vector_push(&vector, &i);
-    if (*(int*)vector_get(&vector, 0) != 5) {
-        result = 0;
-        goto end;
-    }
-    if (*(int*)vector_get(&vector, 1) != 10) {
-        result = 0;
-        goto end;
-    }
-end:
+    int result = *(int*)vector_get(&vector, 0) == 5 && *(int*)vector_get(&vector, 1) == 10;
     vector_destroy(&vector);
     return result;
 }
