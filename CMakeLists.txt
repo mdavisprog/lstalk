@@ -11,6 +11,14 @@ add_library(
     lstalk.c
 )
 
+if(WITH_TESTS)
+target_compile_definitions(
+    lstalk
+    PUBLIC
+    LSTALK_TESTS
+)
+endif()
+
 add_executable(
     lstalk_main
     main.c
