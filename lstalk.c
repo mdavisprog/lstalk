@@ -187,9 +187,6 @@ static Process* process_create_windows(const char* path) {
     security_attr.bInheritHandle = TRUE;
     security_attr.lpSecurityDescriptor = NULL;
 
-    // https://stackoverflow.com/questions/60645/overlapped-i-o-on-anonymous-pipe
-    // TODO: Implement above for asynchronous anonymous pipe communication.
-
     if (!CreatePipe(&handles.child_stdout_read, &handles.child_stdout_write, &security_attr, 0)) {
         printf("Failed to create stdout pipe!\n");
         return NULL;
@@ -253,6 +250,16 @@ static void process_close_windows(Process* process) {
 
 static void process_read_windows(Process* process) {
     if (process == NULL) {
+        return;
+    }
+
+    DWORD TotalBytesAvail = 0;
+    if (!PeekNamedPipe(process->std_handles.child_stdout_read, NULL, 0, NULL, &TotalBytesAvail, NULL)) {
+        printf("Failed to peek for number of bytes!\n");
+        return;
+    }
+
+    if (TotalBytesAvail == 0) {
         return;
     }
 
