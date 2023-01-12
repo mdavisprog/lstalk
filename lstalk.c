@@ -10,36 +10,36 @@
 // Version information
 //
 
-#define MAJOR 0
-#define MINOR 0
-#define REVISION 1
+#define LSTALK_MAJOR 0
+#define LSTALK_MINOR 0
+#define LSTALK_REVISION 1
 
 //
 // Platform definitions
 //
 
 #if _WIN32 || _WIN64
-    #define WINDOWS 1
+    #define LSTALK_WINDOWS 1
 #elif __APPLE__
-    #define APPLE 1
+    #define LSTALK_APPLE 1
 #elif __linux__
-    #define LINUX 1
+    #define LSTALK_LINUX 1
 #else
     #error "Current platform is not supported."
 #endif
 
-#if APPLE || LINUX
-    #define POSIX 1
+#if LSTALK_APPLE || LSTALK_LINUX
+    #define LSTALK_POSIX 1
 #endif
 
 //
 // Platform includes
 //
 
-#if WINDOWS
+#if LSTALK_WINDOWS
     #define WIN32_LEAN_AND_MEAN
     #include <Windows.h>
-#elif POSIX
+#elif LSTALK_POSIX
     #include <signal.h>
     #include <unistd.h>
 #endif
@@ -148,7 +148,7 @@ static char* string_alloc_copy(const char* source) {
 
 struct Process;
 
-#if WINDOWS
+#if LSTALK_WINDOWS
 
 //
 // Process Management Windows
@@ -289,7 +289,7 @@ static int process_get_current_id_windows() {
     return (int)GetCurrentProcessId();
 }
 
-#elif POSIX
+#elif LSTALK_POSIX
 
 //
 // Process Management Posix
@@ -423,9 +423,9 @@ static int process_get_current_id_posix() {
 //
 
 static Process* process_create(const char* path) {
-#if WINDOWS
+#if LSTALK_WINDOWS
     return process_create_windows(path);
-#elif POSIX
+#elif LSTALK_POSIX
     return process_create_posix(path);
 #else
     #error "Current platform does not implement create_process"
@@ -433,9 +433,9 @@ static Process* process_create(const char* path) {
 }
 
 static void process_close(Process* process) {
-#if WINDOWS
+#if LSTALK_WINDOWS
     process_close_windows(process);
-#elif POSIX
+#elif LSTALK_POSIX
     process_close_posix(process);
 #else
     #error "Current platform does not implement close_process"
@@ -443,9 +443,9 @@ static void process_close(Process* process) {
 }
 
 static void process_read(Process* process) {
-#if WINDOWS
+#if LSTALK_WINDOWS
     process_read_windows(process);
-#elif POSIX
+#elif LSTALK_POSIX
     process_read_posix(process);
 #else
     #error "Current platform does not implement read_response"
@@ -453,9 +453,9 @@ static void process_read(Process* process) {
 }
 
 static void process_write(Process* process, const char* request) {
-#if WINDOWS
+#if LSTALK_WINDOWS
     process_write_windows(process, request);
-#elif POSIX
+#elif LSTALK_POSIX
     process_write_posix(process, request);
 #else
     #error "Current platform does not implement write_request"
@@ -463,9 +463,9 @@ static void process_write(Process* process, const char* request) {
 }
 
 static int process_get_current_id() {
-#if WINDOWS
+#if LSTALK_WINDOWS
     return process_get_current_id_windows();
-#elif POSIX
+#elif LSTALK_POSIX
     return process_get_current_id_posix();
 #else
     #error "Current platform does not implement get_current_process_id"
@@ -1150,7 +1150,7 @@ static void rpc_initialize(JSONValue* object) {
 // This is the beginning of the exposed API functions for the library.
 
 int lstalk_init() {
-    printf("Initialized lstalk version %d.%d.%d!\n", MAJOR, MINOR, REVISION);
+    printf("Initialized lstalk version %d.%d.%d!\n", LSTALK_MAJOR, LSTALK_MINOR, LSTALK_REVISION);
     return 1;
 }
 
