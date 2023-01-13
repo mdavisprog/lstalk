@@ -11,6 +11,25 @@ add_library(
     lstalk.c
 )
 
+add_executable(
+    lstalk_console
+    console.c
+)
+
+target_link_libraries(
+    lstalk_console
+    lstalk
+)
+
+set_target_properties(
+    lstalk_console
+    PROPERTIES
+    RUNTIME_OUTPUT_NAME console
+    RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG ${BIN_DIR}
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${BIN_DIR}
+)
+
 if(WITH_TESTS)
 target_compile_definitions(
     lstalk

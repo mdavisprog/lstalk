@@ -6,6 +6,5 @@ int main(int argc, char** argv) {
     }
 
     lstalk_shutdown();
-
     return 0;
 }
