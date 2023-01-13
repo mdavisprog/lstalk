@@ -40,6 +40,7 @@
     #define WIN32_LEAN_AND_MEAN
     #include <Windows.h>
 #elif LSTALK_POSIX
+    #include <fcntl.h>
     #include <signal.h>
     #include <unistd.h>
 #endif
@@ -367,6 +368,8 @@ static Process* process_create_posix(const char* path) {
 
     close(pipes.in[PIPE_READ]);
     close(pipes.out[PIPE_WRITE]);
+
+    fcntl(pipes.out[PIPE_READ], F_SETFL, O_NONBLOCK);
 
     Process* process = (Process*)malloc(sizeof(Process));
     process->pipes = pipes;
