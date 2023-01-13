@@ -1153,13 +1153,25 @@ static void rpc_initialize(JSONValue* object) {
 // This is the beginning of the exposed API functions for the library.
 
 int lstalk_init() {
-    printf("Initialized lstalk version %d.%d.%d!\n", LSTALK_MAJOR, LSTALK_MINOR, LSTALK_REVISION);
     return 1;
 }
 
 void lstalk_shutdown() {
 }
 
+void lstalk_version(int* major, int* minor, int* revision) {
+    if (major != NULL) {
+        *major = LSTALK_MAJOR;
+    }
+
+    if (minor != NULL) {
+        *minor = LSTALK_MINOR;
+    }
+
+    if (revision != NULL) {
+        *revision = LSTALK_REVISION;
+    }
+}
 
 #ifdef LSTALK_TESTS
 
