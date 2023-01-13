@@ -17,30 +17,23 @@ target_compile_definitions(
     PUBLIC
     LSTALK_TESTS
 )
-endif()
 
 add_executable(
-    lstalk_main
-    main.c
+    lstalk_tests
+    tests.c
 )
 
 set_target_properties(
-    lstalk_main
+    lstalk_tests
     PROPERTIES
+    RUNTIME_OUTPUT_NAME tests
     RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR}
     RUNTIME_OUTPUT_DIRECTORY_DEBUG ${BIN_DIR}
     RUNTIME_OUTPUT_DIRECTORY_RELEASE ${BIN_DIR}
 )
 
 target_link_libraries(
-    lstalk_main
+    lstalk_tests
     lstalk
-)
-
-if(WITH_TESTS)
-target_compile_definitions(
-    lstalk_main
-    PUBLIC
-    LSTALK_TESTS
 )
 endif()
