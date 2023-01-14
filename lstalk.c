@@ -1154,9 +1154,21 @@ static void rpc_initialize(JSONValue* object) {
 
 int lstalk_init() {
     return 1;
+typedef struct LSTalk_Context {
+    int dummy;
+} LSTalk_Context;
+
+LSTalk_Context* lstalk_init() {
+    LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
+    return result;
 }
 
-void lstalk_shutdown() {
+void lstalk_shutdown(LSTalk_Context* context) {
+    if (context == NULL) {
+        return;
+    }
+
+    free(context);
 }
 
 void lstalk_version(int* major, int* minor, int* revision) {

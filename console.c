@@ -113,7 +113,8 @@ int is_command(char* buffer, const char* command) {
 }
 
 int main(int argc, char** argv) {
-    if (!lstalk_init()) {
+    struct LSTalk_Context* context = lstalk_init();
+    if (context == NULL) {
         return -1;
     }
 
@@ -135,6 +136,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    lstalk_shutdown();
+    lstalk_shutdown(context);
     return 0;
 }
