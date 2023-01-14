@@ -254,13 +254,13 @@ static void process_read_windows(Process* process) {
         return;
     }
 
-    DWORD TotalBytesAvail = 0;
-    if (!PeekNamedPipe(process->std_handles.child_stdout_read, NULL, 0, NULL, &TotalBytesAvail, NULL)) {
+    DWORD total_bytes_avail = 0;
+    if (!PeekNamedPipe(process->std_handles.child_stdout_read, NULL, 0, NULL, &total_bytes_avail, NULL)) {
         printf("Failed to peek for number of bytes!\n");
         return;
     }
 
-    if (TotalBytesAvail == 0) {
+    if (total_bytes_avail == 0) {
         return;
     }
 
