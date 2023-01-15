@@ -391,18 +391,35 @@ static void process_close_posix(Process* process) {
     free(process);
 }
 
-static void process_read_posix(Process* process) {
+#define READ_SIZE 4096
+
+static char* process_read_posix(Process* process) {
     if (process == NULL) {
-        return;
+        return NULL;
     }
 
-    char buffer[32676];
+    Vector array = vector_create(sizeof(char));
+    char buffer[READ_SIZE];
     int bytes_read = read(process->pipes.out[PIPE_READ], (void*)buffer, sizeof(buffer));
-    if (bytes_read < 0) {
-        printf("Failed to read from child process.\n");
+    if (bytes_read == -1) {
+        vector_destroy(&array);
+        return NULL;
     }
-    buffer[bytes_read] = 0;
-    printf("%s\n", buffer);
+
+    while (bytes_read > 0) {
+        vector_append(&array, (void*)buffer, (size_t)bytes_read);
+        if (bytes_read < READ_SIZE) {
+            break;
+        }
+
+        bytes_read = read(process->pipes.out[PIPE_READ], (void*)buffer, sizeof(buffer));
+    }
+
+    char* result = (char*)malloc(sizeof(char) * array.length + 1);
+    strncpy(result, array.data, array.length);
+    result[array.length] = 0;
+    vector_destroy(&array);
+    return result;
 }
 
 static void process_write_posix(Process* process, const char* request) {
