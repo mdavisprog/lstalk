@@ -894,9 +894,40 @@ static char* token_make_string(Token* token) {
         return NULL;
     }
 
-    char* result = (char*)malloc(sizeof(char) * token->length + 1);
-    strncpy(result, token->ptr, token->length);
-    result[token->length] = 0;
+    size_t length = token->length + 1;
+    // Iterate through the token string and remove any escape characters.
+    int is_escaped = 0;
+    for (size_t i = 0; i < token->length; i++) {
+        if (token->ptr[i] == '\\') {
+            if (!is_escaped) {
+                length--;
+            }
+            is_escaped = is_escaped > 0 ? 0 : 1;
+        } else {
+            is_escaped = 0;
+        }
+    }
+
+    // The next steps will attempt to copy sub-strings ignoring all escape characters.
+    char* result = (char*)malloc(sizeof(char) * length);
+    char* dest = result;
+    char* ptr = token->ptr;
+    is_escaped = 0;
+    for (size_t i = 0; i < token->length; i++) {
+        if (token->ptr[i] == '\\') {
+            if (!is_escaped) {
+                size_t count = (token->ptr + i) - ptr;
+                strncpy(dest, ptr, count);
+                dest += count;
+                ptr += count + 1;
+            }
+            is_escaped = is_escaped > 0 ? 0 : 1;
+        } else {
+            is_escaped = 0;
+        }
+    }
+    strncpy(dest, ptr, (token->ptr + token->length) - ptr);
+    result[length - 1] = 0;
     return result;
 }
 
@@ -972,6 +1003,37 @@ static Token lexer_parse_until(Lexer* lexer, char term) {
 
     Token result;
     // Don't include the terminator in the string.
+    result.ptr = lexer->ptr;
+    result.length = (ptr - lexer->ptr);
+    lexer->ptr = ptr;
+
+    // Advance the pointer if we are not at the end.
+    if (*lexer->ptr != 0) {
+        lexer->ptr++;
+    }
+
+    return result;
+}
+
+static Token lexer_parse_string(Lexer* lexer) {
+    char* ptr = lexer->ptr;
+    int is_escaped = 0;
+    while (*ptr != 0) {
+        if (*ptr == '"') {
+            if (!is_escaped) {
+                break;
+            }
+        }
+
+        is_escaped = 0;
+
+        if (*ptr == '\\') {
+            is_escaped = 1;
+        }
+        ptr++;
+    }
+
+    Token result;
     result.ptr = lexer->ptr;
     result.length = (ptr - lexer->ptr);
     lexer->ptr = ptr;
@@ -1100,7 +1162,7 @@ static JSONValue json_decode_value(Lexer* lexer) {
         } else if (token_compare(&token, "[")) {
             result = json_decode_array(lexer);
         } else if (token_compare(&token, "\"")) {
-            Token literal = lexer_parse_until(lexer, '"');
+            Token literal = lexer_parse_string(lexer);
             // Need to create the string value manually due to allocating a copy of the
             // token.
             result.type = JSON_VALUE_STRING;
@@ -1366,6 +1428,22 @@ static int test_json_decode_string() {
     return result;
 }
 
+static int test_json_decode_escaped_string() {
+    JSONValue value = json_decode("\"Hello \\\"World\\\"");
+    int result = value.type == JSON_VALUE_STRING && strcmp(value.value.string_value, "Hello \"World\"") == 0;
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_decode_single_escaped_string() {
+    JSONValue value = json_decode("[\"'\", \"\\\\\"\", \":\"]");
+    int result = strcmp(json_array_get(&value, 0).value.string_value, "'") == 0;
+    result &= strcmp(json_array_get(&value, 1).value.string_value, "\\\"") == 0;
+    result &= strcmp(json_array_get(&value, 2).value.string_value, ":") == 0;
+    json_destroy_value(&value);
+    return result;
+}
+
 static int test_json_decode_object() {
     JSONValue value = json_decode("{\"Int\": 42, \"Float\": 3.14}");
     int result = json_object_get(&value, "Int").value.int_value == 42 && json_object_get(&value, "Float").value.float_value == 3.14f;
@@ -1502,6 +1580,8 @@ static TestResults tests_json() {
     REGISTER_TEST(&tests, test_json_decode_int);
     REGISTER_TEST(&tests, test_json_decode_float);
     REGISTER_TEST(&tests, test_json_decode_string);
+    REGISTER_TEST(&tests, test_json_decode_escaped_string);
+    REGISTER_TEST(&tests, test_json_decode_single_escaped_string);
     REGISTER_TEST(&tests, test_json_decode_object);
     REGISTER_TEST(&tests, test_json_decode_sub_object);
     REGISTER_TEST(&tests, test_json_decode_array);
