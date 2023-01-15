@@ -747,7 +747,7 @@ static JSONValue json_make_array() {
 static JSONValue json_object_get(JSONValue* object, char* key) {
     JSONValue result = json_make_null();
 
-    if (object == NULL) {
+    if (object == NULL || object->type != JSON_VALUE_OBJECT) {
         return result;
     }
 
