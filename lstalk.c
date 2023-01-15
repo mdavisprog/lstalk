@@ -249,30 +249,31 @@ static void process_close_windows(Process* process) {
     free(process);
 }
 
-static void process_read_windows(Process* process) {
+static char* process_read_windows(Process* process) {
     if (process == NULL) {
-        return;
+        return NULL;
     }
 
     DWORD total_bytes_avail = 0;
     if (!PeekNamedPipe(process->std_handles.child_stdout_read, NULL, 0, NULL, &total_bytes_avail, NULL)) {
         printf("Failed to peek for number of bytes!\n");
-        return;
+        return NULL;
     }
 
     if (total_bytes_avail == 0) {
-        return;
+        return NULL;
     }
 
-    char read_buffer[PATH_MAX];
+    char* read_buffer = (char*)malloc(sizeof(char) * total_bytes_avail + 1);
     DWORD read = 0;
-    BOOL read_result = ReadFile(process->std_handles.child_stdout_read, read_buffer, sizeof(read_buffer), &read, NULL);
+    BOOL read_result = ReadFile(process->std_handles.child_stdout_read, read_buffer, total_bytes_avail, &read, NULL);
     if (!read_result || read == 0) {
         printf("Failed to read from process stdout.\n");
+        free(read_buffer);
+        return NULL;
     }
     read_buffer[read] = 0;
-
-    printf("%s\n", read_buffer);
+    return read_buffer;
 }
 
 static void process_write_windows(Process* process, const char* request) {
@@ -445,9 +446,11 @@ static void process_close(Process* process) {
 #endif
 }
 
-static void process_read(Process* process) {
+// Platform specific handling should allocate the string on the heap
+// and the caller is responsible for freeing the result.
+static char* process_read(Process* process) {
 #if LSTALK_WINDOWS
-    process_read_windows(process);
+    return process_read_windows(process);
 #elif LSTALK_POSIX
     process_read_posix(process);
 #else
