@@ -1464,6 +1464,21 @@ static int test_json_decode_sub_object() {
     return result;
 }
 
+static int test_json_decode_empty_object() {
+    JSONValue value = json_decode("{}");
+    int result = value.type == JSON_VALUE_OBJECT && value.value.object_value->pairs.length == 0;
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_decode_empty_sub_object() {
+    JSONValue value = json_decode("{\"Int\": 42, \"object\": {}}");
+    int result = json_object_get(&value, "Int").value.int_value == 42;
+    result &= json_object_get(&value, "object").value.object_value->pairs.length == 0;
+    json_destroy_value(&value);
+    return result;
+}
+
 static int test_json_decode_array() {
     JSONValue value = json_decode("[42, 3.14, \"Hello World\"]");
     int result = json_array_get(&value, 0).value.int_value == 42;
@@ -1479,6 +1494,13 @@ static int test_json_decode_array_of_objects() {
     int result = json_object_get(&object, "Int").value.int_value == 42;
     object = json_array_get(&value, 1);
     result &= json_object_get(&object, "Float").value.float_value == 3.14f;
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_json_decode_empty_array() {
+    JSONValue value = json_decode("[]");
+    int result = value.type == JSON_VALUE_ARRAY && value.value.array_value->values.length == 0;
     json_destroy_value(&value);
     return result;
 }
@@ -1589,8 +1611,11 @@ static TestResults tests_json() {
     REGISTER_TEST(&tests, test_json_decode_single_escaped_string);
     REGISTER_TEST(&tests, test_json_decode_object);
     REGISTER_TEST(&tests, test_json_decode_sub_object);
+    REGISTER_TEST(&tests, test_json_decode_empty_object);
+    REGISTER_TEST(&tests, test_json_decode_empty_sub_object);
     REGISTER_TEST(&tests, test_json_decode_array);
     REGISTER_TEST(&tests, test_json_decode_array_of_objects);
+    REGISTER_TEST(&tests, test_json_decode_empty_array);
     REGISTER_TEST(&tests, test_json_encode_boolean_false);
     REGISTER_TEST(&tests, test_json_encode_boolean_true);
     REGISTER_TEST(&tests, test_json_encode_int);
