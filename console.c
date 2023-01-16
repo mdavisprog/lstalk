@@ -124,6 +124,7 @@ int main(int argc, char** argv) {
     lstalk_version(&major, &minor, &revision);
     printf("Welcome to the LSTalk console application.\n");
     printf("Currently using LSTalk version %d.%d.%d\n", major, minor, revision);
+    printf("Provide path to language server:\n");
 
     char command[INPUT_BUFFER_SIZE];
 
@@ -132,8 +133,12 @@ int main(int argc, char** argv) {
         if (read_input(command, sizeof(command))) {
             if (is_command(command, "quit")) {
                 quit = 1;
+            } else {
+                lstalk_connect(context, command);
             }
         }
+
+        lstalk_process_responses(context);
     }
 
     lstalk_shutdown(context);
