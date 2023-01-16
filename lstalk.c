@@ -1067,7 +1067,7 @@ static JSONValue json_decode_number(Token* token) {
     return result;
 }
 
-static JSONValue json_decode_value(Lexer* lexer);
+static JSONValue json_decode_value(Token* token, Lexer* lexer);
 static JSONValue json_decode_object(Lexer* lexer) {
     JSONValue result = json_make_null();
 
@@ -1101,7 +1101,8 @@ static JSONValue json_decode_object(Lexer* lexer) {
             return result;
         }
 
-        JSONValue value = json_decode_value(lexer);
+        token = lexer_get_token(lexer);
+        JSONValue value = json_decode_value(&token, lexer);
         json_object_set(&result, key, value);
 
         token = lexer_get_token(lexer);
@@ -1129,12 +1130,9 @@ static JSONValue json_decode_array(Lexer* lexer) {
 
     result = json_make_array();
 
-    Token token;
-    token.ptr = NULL;
-    token.length = 0;
-
+    Token token = lexer_get_token(lexer);
     while (!token_compare(&token, "]")) {
-        JSONValue value = json_decode_value(lexer);
+        JSONValue value = json_decode_value(&token, lexer);
         json_array_push(&result, value);
 
         token = lexer_get_token(lexer);
@@ -1146,35 +1144,40 @@ static JSONValue json_decode_array(Lexer* lexer) {
             json_destroy_value(&result);
             break;
         }
+
+        token = lexer_get_token(lexer);
     }
 
     return result;
 }
 
-static JSONValue json_decode_value(Lexer* lexer) {
+static JSONValue json_decode_value(Token* token, Lexer* lexer) {
     JSONValue result = json_make_null();
 
-    Token token = lexer_get_token(lexer);
-    if (token.length > 0)
+    if (token == NULL) {
+        return result;
+    }
+
+    if (token->length > 0)
     {
-        if (token_compare(&token, "{")) {
+        if (token_compare(token, "{")) {
             result = json_decode_object(lexer);
-        } else if (token_compare(&token, "[")) {
+        } else if (token_compare(token, "[")) {
             result = json_decode_array(lexer);
-        } else if (token_compare(&token, "\"")) {
+        } else if (token_compare(token, "\"")) {
             Token literal = lexer_parse_string(lexer);
             // Need to create the string value manually due to allocating a copy of the
             // token.
             result.type = JSON_VALUE_STRING;
             result.value.string_value = token_make_string(&literal);
-        } else if (token_compare(&token, "true")) {
+        } else if (token_compare(token, "true")) {
             result = json_make_boolean(1);
-        } else if (token_compare(&token, "false")) {
+        } else if (token_compare(token, "false")) {
             result = json_make_boolean(0);
-        } else if (token_compare(&token, "null")) {
+        } else if (token_compare(token, "null")) {
             result = json_make_null();
         } else {
-            result = json_decode_number(&token);
+            result = json_decode_number(token);
         }
     }
 
@@ -1186,7 +1189,9 @@ static JSONValue json_decode(char* stream) {
     lexer.buffer = stream;
     lexer.delimiters = "\":{}[],";
     lexer.ptr = stream;
-    return json_decode_value(&lexer);
+
+    Token token = lexer_get_token(&lexer);
+    return json_decode_value(&token, &lexer);
 }
 
 //
