@@ -1200,6 +1200,11 @@ static JSONValue json_decode(char* stream) {
 // This section will contain functions to create JSON-RPC objects that can be encoded and sent
 // to the language server.
 
+typedef struct Request {
+    int id;
+    JSONValue payload;
+} Request;
+
 static void rpc_message(JSONValue* object) {
     if (object == NULL || object->type != JSON_VALUE_OBJECT) {
         return;
@@ -1208,30 +1213,48 @@ static void rpc_message(JSONValue* object) {
     json_object_const_key_set(object, "jsonrpc", json_make_string_const("2.0"));
 }
 
-static void rpc_request(JSONValue* object, char* method, JSONValue params) {
-    if (object == NULL || object->type != JSON_VALUE_OBJECT) {
-        return;
+static Request rpc_make_request(int* id, char* method, JSONValue params) {
+    Request result;
+    result.id = 0;
+    result.payload = json_make_null();
+
+    if (id == NULL || method == NULL) {
+        return result;
     }
 
-    rpc_message(object);
-    json_object_const_key_set(object, "id", json_make_int(1));
-    json_object_const_key_set(object, "method", json_make_string_const(method));
+    JSONValue object = json_make_object();
+    rpc_message(&object);
+    json_object_const_key_set(&object, "id", json_make_int(*id));
+    json_object_const_key_set(&object, "method", json_make_string_const(method));
 
     if (params.type == JSON_VALUE_OBJECT || params.type == JSON_VALUE_ARRAY) {
-        json_object_const_key_set(object, "params", params);
+        json_object_const_key_set(&object, "params", params);
     }
+
+    result.id = *id++;
+    result.payload = object;
+    return result;
 }
 
-static void rpc_initialize(JSONValue* object) {
-    if (object == NULL || object->type != JSON_VALUE_OBJECT) {
-        return;
+static char* rpc_get_method(Request* request) {
+    if (request == NULL) {
+        return NULL;
     }
 
-    JSONValue params = json_make_object();
-    json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
-    json_object_const_key_set(&params, "rootUri", json_make_null());
-    json_object_const_key_set(&params, "clientCapabilities", json_make_object());
-    rpc_request(object, "initialize", params);
+    JSONValue method = json_object_get(&request->payload, "method");
+    if (method.type != JSON_VALUE_STRING_CONST) {
+        return NULL;
+    }
+
+    return method.value.string_value;
+}
+
+static JSONValue rpc_initialize_params() {
+    JSONValue result = json_make_object();
+    json_object_const_key_set(&result, "processId", json_make_int(process_get_current_id()));
+    json_object_const_key_set(&result, "rootUri", json_make_null());
+    json_object_const_key_set(&result, "clientCapabilities", json_make_object());
+    return result;
 }
 
 //
@@ -1239,14 +1262,26 @@ static void rpc_initialize(JSONValue* object) {
 //
 // This is the beginning of the exposed API functions for the library.
 
-int lstalk_init() {
-    return 1;
+typedef enum {
+    CONNECTION_STATUS_UNCONNECTED,
+    CONNECTION_STATUS_CONNECTING,
+    CONNECTION_STATUS_CONNECTED,
+} ConnectionStatus;
+
+typedef struct Server {
+    Process* process;
+    ConnectionStatus connection_status;
+    Vector requests;
+    int request_id;
+} Server;
+
 typedef struct LSTalk_Context {
-    int dummy;
+    Vector servers;
 } LSTalk_Context;
 
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
+    result->servers = vector_create(sizeof(Server));
     return result;
 }
 
@@ -1254,6 +1289,22 @@ void lstalk_shutdown(LSTalk_Context* context) {
     if (context == NULL) {
         return;
     }
+
+    // Close all connected servers.
+    for (size_t i = 0; i < context->servers.length; i++) {
+        Server* server = (Server*)vector_get(&context->servers, i);
+
+        // Close all existing connected processes.
+        process_close(server->process);
+
+        // Clean up all requests.
+        for (size_t request_index = 0; request_index < server->requests.length; request_index++) {
+            Request* request = (Request*)vector_get(&server->requests, request_index);
+            json_destroy_value(&request->payload);
+        }
+        vector_destroy(&server->requests);
+    }
+    vector_destroy(&context->servers);
 
     free(context);
 }
@@ -1270,6 +1321,75 @@ void lstalk_version(int* major, int* minor, int* revision) {
     if (revision != NULL) {
         *revision = LSTALK_REVISION;
     }
+}
+
+int lstalk_connect(LSTalk_Context* context, const char* uri) {
+    if (context == NULL || uri == NULL) {
+        return 0;
+    }
+
+    Server server;
+    server.process = process_create(uri);
+    if (server.process == NULL) {
+        return 0;
+    }
+
+    server.request_id = 1;
+    server.requests = vector_create(sizeof(Request));
+
+    Request request = rpc_make_request(&server.request_id, "initialize", rpc_initialize_params());
+    JSONEncoder encoder = json_encode(&request.payload);
+
+    process_request(server.process, encoder.string.data);
+
+    json_destroy_encoder(&encoder);
+
+    server.connection_status = CONNECTION_STATUS_CONNECTING;
+    vector_push(&server.requests, &request);
+    vector_push(&context->servers, &server);
+    return 1;
+}
+
+int lstalk_process_responses(LSTalk_Context* context) {
+    if (context == NULL) {
+        return 0;
+    }
+
+    for (size_t i = 0; i < context->servers.length; i++) {
+        Server* server = (Server*)vector_get(&context->servers, i);
+        char* response = process_read(server->process);
+
+        if (response != NULL) {
+            char* content_length = strstr(response, "Content-Length");
+            if (content_length != NULL) {
+                int length = 0;
+                sscanf(content_length, "Content-Length: %d", &length);
+
+                char* content_start = strstr(content_length, "{");
+                if (content_start != NULL) {
+                    JSONValue value = json_decode(content_start);
+                    JSONValue id = json_object_get(&value, "id");
+
+                    // Find the associated request for this response.
+                    for (size_t request_index = 0; request_index < server->requests.length; request_index++) {
+                        Request* request = (Request*)vector_get(&server->requests, request_index);
+                        if (request->id == id.value.int_value) {
+                            char* method = rpc_get_method(request);
+                            if (strcmp(method, "initialize") == 0) {
+                                server->connection_status = CONNECTION_STATUS_CONNECTED;
+                            }
+                            break;
+                        }
+                    }
+
+                    json_destroy_value(&value);
+                }
+            }
+            free(response);
+        }
+    }
+
+    return 1;
 }
 
 #ifdef LSTALK_TESTS
