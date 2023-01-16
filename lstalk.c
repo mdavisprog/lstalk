@@ -121,6 +121,26 @@ static void vector_append(Vector* vector, void* elements, size_t count) {
     vector->length += count;
 }
 
+static int vector_remove(Vector* vector, size_t index) {
+    if (vector == NULL || vector->element_size == 0 || index >= vector->length) {
+        return 0;
+    }
+
+    // If removed the final index, then do nothing.
+    if (index == vector->length - 1) {
+        vector->length--;
+        return 1;
+    }
+
+    char* start = vector->data + index * vector->element_size;
+    char* end = start + vector->element_size;
+    size_t count = vector->length - index + 1;
+    size_t size = count * vector->element_size;
+    memmove(start, end, size);
+    vector->length--;
+    return 1;
+}
+
 static char* vector_get(Vector* vector, size_t index) {
     if (vector == NULL || vector->element_size == 0 || index >= vector->length) {
         return NULL;
@@ -1495,6 +1515,20 @@ static int test_vector_append() {
     return result;
 }
 
+static int test_vector_remove() {
+    Vector vector = vector_create(sizeof(int));
+    for (int i = 0; i < 5; i++) {
+        vector_push(&vector, &i);
+    }
+    int result = vector.length == 5;
+    result &= *(int*)vector_get(&vector, 2) == 2;
+    vector_remove(&vector, 2);
+    result &= *(int*)vector_get(&vector, 2) == 3;
+    result &= vector.length == 4;
+    vector_destroy(&vector);
+    return result;
+}
+
 static int test_vector_get() {
     Vector vector = vector_create(sizeof(int));
     int i = 5;
@@ -1515,6 +1549,7 @@ static TestResults tests_vector() {
     REGISTER_TEST(&tests, test_vector_resize);
     REGISTER_TEST(&tests, test_vector_push);
     REGISTER_TEST(&tests, test_vector_append);
+    REGISTER_TEST(&tests, test_vector_remove);
     REGISTER_TEST(&tests, test_vector_get);
 
     result.fail = tests_run(&tests);
