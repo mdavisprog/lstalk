@@ -838,7 +838,7 @@ static void json_array_push(JSONValue* array, JSONValue value) {
 static JSONValue json_array_get(JSONValue* array, size_t index) {
     JSONValue result = json_make_null();
 
-    if (array == NULL) {
+    if (array == NULL || array->type != JSON_VALUE_ARRAY) {
         return result;
     }
 
