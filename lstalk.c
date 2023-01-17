@@ -1351,7 +1351,7 @@ void lstalk_shutdown(LSTalk_Context* context) {
         // Clean up all requests.
         for (size_t request_index = 0; request_index < server->requests.length; request_index++) {
             Request* request = (Request*)vector_get(&server->requests, request_index);
-            json_destroy_value(&request->payload);
+            rpc_close_request(request);
         }
         vector_destroy(&server->requests);
     }
@@ -1389,12 +1389,7 @@ int lstalk_connect(LSTalk_Context* context, const char* uri) {
     server.requests = vector_create(sizeof(Request));
 
     Request request = rpc_make_request(&server.request_id, "initialize", rpc_initialize_params());
-    JSONEncoder encoder = json_encode(&request.payload);
-
-    process_request(server.process, encoder.string.data);
-
-    json_destroy_encoder(&encoder);
-
+    rpc_send_request(server.process, &request);
     server.connection_status = CONNECTION_STATUS_CONNECTING;
     vector_push(&server.requests, &request);
     vector_push(&context->servers, &server);
@@ -1425,9 +1420,15 @@ int lstalk_process_responses(LSTalk_Context* context) {
                     for (size_t request_index = 0; request_index < server->requests.length; request_index++) {
                         Request* request = (Request*)vector_get(&server->requests, request_index);
                         if (request->id == id.value.int_value) {
+                            vector_remove(&server->requests, request_index);
+                            request_index--;
+
                             char* method = rpc_get_method(request);
                             if (strcmp(method, "initialize") == 0) {
                                 server->connection_status = CONNECTION_STATUS_CONNECTED;
+                                Request initalized_request = rpc_make_notification("initialized", json_make_object());
+                                rpc_send_request(server->process, &initalized_request);
+                                rpc_close_request(&initalized_request);
                             }
                             break;
                         }
