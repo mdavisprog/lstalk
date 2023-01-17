@@ -1336,6 +1336,20 @@ LSTalk_Context* lstalk_init() {
     return result;
 }
 
+static void server_close(Server* server) {
+    if (server == NULL) {
+        return;
+    }
+
+    process_close(server->process);
+
+    for (size_t i = 0; i < server->requests.length; i++) {
+        Request* request = (Request*)vector_get(&server->requests, i);
+        rpc_close_request(request);
+    }
+    vector_destroy(&server->requests);
+}
+
 void lstalk_shutdown(LSTalk_Context* context) {
     if (context == NULL) {
         return;
@@ -1344,16 +1358,7 @@ void lstalk_shutdown(LSTalk_Context* context) {
     // Close all connected servers.
     for (size_t i = 0; i < context->servers.length; i++) {
         Server* server = (Server*)vector_get(&context->servers, i);
-
-        // Close all existing connected processes.
-        process_close(server->process);
-
-        // Clean up all requests.
-        for (size_t request_index = 0; request_index < server->requests.length; request_index++) {
-            Request* request = (Request*)vector_get(&server->requests, request_index);
-            rpc_close_request(request);
-        }
-        vector_destroy(&server->requests);
+        server_close(server);
     }
     vector_destroy(&context->servers);
 
