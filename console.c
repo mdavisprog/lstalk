@@ -127,14 +127,17 @@ int main(int argc, char** argv) {
     printf("Provide path to language server:\n");
 
     char command[INPUT_BUFFER_SIZE];
+    LSTalk_ServerID server_id = LSTALK_INVALID_SERVER_ID;
 
     int quit = 0;
     while (!quit) {
         if (read_input(command, sizeof(command))) {
             if (is_command(command, "quit")) {
                 quit = 1;
+            } if (is_command(command, "close")) {
+                lstalk_close(context, server_id);
             } else {
-                lstalk_connect(context, command);
+                server_id = lstalk_connect(context, command);
             }
         }
 
