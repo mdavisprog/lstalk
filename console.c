@@ -134,11 +134,12 @@ int main(int argc, char** argv) {
         if (read_input(command, sizeof(command))) {
             if (is_command(command, "quit")) {
                 quit = 1;
-            } if (is_command(command, "close")) {
+            } else if (is_command(command, "close")) {
                 lstalk_close(context, server_id);
             } else {
                 server_id = lstalk_connect(context, command);
             }
+            command[0] = 0;
         }
 
         lstalk_process_responses(context);
