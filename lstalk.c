@@ -1233,26 +1233,39 @@ static void rpc_message(JSONValue* object) {
     json_object_const_key_set(object, "jsonrpc", json_make_string_const("2.0"));
 }
 
-static Request rpc_make_request(int* id, char* method, JSONValue params) {
+static Request rpc_make_notification(char* method, JSONValue params) {
     Request result;
     result.id = 0;
     result.payload = json_make_null();
 
-    if (id == NULL || method == NULL) {
+    if (method == NULL) {
         return result;
     }
 
     JSONValue object = json_make_object();
     rpc_message(&object);
-    json_object_const_key_set(&object, "id", json_make_int(*id));
     json_object_const_key_set(&object, "method", json_make_string_const(method));
 
     if (params.type == JSON_VALUE_OBJECT || params.type == JSON_VALUE_ARRAY) {
         json_object_const_key_set(&object, "params", params);
     }
 
-    result.id = *id++;
     result.payload = object;
+    return result;
+}
+
+static Request rpc_make_request(int* id, char* method, JSONValue params) {
+    Request result;
+    result.id = 0;
+    result.payload = json_make_null();
+
+    if (id == NULL) {
+        return result;
+    }
+
+    result = rpc_make_notification(method, params);
+    json_object_const_key_set(&result.payload, "id", json_make_int(*id));
+    result.id = *id++;
     return result;
 }
 
@@ -1275,6 +1288,24 @@ static JSONValue rpc_initialize_params() {
     json_object_const_key_set(&result, "rootUri", json_make_null());
     json_object_const_key_set(&result, "clientCapabilities", json_make_object());
     return result;
+}
+
+static void rpc_send_request(Process* server, Request* request) {
+    if (server == NULL || request == NULL) {
+        return;
+    }
+
+    JSONEncoder encoder = json_encode(&request->payload);
+    process_request(server, encoder.string.data);
+    json_destroy_encoder(&encoder);
+}
+
+static void rpc_close_request(Request* request) {
+    if (request == NULL) {
+        return;
+    }
+
+    json_destroy_value(&request->payload);
 }
 
 //
