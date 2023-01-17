@@ -1321,6 +1321,7 @@ typedef enum {
 } ConnectionStatus;
 
 typedef struct Server {
+    LSTalk_ServerID id;
     Process* process;
     ConnectionStatus connection_status;
     Vector requests;
@@ -1329,11 +1330,13 @@ typedef struct Server {
 
 typedef struct LSTalk_Context {
     Vector servers;
+    LSTalk_ServerID server_id;
 } LSTalk_Context;
 
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
+    result->server_id = 1;
     return result;
 }
 
@@ -1380,17 +1383,18 @@ void lstalk_version(int* major, int* minor, int* revision) {
     }
 }
 
-int lstalk_connect(LSTalk_Context* context, const char* uri) {
+LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri) {
     if (context == NULL || uri == NULL) {
-        return 0;
+        return LSTALK_INVALID_SERVER_ID;
     }
 
     Server server;
     server.process = process_create(uri);
     if (server.process == NULL) {
-        return 0;
+        return LSTALK_INVALID_SERVER_ID;
     }
 
+    server.id = context->server_id++;
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
 
@@ -1399,7 +1403,26 @@ int lstalk_connect(LSTalk_Context* context, const char* uri) {
     server.connection_status = CONNECTION_STATUS_CONNECTING;
     vector_push(&server.requests, &request);
     vector_push(&context->servers, &server);
-    return 1;
+    return server.id;
+}
+
+int lstalk_close(LSTalk_Context* context, LSTalk_ServerID id) {
+    if (context == NULL || id == LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    for (size_t i = 0; i < context->servers.length; i++) {
+        Server* server = (Server*)vector_get(&context->servers, i);
+
+        if (server->id == id) {
+            Request request = rpc_make_request(&server->request_id, "shutdown", json_make_null());
+            rpc_send_request(server->process, &request);
+            vector_push(&server->requests, &request);
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 int lstalk_process_responses(LSTalk_Context* context) {
@@ -1432,9 +1455,16 @@ int lstalk_process_responses(LSTalk_Context* context) {
                             char* method = rpc_get_method(request);
                             if (strcmp(method, "initialize") == 0) {
                                 server->connection_status = CONNECTION_STATUS_CONNECTED;
-                                Request initalized_request = rpc_make_notification("initialized", json_make_object());
+                                Request initalized_request = rpc_make_notification("initialized", json_make_null());
                                 rpc_send_request(server->process, &initalized_request);
                                 rpc_close_request(&initalized_request);
+                            } else if (strcmp(method, "shutdown") == 0) {
+                                Request exit_notification = rpc_make_notification("exit", json_make_null());
+                                rpc_send_request(server->process, &exit_notification);
+                                rpc_close_request(&exit_notification);
+                                server_close(server);
+                                vector_remove(&context->servers, i);
+                                i--;
                             }
                             break;
                         }
