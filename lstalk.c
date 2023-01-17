@@ -1283,10 +1283,11 @@ static char* rpc_get_method(Request* request) {
     return method.value.string_value;
 }
 
-static JSONValue rpc_initialize_params(JSONValue client_info) {
+static JSONValue rpc_initialize_params(JSONValue client_info, JSONValue locale) {
     JSONValue result = json_make_object();
     json_object_const_key_set(&result, "processId", json_make_int(process_get_current_id()));
     json_object_const_key_set(&result, "clientInfo", client_info);
+    json_object_const_key_set(&result, "locale", locale);
     json_object_const_key_set(&result, "rootUri", json_make_null());
     json_object_const_key_set(&result, "clientCapabilities", json_make_object());
     return result;
@@ -1352,6 +1353,7 @@ typedef struct LSTalk_Context {
     Vector servers;
     LSTalk_ServerID server_id;
     ClientInfo client_info;
+    char* locale;
 } LSTalk_Context;
 
 static void server_close(Server* server) {
@@ -1376,6 +1378,7 @@ LSTalk_Context* lstalk_init() {
     sprintf(buffer, "%d.%d.%d", LSTALK_MAJOR, LSTALK_MINOR, LSTALK_REVISION);
     result->client_info.name = string_alloc_copy("lstalk");
     result->client_info.version = string_alloc_copy(buffer);
+    result->locale = string_alloc_copy("en");
     return result;
 }
 
@@ -1392,6 +1395,9 @@ void lstalk_shutdown(LSTalk_Context* context) {
     vector_destroy(&context->servers);
 
     client_info_clear(&context->client_info);
+    if (context->locale != NULL) {
+        free(context->locale);
+    }
     free(context);
 }
 
@@ -1425,6 +1431,18 @@ void lstalk_set_client_info(LSTalk_Context* context, char* name, char* version) 
     }
 }
 
+void lstalk_set_locale(LSTalk_Context* context, char* locale) {
+    if (context == NULL) {
+        return;
+    }
+
+    if (context->locale != NULL) {
+        free(context->locale);
+    }
+
+    context->locale = string_alloc_copy(locale);
+}
+
 LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri) {
     if (context == NULL || uri == NULL) {
         return LSTALK_INVALID_SERVER_ID;
@@ -1444,7 +1462,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri) {
     json_object_const_key_set(&client_info, "name", json_make_string_const(context->client_info.name));
     json_object_const_key_set(&client_info, "version", json_make_string_const(context->client_info.version));
 
-    Request request = rpc_make_request(&server.request_id, "initialize", rpc_initialize_params(client_info));
+    JSONValue locale = json_make_string_const(context->locale);
+
+    Request request = rpc_make_request(&server.request_id, "initialize", rpc_initialize_params(client_info, locale));
     rpc_send_request(server.process, &request);
     server.connection_status = CONNECTION_STATUS_CONNECTING;
     vector_push(&server.requests, &request);
