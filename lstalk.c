@@ -1449,9 +1449,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                     for (size_t request_index = 0; request_index < server->requests.length; request_index++) {
                         Request* request = (Request*)vector_get(&server->requests, request_index);
                         if (request->id == id.value.int_value) {
-                            vector_remove(&server->requests, request_index);
-                            request_index--;
-
+                            int remove_request = 1;
                             char* method = rpc_get_method(request);
                             if (strcmp(method, "initialize") == 0) {
                                 server->connection_status = CONNECTION_STATUS_CONNECTED;
@@ -1465,6 +1463,12 @@ int lstalk_process_responses(LSTalk_Context* context) {
                                 server_close(server);
                                 vector_remove(&context->servers, i);
                                 i--;
+                                remove_request = 0;
+                            }
+                            if (remove_request) {
+                                rpc_close_request(request);
+                                vector_remove(&server->requests, request_index);
+                                request_index--;
                             }
                             break;
                         }
