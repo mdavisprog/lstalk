@@ -9,6 +9,7 @@ typedef int LSTalk_ServerID;
 struct LSTalk_Context* lstalk_init();
 void lstalk_shutdown(struct LSTalk_Context* context);
 void lstalk_version(int* major, int* minor, int* revision);
+void lstalk_set_client_info(struct LSTalk_Context* context, char* name, char* version);
 LSTalk_ServerID lstalk_connect(struct LSTalk_Context* context, const char* uri);
 int lstalk_close(struct LSTalk_Context* context, LSTalk_ServerID id);
 int lstalk_process_responses(struct LSTalk_Context* context);

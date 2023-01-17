@@ -1283,9 +1283,10 @@ static char* rpc_get_method(Request* request) {
     return method.value.string_value;
 }
 
-static JSONValue rpc_initialize_params() {
+static JSONValue rpc_initialize_params(JSONValue client_info) {
     JSONValue result = json_make_object();
     json_object_const_key_set(&result, "processId", json_make_int(process_get_current_id()));
+    json_object_const_key_set(&result, "clientInfo", client_info);
     json_object_const_key_set(&result, "rootUri", json_make_null());
     json_object_const_key_set(&result, "clientCapabilities", json_make_object());
     return result;
@@ -1328,17 +1329,30 @@ typedef struct Server {
     int request_id;
 } Server;
 
+typedef struct ClientInfo {
+    char* name;
+    char* version;
+} ClientInfo;
+
+static void client_info_clear(ClientInfo* info) {
+    if (info == NULL) {
+        return;
+    }
+
+    if (info->name != NULL) {
+        free(info->name);
+    }
+
+    if (info->version != NULL) {
+        free(info->version);
+    }
+}
+
 typedef struct LSTalk_Context {
     Vector servers;
     LSTalk_ServerID server_id;
+    ClientInfo client_info;
 } LSTalk_Context;
-
-LSTalk_Context* lstalk_init() {
-    LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
-    result->servers = vector_create(sizeof(Server));
-    result->server_id = 1;
-    return result;
-}
 
 static void server_close(Server* server) {
     if (server == NULL) {
@@ -1354,6 +1368,17 @@ static void server_close(Server* server) {
     vector_destroy(&server->requests);
 }
 
+LSTalk_Context* lstalk_init() {
+    LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
+    result->servers = vector_create(sizeof(Server));
+    result->server_id = 1;
+    char buffer[40];
+    sprintf(buffer, "%d.%d.%d", LSTALK_MAJOR, LSTALK_MINOR, LSTALK_REVISION);
+    result->client_info.name = string_alloc_copy("lstalk");
+    result->client_info.version = string_alloc_copy(buffer);
+    return result;
+}
+
 void lstalk_shutdown(LSTalk_Context* context) {
     if (context == NULL) {
         return;
@@ -1366,6 +1391,7 @@ void lstalk_shutdown(LSTalk_Context* context) {
     }
     vector_destroy(&context->servers);
 
+    client_info_clear(&context->client_info);
     free(context);
 }
 
@@ -1380,6 +1406,22 @@ void lstalk_version(int* major, int* minor, int* revision) {
 
     if (revision != NULL) {
         *revision = LSTALK_REVISION;
+    }
+}
+
+void lstalk_set_client_info(LSTalk_Context* context, char* name, char* version) {
+    if (context == NULL) {
+        return;
+    }
+
+    client_info_clear(&context->client_info);
+
+    if (name != NULL) {
+        context->client_info.name = string_alloc_copy(name);
+    }
+
+    if (version != NULL) {
+        context->client_info.version = string_alloc_copy(version);
     }
 }
 
@@ -1398,7 +1440,11 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri) {
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
 
-    Request request = rpc_make_request(&server.request_id, "initialize", rpc_initialize_params());
+    JSONValue client_info = json_make_object();
+    json_object_const_key_set(&client_info, "name", json_make_string_const(context->client_info.name));
+    json_object_const_key_set(&client_info, "version", json_make_string_const(context->client_info.version));
+
+    Request request = rpc_make_request(&server.request_id, "initialize", rpc_initialize_params(client_info));
     rpc_send_request(server.process, &request);
     server.connection_status = CONNECTION_STATUS_CONNECTING;
     vector_push(&server.requests, &request);
