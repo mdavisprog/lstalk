@@ -1316,16 +1316,10 @@ static void rpc_close_request(Request* request) {
 //
 // This is the beginning of the exposed API functions for the library.
 
-typedef enum {
-    CONNECTION_STATUS_UNCONNECTED,
-    CONNECTION_STATUS_CONNECTING,
-    CONNECTION_STATUS_CONNECTED,
-} ConnectionStatus;
-
 typedef struct Server {
     LSTalk_ServerID id;
     Process* process;
-    ConnectionStatus connection_status;
+    LSTalk_ConnectionStatus connection_status;
     Vector requests;
     int request_id;
 } Server;
@@ -1466,10 +1460,29 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri) {
 
     Request request = rpc_make_request(&server.request_id, "initialize", rpc_initialize_params(client_info, locale));
     rpc_send_request(server.process, &request);
-    server.connection_status = CONNECTION_STATUS_CONNECTING;
+    server.connection_status = LSTALK_CONNECTION_STATUS_CONNECTING;
     vector_push(&server.requests, &request);
     vector_push(&context->servers, &server);
     return server.id;
+}
+
+LSTalk_ConnectionStatus lstalk_get_connection_status(LSTalk_Context* context, LSTalk_ServerID id) {
+    LSTalk_ConnectionStatus result = LSTALK_CONNECTION_STATUS_NOT_CONNECTED;
+
+    if (context == NULL) {
+        return result;
+    }
+
+    for (size_t i = 0; i < context->servers.length; i++) {
+        Server* server = (Server*)vector_get(&context->servers, i);
+
+        if (server->id == id) {
+            result = server->connection_status;
+            break;
+        }
+    }
+
+    return result;
 }
 
 int lstalk_close(LSTalk_Context* context, LSTalk_ServerID id) {
@@ -1518,7 +1531,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                             int remove_request = 1;
                             char* method = rpc_get_method(request);
                             if (strcmp(method, "initialize") == 0) {
-                                server->connection_status = CONNECTION_STATUS_CONNECTED;
+                                server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
                                 Request initalized_request = rpc_make_notification("initialized", json_make_null());
                                 rpc_send_request(server->process, &initalized_request);
                                 rpc_close_request(&initalized_request);
