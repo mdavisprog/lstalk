@@ -1265,7 +1265,8 @@ static Request rpc_make_request(int* id, char* method, JSONValue params) {
 
     result = rpc_make_notification(method, params);
     json_object_const_key_set(&result.payload, "id", json_make_int(*id));
-    result.id = *id++;
+    result.id = *id;
+    (*id)++;
     return result;
 }
 
