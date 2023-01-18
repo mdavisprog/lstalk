@@ -755,6 +755,10 @@ static JSONValue json_make_float(float value) {
 }
 
 static JSONValue json_make_string(char* value) {
+    if (value == NULL) {
+        return json_make_null();
+    }
+
     JSONValue result;
     result.type = JSON_VALUE_STRING;
     result.value.string_value = string_alloc_copy(value);
