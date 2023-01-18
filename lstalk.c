@@ -1287,16 +1287,6 @@ static char* rpc_get_method(Request* request) {
     return method.value.string_value;
 }
 
-static JSONValue rpc_initialize_params(JSONValue client_info, JSONValue locale) {
-    JSONValue result = json_make_object();
-    json_object_const_key_set(&result, "processId", json_make_int(process_get_current_id()));
-    json_object_const_key_set(&result, "clientInfo", client_info);
-    json_object_const_key_set(&result, "locale", locale);
-    json_object_const_key_set(&result, "rootUri", json_make_null());
-    json_object_const_key_set(&result, "clientCapabilities", json_make_object());
-    return result;
-}
-
 static void rpc_send_request(Process* server, Request* request) {
     if (server == NULL || request == NULL) {
         return;
@@ -1366,6 +1356,17 @@ static void server_close(Server* server) {
         rpc_close_request(request);
     }
     vector_destroy(&server->requests);
+}
+
+static char* trace_to_string(LSTalk_Trace trace) {
+    switch (trace) {
+        case LSTALK_TRACE_MESSAGES: return "messages";
+        case LSTALK_TRACE_VERBOSE: return "verbose";
+        case LSTALK_TRACE_OFF:
+        default: break;
+    }
+
+    return "off";
 }
 
 LSTalk_Context* lstalk_init() {
@@ -1441,7 +1442,7 @@ void lstalk_set_locale(LSTalk_Context* context, char* locale) {
     context->locale = string_alloc_copy(locale);
 }
 
-LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri) {
+LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_ConnectParams connect_params) {
     if (context == NULL || uri == NULL) {
         return LSTALK_INVALID_SERVER_ID;
     }
@@ -1460,9 +1461,15 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri) {
     json_object_const_key_set(&client_info, "name", json_make_string_const(context->client_info.name));
     json_object_const_key_set(&client_info, "version", json_make_string_const(context->client_info.version));
 
-    JSONValue locale = json_make_string_const(context->locale);
+    JSONValue params = json_make_object();
+    json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
+    json_object_const_key_set(&params, "clientInfo", client_info);
+    json_object_const_key_set(&params, "locale", json_make_string_const(context->locale));
+    json_object_const_key_set(&params, "rootUri", json_make_string(connect_params.root_uri));
+    json_object_const_key_set(&params, "clientCapabilities", json_make_object());
+    json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params.trace)));
 
-    Request request = rpc_make_request(&server.request_id, "initialize", rpc_initialize_params(client_info, locale));
+    Request request = rpc_make_request(&server.request_id, "initialize", params);
     rpc_send_request(server.process, &request);
     server.connection_status = LSTALK_CONNECTION_STATUS_CONNECTING;
     vector_push(&server.requests, &request);
