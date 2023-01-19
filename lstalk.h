@@ -134,6 +134,27 @@ typedef struct LSTalk_DidChangeConfigurationClientCapabilities {
 } LSTalk_DidChangeConfigurationClientCapabilities;
 
 /**
+ * Capabilities specific to the `workspace/didChangeWatchedFiles`
+ * notification.
+ */
+typedef struct LSTalk_DidChangeWatchedFilesClientCapabilities {
+    /**
+     * Did change watched files notification supports dynamic registration.
+     * Please note that the current protocol doesn't support static
+     * configuration for file changes from the server side.
+     */
+    int dynamic_registration;
+
+    /**
+     * Whether the client has support for relative patterns
+     * or not.
+     *
+     * @since 3.17.0
+     */
+    int relative_pattern_support;
+} LSTalk_DidChangeWatchedFilesClientCapabilities;
+
+/**
  * Workspace specific client capabilities.
  */
 typedef struct LSTalk_Workspace {
@@ -154,6 +175,12 @@ typedef struct LSTalk_Workspace {
      * notification.
      */
     LSTalk_DidChangeConfigurationClientCapabilities did_change_configuration;
+
+    /**
+     * Capabilities specific to the `workspace/didChangeWatchedFiles`
+     * notification.
+     */
+    LSTalk_DidChangeWatchedFilesClientCapabilities did_change_watched_files;
 } LSTalk_Workspace;
 
 /**

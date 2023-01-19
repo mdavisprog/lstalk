@@ -1513,10 +1513,15 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue did_change_configuration = json_make_object();
     json_object_const_key_set(&did_change_configuration, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.did_change_configuration.dynamic_registration));
 
+    JSONValue did_change_watched_files = json_make_object();
+    json_object_const_key_set(&did_change_watched_files, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.did_change_watched_files.dynamic_registration));
+    json_object_const_key_set(&did_change_watched_files, "relativePatternSupport", json_make_boolean(connect_params.capabilities.workspace.did_change_watched_files.relative_pattern_support));
+
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
     json_object_const_key_set(&workspace, "workspaceEdit", workspace_edit);
     json_object_const_key_set(&workspace, "didChangeConfiguration", did_change_configuration);
+    json_object_const_key_set(&workspace, "didChangeWatchedFiles", did_change_watched_files);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
