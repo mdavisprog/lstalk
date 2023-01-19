@@ -1505,6 +1505,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace_edit, "documentChanges", json_make_boolean(connect_params.capabilities.workspace.workspace_edit.document_changes));
     json_object_const_key_set(&workspace_edit, "resourceOperations", resource_operation_kind_array(connect_params.capabilities.workspace.workspace_edit.resource_operations));
     json_object_const_key_set(&workspace_edit, "failureHandling", failure_handling_array(connect_params.capabilities.workspace.workspace_edit.failure_handling));
+    json_object_const_key_set(&workspace_edit, "normalizesLineEndings", json_make_boolean(connect_params.capabilities.workspace.workspace_edit.normalizes_line_endings));
 
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));

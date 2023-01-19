@@ -96,6 +96,16 @@ typedef struct LSTalk_WorkspaceEditClientCapabilities {
      * @since 3.13.0
      */
     int failure_handling;
+
+    /**
+     * Whether the client normalizes line endings to the client specific
+     * setting.
+     * If set to `true` the client will normalize line ending characters
+     * in a workspace edit to the client specific new line character(s).
+     *
+     * @since 3.16.0
+     */
+    int normalizes_line_endings;
 } LSTalk_WorkspaceEditClientCapabilities;
 
 /**
