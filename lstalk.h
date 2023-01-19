@@ -19,6 +19,16 @@ typedef enum {
 } LSTalk_Trace;
 
 /**
+ * Capabilities specific to `WorkspaceEdit`s
+ */
+typedef struct LSTalk_WorkspaceEditClientCapabilities {
+    /**
+	 * The client supports versioned document changes in `WorkspaceEdit`s
+	 */
+	int document_changes;
+} LSTalk_WorkspaceEditClientCapabilities;
+
+/**
  * Workspace specific client capabilities.
  */
 typedef struct LSTalk_Workspace {
@@ -28,6 +38,11 @@ typedef struct LSTalk_Workspace {
      * 'workspace/applyEdit'
      */
     int apply_edit;
+
+    /**
+     * Capabilities specific to `WorkspaceEdit`s
+     */
+	LSTalk_WorkspaceEditClientCapabilities workspace_edit;
 } LSTalk_Workspace;
 
 /**
