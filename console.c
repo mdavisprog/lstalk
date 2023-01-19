@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
     LSTalk_ConnectParams params;
     params.root_uri = NULL;
     params.trace = LSTALK_TRACE_OFF;
-    params.capabilities.workspace.symbol.resolve_suuport_count = 0;
+    params.capabilities.workspace.symbol.resolve_support_count = 0;
 
     int quit = 0;
     while (!quit) {

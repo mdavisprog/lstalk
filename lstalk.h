@@ -269,7 +269,7 @@ typedef struct LSTalk_WorkspaceSymbolClientCapabilities {
      * `location.range`
      */
     char** resolve_support_properties;
-    size_t resolve_suuport_count;
+    int resolve_support_count;
 } LSTalk_WorkspaceSymbolClientCapabilities;
 
 /**

@@ -1600,7 +1600,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&tag_support, "valueSet", symbol_tag_array(connect_params.capabilities.workspace.symbol.tag_support_value_set));
     json_object_const_key_set(&symbol, "tagSupport", tag_support);
     JSONValue resolve_support_properties = json_make_array();
-    for (size_t i = 0; i < connect_params.capabilities.workspace.symbol.resolve_suuport_count; i++) {
+    for (int i = 0; i < connect_params.capabilities.workspace.symbol.resolve_support_count; i++) {
         json_array_push(&resolve_support_properties, json_make_string(connect_params.capabilities.workspace.symbol.resolve_support_properties[i]));
     }
     JSONValue resolve_support = json_make_object();
