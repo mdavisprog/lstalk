@@ -18,11 +18,38 @@ typedef enum {
     LSTALK_TRACE_VERBOSE,
 } LSTalk_Trace;
 
+/**
+ * Workspace specific client capabilities.
+ */
+typedef struct LSTalk_Workspace {
+    /**
+     * The client supports applying batch edits
+     * to the workspace by supporting the request
+     * 'workspace/applyEdit'
+     */
+    int apply_edit;
+} LSTalk_Workspace;
+
+/**
+ * The capabilities provided by the client (editor or tool)
+ */
+typedef struct LSTalk_ClientCapabilities {
+    /**
+     * Workspace specific client capabilities.
+     */
+    LSTalk_Workspace workspace;
+} LSTalk_ClientCapabilities;
+
 typedef struct LSTalk_ConnectParams {
     /**
      * The rootUri of the workspace. Is null if no folder is open.
      */
     char* root_uri;
+
+    /**
+     * The capabilities provided by the client (editor or tool)
+     */
+    LSTalk_ClientCapabilities capabilities;
 
     /**
      * The initial trace setting. If omitted trace is disabled ('off').

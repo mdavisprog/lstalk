@@ -1461,12 +1461,18 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&client_info, "name", json_make_string_const(context->client_info.name));
     json_object_const_key_set(&client_info, "version", json_make_string_const(context->client_info.version));
 
+    JSONValue workspace = json_make_object();
+    json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
+
+    JSONValue client_capabilities = json_make_object();
+    json_object_const_key_set(&client_capabilities, "workspace", workspace);
+
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
     json_object_const_key_set(&params, "clientInfo", client_info);
     json_object_const_key_set(&params, "locale", json_make_string_const(context->locale));
     json_object_const_key_set(&params, "rootUri", json_make_string(connect_params.root_uri));
-    json_object_const_key_set(&params, "clientCapabilities", json_make_object());
+    json_object_const_key_set(&params, "clientCapabilities", client_capabilities);
     json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params.trace)));
 
     Request request = rpc_make_request(&server.request_id, "initialize", params);
