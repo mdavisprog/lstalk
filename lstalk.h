@@ -97,6 +97,15 @@ typedef enum {
 } LSTalk_SymbolKind;
 
 /**
+ * Symbol tags are extra annotations that tweak the rendering of a symbol.
+ *
+ * @since 3.16
+ */
+typedef enum {
+    LSTALK_SYMBOLTAG_DEPRECATED = 1 << 0,
+} LSTalk_SymbolTag;
+
+/**
  * The failure handling strategy of a client if applying the workspace edit
  * fails.
  *
@@ -233,7 +242,19 @@ typedef struct LSTalk_WorkspaceSymbolClientCapabilities {
      * the symbol kinds from `File` to `Array` as defined in
      * the initial version of the protocol.
      */
-    long long value_set;
+    long long symbol_kind_value_set;
+
+    /**
+     * The client supports tags on `SymbolInformation` and `WorkspaceSymbol`.
+     * Clients supporting tags have to handle unknown tags gracefully.
+     *
+     * @since 3.16.0
+     *
+     * tagSupport:
+     * 
+     * The tags supported by the client.
+     */
+    int tag_support_value_set;
 } LSTalk_WorkspaceSymbolClientCapabilities;
 
 /**

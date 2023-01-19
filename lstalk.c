@@ -1471,6 +1471,18 @@ static JSONValue symbol_kind_array(long long value) {
     return result;
 }
 
+typedef enum {
+    SYMBOLTAG_Deprecated = 1,
+} SymbolTag;
+
+JSONValue symbol_tag_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & SYMBOLTAG_Deprecated) { json_array_push(&result, json_make_int(SYMBOLTAG_Deprecated)); }
+
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1582,8 +1594,11 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue symbol = json_make_object();
     json_object_const_key_set(&symbol, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.symbol.dynamic_registration));
     JSONValue symbol_kind = json_make_object();
-    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_array(connect_params.capabilities.workspace.symbol.value_set));
+    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_array(connect_params.capabilities.workspace.symbol.symbol_kind_value_set));
     json_object_const_key_set(&symbol, "symbolKind", symbol_kind);
+    JSONValue tag_support = json_make_object();
+    json_object_const_key_set(&tag_support, "valueSet", symbol_tag_array(connect_params.capabilities.workspace.symbol.tag_support_value_set));
+    json_object_const_key_set(&symbol, "tagSupport", tag_support);
 
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
