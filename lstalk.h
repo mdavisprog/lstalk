@@ -255,6 +255,21 @@ typedef struct LSTalk_WorkspaceSymbolClientCapabilities {
      * The tags supported by the client.
      */
     int tag_support_value_set;
+
+    /**
+     * The client support partial workspace symbols. The client will send the
+     * request `workspaceSymbol/resolve` to the server to resolve additional
+     * properties.
+     *
+     * @since 3.17.0 - proposedState
+     *
+     * resolveSupport:
+     * 
+     * The properties that a client can resolve lazily. Usually
+     * `location.range`
+     */
+    char** resolve_support_properties;
+    size_t resolve_suuport_count;
 } LSTalk_WorkspaceSymbolClientCapabilities;
 
 /**
