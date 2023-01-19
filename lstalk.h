@@ -19,13 +19,41 @@ typedef enum {
 } LSTalk_Trace;
 
 /**
+ * The kind of resource operations supported by the client.
+ */
+typedef enum {
+    /**
+     * Supports creating new files and folders.
+     */
+    LSTALK_RESOURCEOPERATIONKIND_CREATE = 1 << 0,
+
+    /**
+     * Supports renaming existing files and folders.
+     */
+    LSTALK_RESOURCEOPERATIONKIND_RENAME = 1 << 1,
+
+    /**
+     * Supports deleting existing files and folders.
+     */
+    LSTALK_RESOURCEOPERATIONKIND_DELETE = 1 << 2,
+} LSTalk_ResourceOperationKind;
+
+/**
  * Capabilities specific to `WorkspaceEdit`s
  */
 typedef struct LSTalk_WorkspaceEditClientCapabilities {
     /**
-	 * The client supports versioned document changes in `WorkspaceEdit`s
-	 */
-	int document_changes;
+     * The client supports versioned document changes in `WorkspaceEdit`s
+     */
+    int document_changes;
+
+    /**
+     * The resource operations the client supports. Clients should at least
+     * support 'create', 'rename' and 'delete' files and folders.
+     *
+     * @since 3.13.0
+     */
+    int resource_operations;
 } LSTalk_WorkspaceEditClientCapabilities;
 
 /**

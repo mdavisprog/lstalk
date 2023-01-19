@@ -1369,6 +1369,24 @@ static char* trace_to_string(LSTalk_Trace trace) {
     return "off";
 }
 
+static JSONValue resource_operation_kind_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_RESOURCEOPERATIONKIND_CREATE) {
+        json_array_push(&result, json_make_string_const("create"));
+    }
+
+    if (value & LSTALK_RESOURCEOPERATIONKIND_RENAME) {
+        json_array_push(&result, json_make_string_const("rename"));
+    }
+
+    if (value & LSTALK_RESOURCEOPERATIONKIND_DELETE) {
+        json_array_push(&result, json_make_string_const("delete"));
+    }
+
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1463,6 +1481,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
 
     JSONValue workspace_edit = json_make_object();
     json_object_const_key_set(&workspace_edit, "documentChanges", json_make_boolean(connect_params.capabilities.workspace.workspace_edit.document_changes));
+    json_object_const_key_set(&workspace_edit, "resourceOperations", resource_operation_kind_array(connect_params.capabilities.workspace.workspace_edit.resource_operations));
 
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
