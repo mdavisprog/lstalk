@@ -11,12 +11,11 @@
     #include <wchar.h>
 #elif __linux__
     #define LINUX 1
-    #include <sys/select.h>
-    #include <sys/time.h>
-    #include <unistd.h>
+#elif __APPLE__
+    #define APPLE 1
 #endif
 
-#if LINUX
+#if LINUX || APPLE
 #define POSIX 1
 #endif
 
@@ -73,6 +72,10 @@ int read_input_windows(char* buffer, size_t size) {
     return result;
 }
 #elif POSIX
+#include <sys/select.h>
+#include <sys/time.h>
+#include <unistd.h>
+
 int read_input_posix(char* buffer, size_t size) {
     fd_set set;
     FD_ZERO(&set);
