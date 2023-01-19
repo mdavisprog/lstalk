@@ -326,6 +326,13 @@ typedef struct LSTalk_Workspace {
      * @since 3.6.0
      */
     int workspace_folders;
+
+    /**
+     * The client supports `workspace/configuration` requests.
+     *
+     * @since 3.6.0
+     */
+    int configuration;
 } LSTalk_Workspace;
 
 /**
