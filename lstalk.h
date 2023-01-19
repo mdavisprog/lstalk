@@ -106,6 +106,20 @@ typedef struct LSTalk_WorkspaceEditClientCapabilities {
      * @since 3.16.0
      */
     int normalizes_line_endings;
+
+    /**
+     * Whether the client in general supports change annotations on text edits,
+     * create file, rename file and delete file changes.
+     *
+     * @since 3.16.0
+     * 
+     * changeAnnotationSupport?: {}
+     * 
+     * Whether the client groups edits with equal labels into tree nodes,
+     * for instance all edits labelled with "Changes in Strings" would
+     * be a tree node.
+     */
+    int groups_on_label;
 } LSTalk_WorkspaceEditClientCapabilities;
 
 /**
