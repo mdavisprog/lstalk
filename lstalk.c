@@ -1387,6 +1387,28 @@ static JSONValue resource_operation_kind_array(int value) {
     return result;
 }
 
+static JSONValue failure_handling_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_FAILUREHANDLINGKIND_ABORT) {
+        json_array_push(&result, json_make_string_const("abort"));
+    }
+
+    if (value & LSTALK_FAILUREHANDLINGKIND_TRANSACTIONAL) {
+        json_array_push(&result, json_make_string_const("transactional"));
+    }
+
+    if (value & LSTALK_FAILUREHANDLINGKIND_TEXTONLYTRANSACTIONAL) {
+        json_array_push(&result, json_make_string_const("textOnlyTransactional"));
+    }
+
+    if (value & LSTALK_FAILUREHANDLINGKIND_UNDO) {
+        json_array_push(&result, json_make_string_const("undo"));
+    }
+
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1482,6 +1504,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue workspace_edit = json_make_object();
     json_object_const_key_set(&workspace_edit, "documentChanges", json_make_boolean(connect_params.capabilities.workspace.workspace_edit.document_changes));
     json_object_const_key_set(&workspace_edit, "resourceOperations", resource_operation_kind_array(connect_params.capabilities.workspace.workspace_edit.resource_operations));
+    json_object_const_key_set(&workspace_edit, "failureHandling", failure_handling_array(connect_params.capabilities.workspace.workspace_edit.failure_handling));
 
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
