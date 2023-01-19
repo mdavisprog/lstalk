@@ -25,8 +25,8 @@ typedef struct LSTalk_ConnectParams {
     char* root_uri;
 
     /**
-	 * The initial trace setting. If omitted trace is disabled ('off').
-	 */
+     * The initial trace setting. If omitted trace is disabled ('off').
+     */
     LSTalk_Trace trace;
 } LSTalk_ConnectParams;
 
