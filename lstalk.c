@@ -1617,6 +1617,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace, "didChangeWatchedFiles", did_change_watched_files);
     json_object_const_key_set(&workspace, "symbol", symbol);
     json_object_const_key_set(&workspace, "executeCommand", execute_command);
+    json_object_const_key_set(&workspace, "workspaceFolders", json_make_boolean(connect_params.capabilities.workspace.workspace_folders));
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

@@ -319,6 +319,13 @@ typedef struct LSTalk_Workspace {
      * Capabilities specific to the `workspace/executeCommand` request.
      */
     LSTalk_ExecuteCommandClientCapabilities execute_command;
+
+    /**
+     * The client has support for workspace folders.
+     *
+     * @since 3.6.0
+     */
+    int workspace_folders;
 } LSTalk_Workspace;
 
 /**
