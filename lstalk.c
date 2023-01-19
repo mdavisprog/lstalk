@@ -1409,6 +1409,68 @@ static JSONValue failure_handling_array(int value) {
     return result;
 }
 
+typedef enum {
+    SYMBOLKIND_File = 1,
+    SYMBOLKIND_Module = 2,
+    SYMBOLKIND_Namespace = 3,
+    SYMBOLKIND_Package = 4,
+    SYMBOLKIND_Class = 5,
+    SYMBOLKIND_Method = 6,
+    SYMBOLKIND_Property = 7,
+    SYMBOLKIND_Field = 8,
+    SYMBOLKIND_Constructor = 9,
+    SYMBOLKIND_Enum = 10,
+    SYMBOLKIND_Interface = 11,
+    SYMBOLKIND_Function = 12,
+    SYMBOLKIND_Variable = 13,
+    SYMBOLKIND_Constant = 14,
+    SYMBOLKIND_String = 15,
+    SYMBOLKIND_Number = 16,
+    SYMBOLKIND_Boolean = 17,
+    SYMBOLKIND_Array = 18,
+    SYMBOLKIND_Object = 19,
+    SYMBOLKIND_Key = 20,
+    SYMBOLKIND_Null = 21,
+    SYMBOLKIND_EnumMember = 22,
+    SYMBOLKIND_Struct = 23,
+    SYMBOLKIND_Event = 24,
+    SYMBOLKIND_Operator = 25,
+    SYMBOLKIND_TypeParameter = 26,
+} SymbolKind;
+
+static JSONValue symbol_kind_array(long long value) {
+    JSONValue result = json_make_array();
+
+    if (value & SYMBOLKIND_File) { json_array_push(&result, json_make_int(SYMBOLKIND_File)); }
+    if (value & SYMBOLKIND_Module) { json_array_push(&result, json_make_int(SYMBOLKIND_Module)); }
+    if (value & SYMBOLKIND_Namespace) { json_array_push(&result, json_make_int(SYMBOLKIND_Namespace)); }
+    if (value & SYMBOLKIND_Package) { json_array_push(&result, json_make_int(SYMBOLKIND_Package)); }
+    if (value & SYMBOLKIND_Class) { json_array_push(&result, json_make_int(SYMBOLKIND_Class)); }
+    if (value & SYMBOLKIND_Method) { json_array_push(&result, json_make_int(SYMBOLKIND_Method)); }
+    if (value & SYMBOLKIND_Property) { json_array_push(&result, json_make_int(SYMBOLKIND_Property)); }
+    if (value & SYMBOLKIND_Field) { json_array_push(&result, json_make_int(SYMBOLKIND_Field)); }
+    if (value & SYMBOLKIND_Constructor) { json_array_push(&result, json_make_int(SYMBOLKIND_Constructor)); }
+    if (value & SYMBOLKIND_Enum) { json_array_push(&result, json_make_int(SYMBOLKIND_Enum)); }
+    if (value & SYMBOLKIND_Interface) { json_array_push(&result, json_make_int(SYMBOLKIND_Interface)); }
+    if (value & SYMBOLKIND_Function) { json_array_push(&result, json_make_int(SYMBOLKIND_Function)); }
+    if (value & SYMBOLKIND_Variable) { json_array_push(&result, json_make_int(SYMBOLKIND_Variable)); }
+    if (value & SYMBOLKIND_Constant) { json_array_push(&result, json_make_int(SYMBOLKIND_Constant)); }
+    if (value & SYMBOLKIND_String) { json_array_push(&result, json_make_int(SYMBOLKIND_String)); }
+    if (value & SYMBOLKIND_Number) { json_array_push(&result, json_make_int(SYMBOLKIND_Number)); }
+    if (value & SYMBOLKIND_Boolean) { json_array_push(&result, json_make_int(SYMBOLKIND_Boolean)); }
+    if (value & SYMBOLKIND_Array) { json_array_push(&result, json_make_int(SYMBOLKIND_Array)); }
+    if (value & SYMBOLKIND_Object) { json_array_push(&result, json_make_int(SYMBOLKIND_Object)); }
+    if (value & SYMBOLKIND_Key) { json_array_push(&result, json_make_int(SYMBOLKIND_Key)); }
+    if (value & SYMBOLKIND_Null) { json_array_push(&result, json_make_int(SYMBOLKIND_Null)); }
+    if (value & SYMBOLKIND_EnumMember) { json_array_push(&result, json_make_int(SYMBOLKIND_EnumMember)); }
+    if (value & SYMBOLKIND_Struct) { json_array_push(&result, json_make_int(SYMBOLKIND_Struct)); }
+    if (value & SYMBOLKIND_Event) { json_array_push(&result, json_make_int(SYMBOLKIND_Event)); }
+    if (value & SYMBOLKIND_Operator) { json_array_push(&result, json_make_int(SYMBOLKIND_Operator)); }
+    if (value & SYMBOLKIND_TypeParameter) { json_array_push(&result, json_make_int(SYMBOLKIND_TypeParameter)); }
+
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1517,11 +1579,18 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&did_change_watched_files, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.did_change_watched_files.dynamic_registration));
     json_object_const_key_set(&did_change_watched_files, "relativePatternSupport", json_make_boolean(connect_params.capabilities.workspace.did_change_watched_files.relative_pattern_support));
 
+    JSONValue symbol = json_make_object();
+    json_object_const_key_set(&symbol, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.symbol.dynamic_registration));
+    JSONValue symbol_kind = json_make_object();
+    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_array(connect_params.capabilities.workspace.symbol.value_set));
+    json_object_const_key_set(&symbol, "symbolKind", symbol_kind);
+
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
     json_object_const_key_set(&workspace, "workspaceEdit", workspace_edit);
     json_object_const_key_set(&workspace, "didChangeConfiguration", did_change_configuration);
     json_object_const_key_set(&workspace, "didChangeWatchedFiles", did_change_watched_files);
+    json_object_const_key_set(&workspace, "symbol", symbol);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

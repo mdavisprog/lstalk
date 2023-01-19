@@ -39,6 +39,64 @@ typedef enum {
 } LSTalk_ResourceOperationKind;
 
 /**
+ * A symbol kind.
+ */
+typedef enum {
+    LSTALK_SYMBOLKIND_FILE = 1 << 0,
+    LSTALK_SYMBOLKIND_MODULE = 1 << 1,
+    LSTALK_SYMBOLKIND_NAMESPACE = 1 << 2,
+    LSTALK_SYMBOLKIND_PACKAGE = 1 << 3,
+    LSTALK_SYMBOLKIND_CLASS = 1 << 4,
+    LSTALK_SYMBOLKIND_METHOD = 1 << 5,
+    LSTALK_SYMBOLKIND_PROPERTY = 1 << 6,
+    LSTALK_SYMBOLKIND_FIELD = 1 << 7,
+    LSTALK_SYMBOLKIND_CONSTRUCTOR = 1 << 8,
+    LSTALK_SYMBOLKIND_ENUM = 1 << 9,
+    LSTALK_SYMBOLKIND_INTERFACE = 1 << 10,
+    LSTALK_SYMBOLKIND_FUNCTION = 1 << 11,
+    LSTALK_SYMBOLKIND_VARIABLE = 1 << 12,
+    LSTALK_SYMBOLKIND_CONSTANT = 1 << 13,
+    LSTALK_SYMBOLKIND_STRING = 1 << 14,
+    LSTALK_SYMBOLKIND_NUMBER = 1 << 15,
+    LSTALK_SYMBOLKIND_BOOLEAN = 1 << 16,
+    LSTALK_SYMBOLKIND_ARRAY = 1 << 17,
+    LSTALK_SYMBOLKIND_OBJECT = 1 << 18,
+    LSTALK_SYMBOLKIND_KEY = 1 << 19,
+    LSTALK_SYMBOLKIND_NULL = 1 << 20,
+    LSTALK_SYMBOLKIND_ENUMMEMBER = 1 << 21,
+    LSTALK_SYMBOLKIND_STRUCT = 1 << 22,
+    LSTALK_SYMBOLKIND_EVENT = 1 << 23,
+    LSTALK_SYMBOLKIND_OPERATOR = 1 << 24,
+    LSTALK_SYMBOLKIND_TYPEPARAMETER = 1 << 25,
+    LSTALK_SYMBOLKIND_ALL =  LSTALK_SYMBOLKIND_FILE
+        | LSTALK_SYMBOLKIND_MODULE
+        | LSTALK_SYMBOLKIND_NAMESPACE
+        | LSTALK_SYMBOLKIND_PACKAGE
+        | LSTALK_SYMBOLKIND_CLASS
+        | LSTALK_SYMBOLKIND_METHOD
+        | LSTALK_SYMBOLKIND_PROPERTY
+        | LSTALK_SYMBOLKIND_FIELD
+        | LSTALK_SYMBOLKIND_CONSTRUCTOR
+        | LSTALK_SYMBOLKIND_ENUM
+        | LSTALK_SYMBOLKIND_INTERFACE
+        | LSTALK_SYMBOLKIND_FUNCTION
+        | LSTALK_SYMBOLKIND_VARIABLE
+        | LSTALK_SYMBOLKIND_CONSTANT
+        | LSTALK_SYMBOLKIND_STRING
+        | LSTALK_SYMBOLKIND_NUMBER
+        | LSTALK_SYMBOLKIND_BOOLEAN
+        | LSTALK_SYMBOLKIND_ARRAY
+        | LSTALK_SYMBOLKIND_OBJECT
+        | LSTALK_SYMBOLKIND_KEY
+        | LSTALK_SYMBOLKIND_NULL
+        | LSTALK_SYMBOLKIND_ENUMMEMBER
+        | LSTALK_SYMBOLKIND_STRUCT
+        | LSTALK_SYMBOLKIND_EVENT
+        | LSTALK_SYMBOLKIND_OPERATOR
+        | LSTALK_SYMBOLKIND_TYPEPARAMETER,
+} LSTalk_SymbolKind;
+
+/**
  * The failure handling strategy of a client if applying the workspace edit
  * fails.
  *
@@ -154,6 +212,30 @@ typedef struct LSTalk_DidChangeWatchedFilesClientCapabilities {
     int relative_pattern_support;
 } LSTalk_DidChangeWatchedFilesClientCapabilities;
 
+typedef struct LSTalk_WorkspaceSymbolClientCapabilities {
+    /**
+     * Symbol request supports dynamic registration.
+     */
+    int dynamic_registration;
+
+    /**
+     * Specific capabilities for the `SymbolKind` in the `workspace/symbol`
+     * request.
+     *
+     * symbolKind:
+     * 
+     * The symbol kind values the client supports. When this
+     * property exists the client also guarantees that it will
+     * handle values outside its set gracefully and falls back
+     * to a default value when unknown.
+     *
+     * If this property is not present the client only supports
+     * the symbol kinds from `File` to `Array` as defined in
+     * the initial version of the protocol.
+     */
+    long long value_set;
+} LSTalk_WorkspaceSymbolClientCapabilities;
+
 /**
  * Workspace specific client capabilities.
  */
@@ -181,6 +263,11 @@ typedef struct LSTalk_Workspace {
      * notification.
      */
     LSTalk_DidChangeWatchedFilesClientCapabilities did_change_watched_files;
+
+    /**
+     * Capabilities specific to the `workspace/symbol` request.
+     */
+    LSTalk_WorkspaceSymbolClientCapabilities symbol;
 } LSTalk_Workspace;
 
 /**
