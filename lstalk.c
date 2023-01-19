@@ -1607,12 +1607,16 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&resolve_support, "properties", resolve_support_properties);
     json_object_const_key_set(&symbol, "resolveSupport", resolve_support);
 
+    JSONValue execute_command = json_make_object();
+    json_object_const_key_set(&execute_command, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.execute_command.dynamic_registration));
+
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
     json_object_const_key_set(&workspace, "workspaceEdit", workspace_edit);
     json_object_const_key_set(&workspace, "didChangeConfiguration", did_change_configuration);
     json_object_const_key_set(&workspace, "didChangeWatchedFiles", did_change_watched_files);
     json_object_const_key_set(&workspace, "symbol", symbol);
+    json_object_const_key_set(&workspace, "executeCommand", execute_command);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

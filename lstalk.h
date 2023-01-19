@@ -273,6 +273,16 @@ typedef struct LSTalk_WorkspaceSymbolClientCapabilities {
 } LSTalk_WorkspaceSymbolClientCapabilities;
 
 /**
+ * Capabilities specific to the `workspace/executeCommand` request.
+ */
+typedef struct LSTalk_ExecuteCommandClientCapabilities {
+    /**
+     * Execute command supports dynamic registration.
+     */
+    int dynamic_registration;
+} LSTalk_ExecuteCommandClientCapabilities;
+
+/**
  * Workspace specific client capabilities.
  */
 typedef struct LSTalk_Workspace {
@@ -304,6 +314,11 @@ typedef struct LSTalk_Workspace {
      * Capabilities specific to the `workspace/symbol` request.
      */
     LSTalk_WorkspaceSymbolClientCapabilities symbol;
+
+    /**
+     * Capabilities specific to the `workspace/executeCommand` request.
+     */
+    LSTalk_ExecuteCommandClientCapabilities execute_command;
 } LSTalk_Workspace;
 
 /**
