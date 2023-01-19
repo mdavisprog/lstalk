@@ -1510,9 +1510,13 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&change_annotation_support, "groupsOnLabel", json_make_boolean(connect_params.capabilities.workspace.workspace_edit.groups_on_label));
     json_object_const_key_set(&workspace_edit, "changeAnnotationSupport", change_annotation_support);
 
+    JSONValue did_change_configuration = json_make_object();
+    json_object_const_key_set(&did_change_configuration, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.did_change_configuration.dynamic_registration));
+
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
     json_object_const_key_set(&workspace, "workspaceEdit", workspace_edit);
+    json_object_const_key_set(&workspace, "didChangeConfiguration", did_change_configuration);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

@@ -123,6 +123,17 @@ typedef struct LSTalk_WorkspaceEditClientCapabilities {
 } LSTalk_WorkspaceEditClientCapabilities;
 
 /**
+ * Capabilities specific to the `workspace/didChangeConfiguration`
+ * notification.
+ */
+typedef struct LSTalk_DidChangeConfigurationClientCapabilities {
+    /**
+     * Did change configuration notification supports dynamic registration.
+     */
+    int dynamic_registration;
+} LSTalk_DidChangeConfigurationClientCapabilities;
+
+/**
  * Workspace specific client capabilities.
  */
 typedef struct LSTalk_Workspace {
@@ -137,6 +148,12 @@ typedef struct LSTalk_Workspace {
      * Capabilities specific to `WorkspaceEdit`s
      */
     LSTalk_WorkspaceEditClientCapabilities workspace_edit;
+
+    /**
+     * Capabilities specific to the `workspace/didChangeConfiguration`
+     * notification.
+     */
+    LSTalk_DidChangeConfigurationClientCapabilities did_change_configuration;
 } LSTalk_Workspace;
 
 /**
