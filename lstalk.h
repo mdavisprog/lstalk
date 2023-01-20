@@ -283,6 +283,25 @@ typedef struct LSTalk_ExecuteCommandClientCapabilities {
 } LSTalk_ExecuteCommandClientCapabilities;
 
 /**
+ * Capabilities specific to the semantic token requests scoped to the
+ * workspace.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_SemanticTokensWorkspaceClientCapabilities {
+    /**
+     * Whether the client implementation supports a refresh request sent from
+     * the server to the client.
+     *
+     * Note that this event is global and will force the client to refresh all
+     * semantic tokens currently shown. It should be used with absolute care
+     * and is useful for situation where a server for example detect a project
+     * wide change that requires such a calculation.
+     */
+    int refresh_support;
+} LSTalk_SemanticTokensWorkspaceClientCapabilities;
+
+/**
  * Workspace specific client capabilities.
  */
 typedef struct LSTalk_Workspace {
@@ -333,6 +352,14 @@ typedef struct LSTalk_Workspace {
      * @since 3.6.0
      */
     int configuration;
+
+    /**
+     * Capabilities specific to the semantic token requests scoped to the
+     * workspace.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_SemanticTokensWorkspaceClientCapabilities semantic_tokens;
 } LSTalk_Workspace;
 
 /**
