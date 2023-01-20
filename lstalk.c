@@ -1613,6 +1613,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue semantic_tokens = json_make_object();
     json_object_const_key_set(&semantic_tokens, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.semantic_tokens.refresh_support));
 
+    JSONValue code_lens = json_make_object();
+    json_object_const_key_set(&code_lens, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.code_lens.refresh_support));
+
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
     json_object_const_key_set(&workspace, "workspaceEdit", workspace_edit);
@@ -1623,6 +1626,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace, "workspaceFolders", json_make_boolean(connect_params.capabilities.workspace.workspace_folders));
     json_object_const_key_set(&workspace, "configuration", json_make_boolean(connect_params.capabilities.workspace.configuration));
     json_object_const_key_set(&workspace, "semanticTokens", semantic_tokens);
+    json_object_const_key_set(&workspace, "codeLens", code_lens);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
