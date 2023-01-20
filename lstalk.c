@@ -1616,6 +1616,15 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue code_lens = json_make_object();
     json_object_const_key_set(&code_lens, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.code_lens.refresh_support));
 
+    JSONValue file_operations = json_make_object();
+    json_object_const_key_set(&code_lens, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.file_operations.dynamic_registration));
+    json_object_const_key_set(&code_lens, "didCreate", json_make_boolean(connect_params.capabilities.workspace.file_operations.did_create));
+    json_object_const_key_set(&code_lens, "willCreate", json_make_boolean(connect_params.capabilities.workspace.file_operations.will_create));
+    json_object_const_key_set(&code_lens, "didRename", json_make_boolean(connect_params.capabilities.workspace.file_operations.did_rename));
+    json_object_const_key_set(&code_lens, "willRename", json_make_boolean(connect_params.capabilities.workspace.file_operations.will_rename));
+    json_object_const_key_set(&code_lens, "didDelete", json_make_boolean(connect_params.capabilities.workspace.file_operations.did_delete));
+    json_object_const_key_set(&code_lens, "willDelete", json_make_boolean(connect_params.capabilities.workspace.file_operations.will_delete));
+
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
     json_object_const_key_set(&workspace, "workspaceEdit", workspace_edit);
@@ -1627,6 +1636,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace, "configuration", json_make_boolean(connect_params.capabilities.workspace.configuration));
     json_object_const_key_set(&workspace, "semanticTokens", semantic_tokens);
     json_object_const_key_set(&workspace, "codeLens", code_lens);
+    json_object_const_key_set(&workspace, "fileOperations", file_operations);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

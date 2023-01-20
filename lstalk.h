@@ -321,6 +321,49 @@ typedef struct LSTalk_CodeLensWorkspaceClientCapabilities {
 } LSTalk_CodeLensWorkspaceClientCapabilities;
 
 /**
+ * The client has support for file requests/notifications.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_FileOperations {
+    /**
+     * Whether the client supports dynamic registration for file
+     * requests/notifications.
+     */
+    int dynamic_registration;
+
+    /**
+     * The client has support for sending didCreateFiles notifications.
+     */
+    int did_create;
+
+    /**
+     * The client has support for sending willCreateFiles requests.
+     */
+    int will_create;
+
+    /**
+     * The client has support for sending didRenameFiles notifications.
+     */
+    int did_rename;
+
+    /**
+     * The client has support for sending willRenameFiles requests.
+     */
+    int will_rename;
+
+    /**
+     * The client has support for sending didDeleteFiles notifications.
+     */
+    int did_delete;
+
+    /**
+     * The client has support for sending willDeleteFiles requests.
+     */
+    int will_delete;
+} LSTalk_FileOperations;
+
+/**
  * Workspace specific client capabilities.
  */
 typedef struct LSTalk_Workspace {
@@ -387,6 +430,13 @@ typedef struct LSTalk_Workspace {
      * @since 3.16.0
      */
     LSTalk_CodeLensWorkspaceClientCapabilities code_lens;
+
+    /**
+     * The client has support for file requests/notifications.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_FileOperations file_operations;
 } LSTalk_Workspace;
 
 /**
