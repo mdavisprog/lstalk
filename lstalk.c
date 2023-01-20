@@ -1478,7 +1478,7 @@ typedef enum {
 static JSONValue symbol_tag_array(int value) {
     JSONValue result = json_make_array();
 
-    if (value & SYMBOLTAG_Deprecated) { json_array_push(&result, json_make_int(SYMBOLTAG_Deprecated)); }
+    if (value & LSTALK_SYMBOLTAG_DEPRECATED) { json_array_push(&result, json_make_int(SYMBOLTAG_Deprecated)); }
 
     return result;
 }
