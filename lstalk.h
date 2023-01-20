@@ -539,10 +539,25 @@ typedef struct LSTalk_TextDocumentSyncClientCapabilities {
 } LSTalk_TextDocumentSyncClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/completion` request.
+ */
+typedef struct LSTalk_CompletionClientCapabilities {
+    /**
+     * Whether completion supports dynamic registration.
+     */
+    int dynamic_registration;
+} LSTalk_CompletionClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
     LSTalk_TextDocumentSyncClientCapabilities synchronization;
+
+    /**
+     * Capabilities specific to the `textDocument/completion` request.
+     */
+    LSTalk_CompletionClientCapabilities completion;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
