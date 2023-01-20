@@ -1656,8 +1656,12 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&synchronization, "willSaveWaitUntil", json_make_boolean(connect_params.capabilities.text_document.synchronization.will_save_wait_until));
     json_object_const_key_set(&synchronization, "didSave", json_make_boolean(connect_params.capabilities.text_document.synchronization.did_save));
 
+    JSONValue completion_item = json_make_object();
+    json_object_const_key_set(&completion_item, "snippetSupport", json_make_boolean(connect_params.capabilities.text_document.completion.completion_item.snippet_support));
+
     JSONValue completion = json_make_object();
     json_object_const_key_set(&completion, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.completion.dynamic_registration));
+    json_object_const_key_set(&completion, "completionItem", completion_item);
 
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);

@@ -539,6 +539,22 @@ typedef struct LSTalk_TextDocumentSyncClientCapabilities {
 } LSTalk_TextDocumentSyncClientCapabilities;
 
 /**
+ * The client supports the following `CompletionItem` specific
+ * capabilities.
+ */
+typedef struct LSTalk_CompletionItem {
+    /**
+     * Client supports snippets as insert text.
+     *
+     * A snippet can define tab stops and placeholders with `$1`, `$2`
+     * and `${3:foo}`. `$0` defines the final tab stop, it defaults to
+     * the end of the snippet. Placeholders with equal identifiers are
+     * linked, that is typing in one will update others too.
+     */
+    int snippet_support;
+} LSTalk_CompletionItem;
+
+/**
  * Capabilities specific to the `textDocument/completion` request.
  */
 typedef struct LSTalk_CompletionClientCapabilities {
@@ -546,6 +562,12 @@ typedef struct LSTalk_CompletionClientCapabilities {
      * Whether completion supports dynamic registration.
      */
     int dynamic_registration;
+
+    /**
+     * The client supports the following `CompletionItem` specific
+     * capabilities.
+     */
+    LSTalk_CompletionItem completion_item;
 } LSTalk_CompletionClientCapabilities;
 
 /**
