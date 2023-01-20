@@ -514,6 +514,37 @@ typedef struct LSTalk_Workspace {
     LSTalk_DiagnosticWorkspaceClientCapabilities diagnostics;
 } LSTalk_Workspace;
 
+typedef struct LSTalk_TextDocumentSyncClientCapabilities {
+    /**
+     * Whether text document synchronization supports dynamic registration.
+     */
+    int dynamic_registration;
+
+    /**
+     * The client supports sending will save notifications.
+     */
+    int will_save;
+
+    /**
+     * The client supports sending a will save request and
+     * waits for a response providing text edits which will
+     * be applied to the document before it is saved.
+     */
+    int will_save_wait_until;
+
+    /**
+     * The client supports did save notifications.
+     */
+    int did_save;
+} LSTalk_TextDocumentSyncClientCapabilities;
+
+/**
+ * Text document specific client capabilities.
+ */
+typedef struct LSTalk_TextDocumentClientCapabilities {
+    LSTalk_TextDocumentSyncClientCapabilities synchronization;
+} LSTalk_TextDocumentClientCapabilities;
+
 /**
  * The capabilities provided by the client (editor or tool)
  */
@@ -522,6 +553,11 @@ typedef struct LSTalk_ClientCapabilities {
      * Workspace specific client capabilities.
      */
     LSTalk_Workspace workspace;
+
+    /**
+     * Text document specific client capabilities.
+     */
+    LSTalk_TextDocumentClientCapabilities text_document;
 } LSTalk_ClientCapabilities;
 
 typedef struct LSTalk_ConnectParams {

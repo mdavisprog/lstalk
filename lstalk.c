@@ -1650,8 +1650,18 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace, "inlayHint", inlay_hint);
     json_object_const_key_set(&workspace, "diagnostics", diagnostics);
 
+    JSONValue synchronization = json_make_object();
+    json_object_const_key_set(&synchronization, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.synchronization.dynamic_registration));
+    json_object_const_key_set(&synchronization, "willSave", json_make_boolean(connect_params.capabilities.text_document.synchronization.will_save));
+    json_object_const_key_set(&synchronization, "willSaveWaitUntil", json_make_boolean(connect_params.capabilities.text_document.synchronization.will_save_wait_until));
+    json_object_const_key_set(&synchronization, "didSave", json_make_boolean(connect_params.capabilities.text_document.synchronization.did_save));
+
+    JSONValue text_document = json_make_object();
+    json_object_const_key_set(&text_document, "synchronization", synchronization);
+
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
+    json_object_const_key_set(&client_capabilities, "textDocument", text_document);
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
