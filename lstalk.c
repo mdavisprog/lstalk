@@ -1686,6 +1686,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue completion_item_tag_support = json_make_object();
     json_object_const_key_set(&completion_item_tag_support, "valueSet", completion_item_tag_array(connect_params.capabilities.text_document.completion.completion_item.tag_support_value_set));
     json_object_const_key_set(&completion_item, "tagSupport", completion_item_tag_support);
+    json_object_const_key_set(&completion_item, "insertReplaceSupport", json_make_boolean(connect_params.capabilities.text_document.completion.completion_item.insert_replace_support));
 
     JSONValue completion = json_make_object();
     json_object_const_key_set(&completion, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.completion.dynamic_registration));

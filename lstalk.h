@@ -619,6 +619,14 @@ typedef struct LSTalk_CompletionItem {
      * The tags supported by the client.
      */
     int tag_support_value_set;
+
+    /**
+     * Client supports insert replace edit to control different behavior if
+     * a completion item is inserted in the text or should replace text.
+     *
+     * @since 3.16.0
+     */
+    int insert_replace_support;
 } LSTalk_CompletionItem;
 
 /**
