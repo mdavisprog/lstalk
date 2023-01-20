@@ -39,6 +39,40 @@ typedef enum {
 } LSTalk_ResourceOperationKind;
 
 /**
+ * The failure handling strategy of a client if applying the workspace edit
+ * fails.
+ *
+ * @since 3.13.0
+ */
+typedef enum {
+    /**
+     * Applying the workspace change is simply aborted if one of the changes
+     * provided fails. All operations executed before the failing operation
+     * stay executed.
+     */
+    LSTALK_FAILUREHANDLINGKIND_ABORT = 1 << 0,
+
+    /**
+     * All operations are executed transactional. That means they either all
+     * succeed or no changes at all are applied to the workspace.
+     */
+    LSTALK_FAILUREHANDLINGKIND_TRANSACTIONAL = 1 << 1,
+
+    /**
+     * If the workspace edit contains only textual file changes they are
+     * executed transactional. If resource changes (create, rename or delete
+     * file) are part of the change the failure handling strategy is abort.
+     */
+    LSTALK_FAILUREHANDLINGKIND_TEXTONLYTRANSACTIONAL = 1 << 2,
+
+    /**
+     * The client tries to undo the operations already executed. But there is no
+     * guarantee that this is succeeding.
+     */
+    LSTALK_FAILUREHANDLINGKIND_UNDO = 1 << 3,
+} LSTalk_FailureHandlingKind;
+
+/**
  * A symbol kind.
  */
 typedef enum {
@@ -104,40 +138,6 @@ typedef enum {
 typedef enum {
     LSTALK_SYMBOLTAG_DEPRECATED = 1 << 0,
 } LSTalk_SymbolTag;
-
-/**
- * The failure handling strategy of a client if applying the workspace edit
- * fails.
- *
- * @since 3.13.0
- */
-typedef enum {
-    /**
-     * Applying the workspace change is simply aborted if one of the changes
-     * provided fails. All operations executed before the failing operation
-     * stay executed.
-     */
-    LSTALK_FAILUREHANDLINGKIND_ABORT = 1 << 0,
-
-    /**
-     * All operations are executed transactional. That means they either all
-     * succeed or no changes at all are applied to the workspace.
-     */
-    LSTALK_FAILUREHANDLINGKIND_TRANSACTIONAL = 1 << 1,
-
-    /**
-     * If the workspace edit contains only textual file changes they are
-     * executed transactional. If resource changes (create, rename or delete
-     * file) are part of the change the failure handling strategy is abort.
-     */
-    LSTALK_FAILUREHANDLINGKIND_TEXTONLYTRANSACTIONAL = 1 << 2,
-
-    /**
-     * The client tries to undo the operations already executed. But there is no
-     * guarantee that this is succeeding.
-     */
-    LSTALK_FAILUREHANDLINGKIND_UNDO = 1 << 3,
-} LSTalk_FailureHandlingKind;
 
 /**
  * Capabilities specific to `WorkspaceEdit`s
