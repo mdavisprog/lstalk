@@ -582,6 +582,16 @@ typedef struct LSTalk_CompletionItem {
      * property. The order describes the preferred format of the client.
      */
     int documentation_format;
+
+    /**
+     * Client supports the deprecated property on a completion item.
+     */
+    int deprecated_support;
+
+    /**
+     * Client supports the preselect property on a completion item.
+     */
+    int preselect_support;
 } LSTalk_CompletionItem;
 
 /**
