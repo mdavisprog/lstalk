@@ -1518,6 +1518,66 @@ static JSONValue insert_text_mode_array(int value) {
     return result;
 }
 
+typedef enum {
+    COMPLETIONITEMKIND_Text = 1,
+    COMPLETIONITEMKIND_Method = 2,
+    COMPLETIONITEMKIND_Function = 3,
+    COMPLETIONITEMKIND_Constructor = 4,
+    COMPLETIONITEMKIND_Field = 5,
+    COMPLETIONITEMKIND_Variable = 6,
+    COMPLETIONITEMKIND_Class = 7,
+    COMPLETIONITEMKIND_Interface = 8,
+    COMPLETIONITEMKIND_Module = 9,
+    COMPLETIONITEMKIND_Property = 10,
+    COMPLETIONITEMKIND_Unit = 11,
+    COMPLETIONITEMKIND_Value = 12,
+    COMPLETIONITEMKIND_Enum = 13,
+    COMPLETIONITEMKIND_Keyword = 14,
+    COMPLETIONITEMKIND_Snippet = 15,
+    COMPLETIONITEMKIND_Color = 16,
+    COMPLETIONITEMKIND_File = 17,
+    COMPLETIONITEMKIND_Reference = 18,
+    COMPLETIONITEMKIND_Folder = 19,
+    COMPLETIONITEMKIND_EnumMember = 20,
+    COMPLETIONITEMKIND_Constant = 21,
+    COMPLETIONITEMKIND_Struct = 22,
+    COMPLETIONITEMKIND_Event = 23,
+    COMPLETIONITEMKIND_Operator = 24,
+    COMPLETIONITEMKIND_TypeParameter = 25,
+} CompletionItemKind;
+
+static JSONValue completion_item_kind_array(long long value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_COMPLETIONITEMKIND_TEXT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Text)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_METHOD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Method)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_FUNCTION) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Function)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_CONSTRUCTOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Constructor)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_FIELD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Field)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_VARIABLE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Variable)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_CLASS) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Class)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_INTERFACE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Interface)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_MODULE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Module)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_PROPERTY) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Property)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_UNIT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Unit)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_VALUE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Value)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_ENUM) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Enum)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_KEYWORD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Keyword)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_SNIPPET) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Snippet)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_COLOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Color)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_FILE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_File)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_REFERENCE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Reference)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_FOLDER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Folder)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_ENUMMEMBER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_EnumMember)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_CONSTANT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Constant)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_STRUCT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Struct)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_EVENT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Event)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_OPERATOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Operator)); }
+    if (value & LSTALK_COMPLETIONITEMKIND_TYPEPARAMETER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_TypeParameter)); }
+
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1716,6 +1776,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue completion = json_make_object();
     json_object_const_key_set(&completion, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.completion.dynamic_registration));
     json_object_const_key_set(&completion, "completionItem", completion_item);
+    JSONValue completion_item_kind = json_make_object();
+    json_object_const_key_set(&completion_item_kind, "valueSet", completion_item_kind_array(connect_params.capabilities.text_document.completion.completion_item_kind_value_set));
+    json_object_const_key_set(&completion, "completionItemKind", completion_item_kind);
 
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);

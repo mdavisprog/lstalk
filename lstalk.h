@@ -148,13 +148,13 @@ typedef enum {
  */
 typedef enum {
     /**
-	 * Plain text is supported as a content format
-	 */
+     * Plain text is supported as a content format
+     */
     LSTALK_MARKUPKIND_PLAINTEXT = 1 << 0,
 
     /**
-	 * Markdown is supported as a content format
-	 */
+     * Markdown is supported as a content format
+     */
     LSTALK_MARKUPKIND_MARKDOWN = 1 << 1,
 } LSTalk_MarkupKind;
 
@@ -166,8 +166,8 @@ typedef enum {
  */
 typedef enum {
     /**
-	 * Render a completion as obsolete, usually using a strike-out.
-	 */
+     * Render a completion as obsolete, usually using a strike-out.
+     */
     LSTALK_COMPLETIONITEMTAG_DEPRECATED = 1 << 0,
 } LSTalk_CompletionItemTag;
 
@@ -179,25 +179,56 @@ typedef enum {
  */
 typedef enum {
     /**
-	 * The insertion or replace strings is taken as it is. If the
-	 * value is multi line the lines below the cursor will be
-	 * inserted using the indentation defined in the string value.
-	 * The client will not apply any kind of adjustments to the
-	 * string.
-	 */
+     * The insertion or replace strings is taken as it is. If the
+     * value is multi line the lines below the cursor will be
+     * inserted using the indentation defined in the string value.
+     * The client will not apply any kind of adjustments to the
+     * string.
+     */
     LSTALK_INSERTTEXTMODE_ASIS = 1 << 0,
 
-	/**
-	 * The editor adjusts leading whitespace of new lines so that
-	 * they match the indentation up to the cursor of the line for
-	 * which the item is accepted.
-	 *
-	 * Consider a line like this: <2tabs><cursor><3tabs>foo. Accepting a
-	 * multi line completion item is indented using 2 tabs and all
-	 * following lines inserted will be indented using 2 tabs as well.
-	 */
+    /**
+     * The editor adjusts leading whitespace of new lines so that
+     * they match the indentation up to the cursor of the line for
+     * which the item is accepted.
+     *
+     * Consider a line like this: <2tabs><cursor><3tabs>foo. Accepting a
+     * multi line completion item is indented using 2 tabs and all
+     * following lines inserted will be indented using 2 tabs as well.
+     */
     LSTALK_INSERTTEXTMODE_ADJUSTINDENTATION = 1 << 1,
 } LSTalk_InsertTextMode;
+
+/**
+ * The kind of a completion entry.
+ */
+typedef enum {
+    LSTALK_COMPLETIONITEMKIND_TEXT = 1 << 0,
+    LSTALK_COMPLETIONITEMKIND_METHOD = 1 << 1,
+    LSTALK_COMPLETIONITEMKIND_FUNCTION = 1 << 2,
+    LSTALK_COMPLETIONITEMKIND_CONSTRUCTOR = 1 << 3,
+    LSTALK_COMPLETIONITEMKIND_FIELD = 1 << 4,
+    LSTALK_COMPLETIONITEMKIND_VARIABLE = 1 << 5,
+    LSTALK_COMPLETIONITEMKIND_CLASS = 1 << 6,
+    LSTALK_COMPLETIONITEMKIND_INTERFACE = 1 << 7,
+    LSTALK_COMPLETIONITEMKIND_MODULE = 1 << 8,
+    LSTALK_COMPLETIONITEMKIND_PROPERTY = 1 << 9,
+    LSTALK_COMPLETIONITEMKIND_UNIT = 1 << 10,
+    LSTALK_COMPLETIONITEMKIND_VALUE = 1 << 11,
+    LSTALK_COMPLETIONITEMKIND_ENUM = 1 << 12,
+    LSTALK_COMPLETIONITEMKIND_KEYWORD = 1 << 13,
+    LSTALK_COMPLETIONITEMKIND_SNIPPET = 1 << 14,
+    LSTALK_COMPLETIONITEMKIND_COLOR = 1 << 15,
+    LSTALK_COMPLETIONITEMKIND_FILE = 1 << 16,
+    LSTALK_COMPLETIONITEMKIND_REFERENCE = 1 << 17,
+    LSTALK_COMPLETIONITEMKIND_FOLDER = 1 << 18,
+    LSTALK_COMPLETIONITEMKIND_ENUMMEMBER = 1 << 19,
+    LSTALK_COMPLETIONITEMKIND_CONSTANT = 1 << 20,
+    LSTALK_COMPLETIONITEMKIND_STRUCT = 1 << 21,
+    LSTALK_COMPLETIONITEMKIND_EVENT = 1 << 22,
+    LSTALK_COMPLETIONITEMKIND_OPERATOR = 1 << 23,
+    LSTALK_COMPLETIONITEMKIND_TYPEPARAMETER = 1 << 24,
+} LSTalk_CompletionItemKind;
 
 /**
  * Capabilities specific to `WorkspaceEdit`s
@@ -705,6 +736,20 @@ typedef struct LSTalk_CompletionClientCapabilities {
      * capabilities.
      */
     LSTalk_CompletionItem completion_item;
+
+    /**
+     * completionItemKind
+     * 
+     * The completion item kind values the client supports. When this
+     * property exists the client also guarantees that it will
+     * handle values outside its set gracefully and falls back
+     * to a default value when unknown.
+     *
+     * If this property is not present the client only supports
+     * the completion items kinds from `Text` to `Reference` as defined in
+     * the initial version of the protocol.
+     */
+    long long completion_item_kind_value_set;
 } LSTalk_CompletionClientCapabilities;
 
 /**
