@@ -1492,6 +1492,18 @@ static JSONValue markup_kind_array(int value) {
     return result;
 }
 
+typedef enum {
+    COMPLETIONITEMTAG_Deprecated = 1,
+} CompletionItemTag;
+
+static JSONValue completion_item_tag_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_COMPLETIONITEMTAG_DEPRECATED) { json_array_push(&result, json_make_int(COMPLETIONITEMTAG_Deprecated)); }
+
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1671,6 +1683,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&completion_item, "documentationFormat", markup_kind_array(connect_params.capabilities.text_document.completion.completion_item.documentation_format));
     json_object_const_key_set(&completion_item, "deprecatedSupport", json_make_boolean(connect_params.capabilities.text_document.completion.completion_item.deprecated_support));
     json_object_const_key_set(&completion_item, "preselectSupport", json_make_boolean(connect_params.capabilities.text_document.completion.completion_item.preselect_support));
+    JSONValue completion_item_tag_support = json_make_object();
+    json_object_const_key_set(&completion_item_tag_support, "valueSet", completion_item_tag_array(connect_params.capabilities.text_document.completion.completion_item.tag_support_value_set));
+    json_object_const_key_set(&completion_item, "tagSupport", completion_item_tag_support);
 
     JSONValue completion = json_make_object();
     json_object_const_key_set(&completion, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.completion.dynamic_registration));

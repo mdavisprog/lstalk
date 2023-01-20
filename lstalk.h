@@ -159,6 +159,19 @@ typedef enum {
 } LSTalk_MarkupKind;
 
 /**
+ * Completion item tags are extra annotations that tweak the rendering of a
+ * completion item.
+ *
+ * @since 3.15.0
+ */
+typedef enum {
+    /**
+	 * Render a completion as obsolete, usually using a strike-out.
+	 */
+    LSTALK_COMPLETIONITEMTAG_DEPRECATED = 1 << 0,
+} LSTalk_CompletionItemTag;
+
+/**
  * Capabilities specific to `WorkspaceEdit`s
  */
 typedef struct LSTalk_WorkspaceEditClientCapabilities {
@@ -592,6 +605,20 @@ typedef struct LSTalk_CompletionItem {
      * Client supports the preselect property on a completion item.
      */
     int preselect_support;
+
+    /**
+     * Client supports the tag property on a completion item. Clients
+     * supporting tags have to handle unknown tags gracefully. Clients
+     * especially need to preserve unknown tags when sending a completion
+     * item back to the server in a resolve call.
+     *
+     * @since 3.15.0
+     *
+     * tagSupport:
+     *
+     * The tags supported by the client.
+     */
+    int tag_support_value_set;
 } LSTalk_CompletionItem;
 
 /**
