@@ -1504,6 +1504,20 @@ static JSONValue completion_item_tag_array(int value) {
     return result;
 }
 
+typedef enum {
+    INSERTTEXTMODE_AsIs = 1,
+    INSERTTEXTMODE_AdjustIndentation2,
+} InsertTextMode;
+
+static JSONValue insert_text_mode_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_INSERTTEXTMODE_ASIS) { json_array_push(&result, json_make_int(INSERTTEXTMODE_AsIs)); }
+    if (value & LSTALK_INSERTTEXTMODE_ADJUSTINDENTATION) { json_array_push(&result, json_make_int(INSERTTEXTMODE_AdjustIndentation2)); }
+
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1694,6 +1708,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue completion_item_resolve_properties = json_make_object();
     json_object_const_key_set(&completion_item_resolve_properties, "properties", completion_item_resolve_properties_array);
     json_object_const_key_set(&completion_item, "resolveSupport", completion_item_resolve_properties);
+    JSONValue completion_item_insert_text_mode = json_make_object();
+    json_object_const_key_set(&completion_item_insert_text_mode, "valueSet", insert_text_mode_array(connect_params.capabilities.text_document.completion.completion_item.insert_text_mode_support_value_set));
+    json_object_const_key_set(&completion_item, "insertTextModeSupport", completion_item_insert_text_mode);
 
     JSONValue completion = json_make_object();
     json_object_const_key_set(&completion, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.completion.dynamic_registration));

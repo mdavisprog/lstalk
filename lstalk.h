@@ -172,6 +172,34 @@ typedef enum {
 } LSTalk_CompletionItemTag;
 
 /**
+ * How whitespace and indentation is handled during completion
+ * item insertion.
+ *
+ * @since 3.16.0
+ */
+typedef enum {
+    /**
+	 * The insertion or replace strings is taken as it is. If the
+	 * value is multi line the lines below the cursor will be
+	 * inserted using the indentation defined in the string value.
+	 * The client will not apply any kind of adjustments to the
+	 * string.
+	 */
+    LSTALK_INSERTTEXTMODE_ASIS = 1 << 0,
+
+	/**
+	 * The editor adjusts leading whitespace of new lines so that
+	 * they match the indentation up to the cursor of the line for
+	 * which the item is accepted.
+	 *
+	 * Consider a line like this: <2tabs><cursor><3tabs>foo. Accepting a
+	 * multi line completion item is indented using 2 tabs and all
+	 * following lines inserted will be indented using 2 tabs as well.
+	 */
+    LSTALK_INSERTTEXTMODE_ADJUSTINDENTATION = 1 << 1,
+} LSTalk_InsertTextMode;
+
+/**
  * Capabilities specific to `WorkspaceEdit`s
  */
 typedef struct LSTalk_WorkspaceEditClientCapabilities {
@@ -641,6 +669,18 @@ typedef struct LSTalk_CompletionItem {
      */
     char** resolve_support_properties;
     int resolve_support_count;
+
+    /**
+     * The client supports the `insertTextMode` property on
+     * a completion item to override the whitespace handling mode
+     * as defined by the client (see `insertTextMode`).
+     *
+     * @since 3.16.0
+     *
+     * insertTextModeSupport
+     * 
+     */
+    int insert_text_mode_support_value_set;
 } LSTalk_CompletionItem;
 
 /**
