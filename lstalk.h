@@ -382,6 +382,24 @@ typedef struct LSTalk_InlineValueWorkspaceClientCapabilities {
 } LSTalk_InlineValueWorkspaceClientCapabilities;
 
 /**
+ * Client workspace capabilities specific to inlay hints.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_InlayHintWorkspaceClientCapabilities {
+    /**
+     * Whether the client implementation supports a refresh request sent from
+     * the server to the client.
+     *
+     * Note that this event is global and will force the client to refresh all
+     * inlay hints currently shown. It should be used with absolute care and
+     * is useful for situation where a server for example detects a project wide
+     * change that requires such a calculation.
+     */
+    int refresh_support;
+} LSTalk_InlayHintWorkspaceClientCapabilities;
+
+/**
  * Workspace specific client capabilities.
  */
 typedef struct LSTalk_Workspace {
@@ -462,6 +480,13 @@ typedef struct LSTalk_Workspace {
      * @since 3.17.0
      */
     LSTalk_InlineValueWorkspaceClientCapabilities inline_value;
+
+    /**
+     * Client workspace capabilities specific to inlay hints.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_InlayHintWorkspaceClientCapabilities inlay_hint;
 } LSTalk_Workspace;
 
 /**
