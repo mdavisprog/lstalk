@@ -552,6 +552,11 @@ typedef struct LSTalk_CompletionItem {
      * linked, that is typing in one will update others too.
      */
     int snippet_support;
+
+    /**
+     * Client supports commit characters on a completion item.
+     */
+    int commit_characters_support;
 } LSTalk_CompletionItem;
 
 /**
