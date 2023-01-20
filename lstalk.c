@@ -1441,32 +1441,32 @@ typedef enum {
 static JSONValue symbol_kind_array(long long value) {
     JSONValue result = json_make_array();
 
-    if (value & SYMBOLKIND_File) { json_array_push(&result, json_make_int(SYMBOLKIND_File)); }
-    if (value & SYMBOLKIND_Module) { json_array_push(&result, json_make_int(SYMBOLKIND_Module)); }
-    if (value & SYMBOLKIND_Namespace) { json_array_push(&result, json_make_int(SYMBOLKIND_Namespace)); }
-    if (value & SYMBOLKIND_Package) { json_array_push(&result, json_make_int(SYMBOLKIND_Package)); }
-    if (value & SYMBOLKIND_Class) { json_array_push(&result, json_make_int(SYMBOLKIND_Class)); }
-    if (value & SYMBOLKIND_Method) { json_array_push(&result, json_make_int(SYMBOLKIND_Method)); }
-    if (value & SYMBOLKIND_Property) { json_array_push(&result, json_make_int(SYMBOLKIND_Property)); }
-    if (value & SYMBOLKIND_Field) { json_array_push(&result, json_make_int(SYMBOLKIND_Field)); }
-    if (value & SYMBOLKIND_Constructor) { json_array_push(&result, json_make_int(SYMBOLKIND_Constructor)); }
-    if (value & SYMBOLKIND_Enum) { json_array_push(&result, json_make_int(SYMBOLKIND_Enum)); }
-    if (value & SYMBOLKIND_Interface) { json_array_push(&result, json_make_int(SYMBOLKIND_Interface)); }
-    if (value & SYMBOLKIND_Function) { json_array_push(&result, json_make_int(SYMBOLKIND_Function)); }
-    if (value & SYMBOLKIND_Variable) { json_array_push(&result, json_make_int(SYMBOLKIND_Variable)); }
-    if (value & SYMBOLKIND_Constant) { json_array_push(&result, json_make_int(SYMBOLKIND_Constant)); }
-    if (value & SYMBOLKIND_String) { json_array_push(&result, json_make_int(SYMBOLKIND_String)); }
-    if (value & SYMBOLKIND_Number) { json_array_push(&result, json_make_int(SYMBOLKIND_Number)); }
-    if (value & SYMBOLKIND_Boolean) { json_array_push(&result, json_make_int(SYMBOLKIND_Boolean)); }
-    if (value & SYMBOLKIND_Array) { json_array_push(&result, json_make_int(SYMBOLKIND_Array)); }
-    if (value & SYMBOLKIND_Object) { json_array_push(&result, json_make_int(SYMBOLKIND_Object)); }
-    if (value & SYMBOLKIND_Key) { json_array_push(&result, json_make_int(SYMBOLKIND_Key)); }
-    if (value & SYMBOLKIND_Null) { json_array_push(&result, json_make_int(SYMBOLKIND_Null)); }
-    if (value & SYMBOLKIND_EnumMember) { json_array_push(&result, json_make_int(SYMBOLKIND_EnumMember)); }
-    if (value & SYMBOLKIND_Struct) { json_array_push(&result, json_make_int(SYMBOLKIND_Struct)); }
-    if (value & SYMBOLKIND_Event) { json_array_push(&result, json_make_int(SYMBOLKIND_Event)); }
-    if (value & SYMBOLKIND_Operator) { json_array_push(&result, json_make_int(SYMBOLKIND_Operator)); }
-    if (value & SYMBOLKIND_TypeParameter) { json_array_push(&result, json_make_int(SYMBOLKIND_TypeParameter)); }
+    if (value & LSTALK_SYMBOLKIND_FILE) { json_array_push(&result, json_make_int(SYMBOLKIND_File)); }
+    if (value & LSTALK_SYMBOLKIND_MODULE) { json_array_push(&result, json_make_int(SYMBOLKIND_Module)); }
+    if (value & LSTALK_SYMBOLKIND_NAMESPACE) { json_array_push(&result, json_make_int(SYMBOLKIND_Namespace)); }
+    if (value & LSTALK_SYMBOLKIND_PACKAGE) { json_array_push(&result, json_make_int(SYMBOLKIND_Package)); }
+    if (value & LSTALK_SYMBOLKIND_CLASS) { json_array_push(&result, json_make_int(SYMBOLKIND_Class)); }
+    if (value & LSTALK_SYMBOLKIND_METHOD) { json_array_push(&result, json_make_int(SYMBOLKIND_Method)); }
+    if (value & LSTALK_SYMBOLKIND_PROPERTY) { json_array_push(&result, json_make_int(SYMBOLKIND_Property)); }
+    if (value & LSTALK_SYMBOLKIND_FIELD) { json_array_push(&result, json_make_int(SYMBOLKIND_Field)); }
+    if (value & LSTALK_SYMBOLKIND_CONSTRUCTOR) { json_array_push(&result, json_make_int(SYMBOLKIND_Constructor)); }
+    if (value & LSTALK_SYMBOLKIND_ENUM) { json_array_push(&result, json_make_int(SYMBOLKIND_Enum)); }
+    if (value & LSTALK_SYMBOLKIND_INTERFACE) { json_array_push(&result, json_make_int(SYMBOLKIND_Interface)); }
+    if (value & LSTALK_SYMBOLKIND_FUNCTION) { json_array_push(&result, json_make_int(SYMBOLKIND_Function)); }
+    if (value & LSTALK_SYMBOLKIND_VARIABLE) { json_array_push(&result, json_make_int(SYMBOLKIND_Variable)); }
+    if (value & LSTALK_SYMBOLKIND_CONSTANT) { json_array_push(&result, json_make_int(SYMBOLKIND_Constant)); }
+    if (value & LSTALK_SYMBOLKIND_STRING) { json_array_push(&result, json_make_int(SYMBOLKIND_String)); }
+    if (value & LSTALK_SYMBOLKIND_NUMBER) { json_array_push(&result, json_make_int(SYMBOLKIND_Number)); }
+    if (value & LSTALK_SYMBOLKIND_BOOLEAN) { json_array_push(&result, json_make_int(SYMBOLKIND_Boolean)); }
+    if (value & LSTALK_SYMBOLKIND_ARRAY) { json_array_push(&result, json_make_int(SYMBOLKIND_Array)); }
+    if (value & LSTALK_SYMBOLKIND_OBJECT) { json_array_push(&result, json_make_int(SYMBOLKIND_Object)); }
+    if (value & LSTALK_SYMBOLKIND_KEY) { json_array_push(&result, json_make_int(SYMBOLKIND_Key)); }
+    if (value & LSTALK_SYMBOLKIND_NULL) { json_array_push(&result, json_make_int(SYMBOLKIND_Null)); }
+    if (value & LSTALK_SYMBOLKIND_ENUMMEMBER) { json_array_push(&result, json_make_int(SYMBOLKIND_EnumMember)); }
+    if (value & LSTALK_SYMBOLKIND_STRUCT) { json_array_push(&result, json_make_int(SYMBOLKIND_Struct)); }
+    if (value & LSTALK_SYMBOLKIND_EVENT) { json_array_push(&result, json_make_int(SYMBOLKIND_Event)); }
+    if (value & LSTALK_SYMBOLKIND_OPERATOR) { json_array_push(&result, json_make_int(SYMBOLKIND_Operator)); }
+    if (value & LSTALK_SYMBOLKIND_TYPEPARAMETER) { json_array_push(&result, json_make_int(SYMBOLKIND_TypeParameter)); }
 
     return result;
 }
