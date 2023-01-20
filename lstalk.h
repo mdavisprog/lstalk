@@ -364,6 +364,24 @@ typedef struct LSTalk_FileOperations {
 } LSTalk_FileOperations;
 
 /**
+ * Client workspace capabilities specific to inline values.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_InlineValueWorkspaceClientCapabilities {
+    /**
+     * Whether the client implementation supports a refresh request sent from
+     * the server to the client.
+     *
+     * Note that this event is global and will force the client to refresh all
+     * inline values currently shown. It should be used with absolute care and
+     * is useful for situation where a server for example detect a project wide
+     * change that requires such a calculation.
+     */
+    int refresh_support;
+} LSTalk_InlineValueWorkspaceClientCapabilities;
+
+/**
  * Workspace specific client capabilities.
  */
 typedef struct LSTalk_Workspace {
@@ -437,6 +455,13 @@ typedef struct LSTalk_Workspace {
      * @since 3.16.0
      */
     LSTalk_FileOperations file_operations;
+
+    /**
+     * Client workspace capabilities specific to inline values.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_InlineValueWorkspaceClientCapabilities inline_value;
 } LSTalk_Workspace;
 
 /**

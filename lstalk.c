@@ -1625,6 +1625,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&code_lens, "didDelete", json_make_boolean(connect_params.capabilities.workspace.file_operations.did_delete));
     json_object_const_key_set(&code_lens, "willDelete", json_make_boolean(connect_params.capabilities.workspace.file_operations.will_delete));
 
+    JSONValue inline_value = json_make_object();
+    json_object_const_key_set(&inline_value, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.inline_value.refresh_support));
+
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
     json_object_const_key_set(&workspace, "workspaceEdit", workspace_edit);
@@ -1637,6 +1640,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace, "semanticTokens", semantic_tokens);
     json_object_const_key_set(&workspace, "codeLens", code_lens);
     json_object_const_key_set(&workspace, "fileOperations", file_operations);
+    json_object_const_key_set(&workspace, "inlineValue", inline_value);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
