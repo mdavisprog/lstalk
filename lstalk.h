@@ -400,6 +400,24 @@ typedef struct LSTalk_InlayHintWorkspaceClientCapabilities {
 } LSTalk_InlayHintWorkspaceClientCapabilities;
 
 /**
+ * Workspace client capabilities specific to diagnostic pull requests.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_DiagnosticWorkspaceClientCapabilities {
+    /**
+     * Whether the client implementation supports a refresh request sent from
+     * the server to the client.
+     *
+     * Note that this event is global and will force the client to refresh all
+     * pulled diagnostics currently shown. It should be used with absolute care
+     * and is useful for situation where a server for example detects a project
+     * wide change that requires such a calculation.
+     */
+    int refresh_support;
+} LSTalk_DiagnosticWorkspaceClientCapabilities;
+
+/**
  * Workspace specific client capabilities.
  */
 typedef struct LSTalk_Workspace {
@@ -487,6 +505,13 @@ typedef struct LSTalk_Workspace {
      * @since 3.17.0
      */
     LSTalk_InlayHintWorkspaceClientCapabilities inlay_hint;
+
+    /**
+     * Client workspace capabilities specific to diagnostics.
+     *
+     * @since 3.17.0.
+     */
+    LSTalk_DiagnosticWorkspaceClientCapabilities diagnostics;
 } LSTalk_Workspace;
 
 /**

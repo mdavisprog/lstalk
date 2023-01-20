@@ -1631,6 +1631,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue inlay_hint = json_make_object();
     json_object_const_key_set(&inlay_hint, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.inlay_hint.refresh_support));
 
+    JSONValue diagnostics = json_make_object();
+    json_object_const_key_set(&diagnostics, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.diagnostics.refresh_support));
+
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
     json_object_const_key_set(&workspace, "workspaceEdit", workspace_edit);
@@ -1645,6 +1648,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace, "fileOperations", file_operations);
     json_object_const_key_set(&workspace, "inlineValue", inline_value);
     json_object_const_key_set(&workspace, "inlayHint", inlay_hint);
+    json_object_const_key_set(&workspace, "diagnostics", diagnostics);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
