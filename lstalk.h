@@ -681,6 +681,14 @@ typedef struct LSTalk_CompletionItem {
      * 
      */
     int insert_text_mode_support_value_set;
+
+    /**
+     * The client has support for completion item label
+     * details (see also `CompletionItemLabelDetails`).
+     *
+     * @since 3.17.0
+     */
+    int label_details_support;
 } LSTalk_CompletionItem;
 
 /**

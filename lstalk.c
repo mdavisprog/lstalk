@@ -1711,6 +1711,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue completion_item_insert_text_mode = json_make_object();
     json_object_const_key_set(&completion_item_insert_text_mode, "valueSet", insert_text_mode_array(connect_params.capabilities.text_document.completion.completion_item.insert_text_mode_support_value_set));
     json_object_const_key_set(&completion_item, "insertTextModeSupport", completion_item_insert_text_mode);
+    json_object_const_key_set(&completion_item, "labelDetailsSupport", json_make_boolean(connect_params.capabilities.text_document.completion.completion_item.label_details_support));
 
     JSONValue completion = json_make_object();
     json_object_const_key_set(&completion, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.completion.dynamic_registration));
