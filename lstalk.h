@@ -627,6 +627,20 @@ typedef struct LSTalk_CompletionItem {
      * @since 3.16.0
      */
     int insert_replace_support;
+
+    /**
+     * Indicates which properties a client can resolve lazily on a
+     * completion item. Before version 3.16.0 only the predefined properties
+     * `documentation` and `detail` could be resolved lazily.
+     *
+     * @since 3.16.0
+     *
+     * resolveSupport
+     * 
+     * The properties that a client can resolve lazily.
+     */
+    char** resolve_support_properties;
+    int resolve_support_count;
 } LSTalk_CompletionItem;
 
 /**
