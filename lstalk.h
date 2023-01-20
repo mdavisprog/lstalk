@@ -140,6 +140,25 @@ typedef enum {
 } LSTalk_SymbolTag;
 
 /**
+ * Describes the content type that a client supports in various
+ * result literals like `Hover`, `ParameterInfo` or `CompletionItem`.
+ *
+ * Please note that `MarkupKinds` must not start with a `$`. This kinds
+ * are reserved for internal usage.
+ */
+typedef enum {
+    /**
+	 * Plain text is supported as a content format
+	 */
+    LSTALK_MARKUPKIND_PLAINTEXT = 1 << 0,
+
+    /**
+	 * Markdown is supported as a content format
+	 */
+    LSTALK_MARKUPKIND_MARKDOWN = 1 << 1,
+} LSTalk_MarkupKind;
+
+/**
  * Capabilities specific to `WorkspaceEdit`s
  */
 typedef struct LSTalk_WorkspaceEditClientCapabilities {
@@ -557,6 +576,12 @@ typedef struct LSTalk_CompletionItem {
      * Client supports commit characters on a completion item.
      */
     int commit_characters_support;
+
+    /**
+     * Client supports the follow content formats for the documentation
+     * property. The order describes the preferred format of the client.
+     */
+    int documentation_format;
 } LSTalk_CompletionItem;
 
 /**

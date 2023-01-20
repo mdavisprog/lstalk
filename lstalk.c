@@ -1483,6 +1483,15 @@ JSONValue symbol_tag_array(int value) {
     return result;
 }
 
+JSONValue markup_kind_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_MARKUPKIND_PLAINTEXT) { json_array_push(&result, json_make_string_const("plaintext")); }
+    if (value & LSTALK_MARKUPKIND_MARKDOWN) { json_array_push(&result, json_make_string_const("mardown")); }
+
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1659,6 +1668,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue completion_item = json_make_object();
     json_object_const_key_set(&completion_item, "snippetSupport", json_make_boolean(connect_params.capabilities.text_document.completion.completion_item.snippet_support));
     json_object_const_key_set(&completion_item, "commitCharactersSupport", json_make_boolean(connect_params.capabilities.text_document.completion.completion_item.commit_characters_support));
+    json_object_const_key_set(&completion_item, "documentationFormat", markup_kind_array(connect_params.capabilities.text_document.completion.completion_item.documentation_format));
 
     JSONValue completion = json_make_object();
     json_object_const_key_set(&completion, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.completion.dynamic_registration));
