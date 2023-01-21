@@ -1789,9 +1789,14 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&completion_list_item_defaults, "itemDefaults", completion_list_item_defaults_array);
     json_object_const_key_set(&completion, "completionList", completion_list_item_defaults);
 
+    JSONValue hover = json_make_object();
+    json_object_const_key_set(&hover, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.hover.dynamic_registration));
+    json_object_const_key_set(&hover, "contentFormat", markup_kind_array(connect_params.capabilities.text_document.hover.content_format));
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
+    json_object_const_key_set(&text_document, "hover", hover);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

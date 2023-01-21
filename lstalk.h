@@ -758,20 +758,20 @@ typedef struct LSTalk_CompletionClientCapabilities {
     int context_support;
 
     /**
-	 * The client's default when the completion item doesn't provide a
-	 * `insertTextMode` property.
-	 *
-	 * @since 3.17.0
-	 */
-	int insert_text_mode;
+     * The client's default when the completion item doesn't provide a
+     * `insertTextMode` property.
+     *
+     * @since 3.17.0
+     */
+    int insert_text_mode;
 
     /**
-	 * The client supports the following `CompletionList` specific
-	 * capabilities.
-	 *
-	 * @since 3.17.0
-	 *
-	 * completionList
+     * The client supports the following `CompletionList` specific
+     * capabilities.
+     *
+     * @since 3.17.0
+     *
+     * completionList
      * 
      * The client supports the following itemDefaults on
      * a completion list.
@@ -787,6 +787,23 @@ typedef struct LSTalk_CompletionClientCapabilities {
 } LSTalk_CompletionClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/hover` request.
+ */
+typedef struct LSTalk_HoverClientCapabilities {
+    /**
+     * Whether hover supports dynamic registration.
+     */
+    int dynamic_registration;
+
+    /**
+     * Client supports the follow content formats if the content
+     * property refers to a `literal of type MarkupContent`.
+     * The order describes the preferred format of the client.
+     */
+    int content_format;
+} LSTalk_HoverClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -796,6 +813,11 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * Capabilities specific to the `textDocument/completion` request.
      */
     LSTalk_CompletionClientCapabilities completion;
+
+    /**
+     * Capabilities specific to the `textDocument/hover` request.
+     */
+    LSTalk_HoverClientCapabilities hover;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
