@@ -862,6 +862,25 @@ typedef struct LSTalk_SignatureHelpClientCapabilities {
 } LSTalk_SignatureHelpClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/declaration` request.
+ *
+ * @since 3.14.0
+ */
+typedef struct LSTalk_DeclarationClientCapabilities {
+    /**
+     * Whether declaration supports dynamic registration. If this is set to
+     * `true` the client supports the new `DeclarationRegistrationOptions`
+     * return value for the corresponding server capability as well.
+     */
+    int dynamic_registration;
+
+    /**
+     * The client supports additional metadata in the form of declaration links.
+     */
+    int link_support;
+} LSTalk_DeclarationClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -881,6 +900,13 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * Capabilities specific to the `textDocument/signatureHelp` request.
      */
     LSTalk_SignatureHelpClientCapabilities signature_help;
+
+    /**
+     * Capabilities specific to the `textDocument/declaration` request.
+     *
+     * @since 3.14.0
+     */
+    LSTalk_DeclarationClientCapabilities declaration;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**

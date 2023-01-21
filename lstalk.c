@@ -1804,11 +1804,16 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&signature_help, "signatureInformation", signature_info);
     json_object_const_key_set(&signature_help, "contextSupport", json_make_boolean(connect_params.capabilities.text_document.signature_help.context_support));
 
+    JSONValue declaration = json_make_object();
+    json_object_const_key_set(&declaration, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.declaration.dynamic_registration));
+    json_object_const_key_set(&declaration, "linkSupport", json_make_boolean(connect_params.capabilities.text_document.declaration.link_support));
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
     json_object_const_key_set(&text_document, "hover", hover);
     json_object_const_key_set(&text_document, "signatureHelp", signature_help);
+    json_object_const_key_set(&text_document, "declaration", declaration);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
