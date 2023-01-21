@@ -1781,6 +1781,13 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&completion, "completionItemKind", completion_item_kind);
     json_object_const_key_set(&completion, "contextSupport", json_make_boolean(connect_params.capabilities.text_document.completion.context_support));
     json_object_const_key_set(&completion, "insertTextMode", json_make_int(connect_params.capabilities.text_document.completion.insert_text_mode));
+    JSONValue completion_list_item_defaults_array = json_make_array();
+    for (int i = 0; i < connect_params.capabilities.text_document.completion.completion_list_item_defaults_count; i++) {
+        json_array_push(&completion_list_item_defaults_array, json_make_string(connect_params.capabilities.text_document.completion.completion_list_item_defaults[i]));
+    }
+    JSONValue completion_list_item_defaults = json_make_object();
+    json_object_const_key_set(&completion_list_item_defaults, "itemDefaults", completion_list_item_defaults_array);
+    json_object_const_key_set(&completion, "completionList", completion_list_item_defaults);
 
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);

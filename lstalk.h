@@ -764,6 +764,26 @@ typedef struct LSTalk_CompletionClientCapabilities {
 	 * @since 3.17.0
 	 */
 	int insert_text_mode;
+
+    /**
+	 * The client supports the following `CompletionList` specific
+	 * capabilities.
+	 *
+	 * @since 3.17.0
+	 *
+	 * completionList
+     * 
+     * The client supports the following itemDefaults on
+     * a completion list.
+     *
+     * The value lists the supported property names of the
+     * `CompletionList.itemDefaults` object. If omitted
+     * no properties are supported.
+     *
+     * @since 3.17.0
+     */
+    char** completion_list_item_defaults;
+    int completion_list_item_defaults_count;
 } LSTalk_CompletionClientCapabilities;
 
 /**
