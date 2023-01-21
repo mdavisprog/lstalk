@@ -1793,10 +1793,22 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&hover, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.hover.dynamic_registration));
     json_object_const_key_set(&hover, "contentFormat", markup_kind_array(connect_params.capabilities.text_document.hover.content_format));
 
+    JSONValue signature_help = json_make_object();
+    json_object_const_key_set(&signature_help, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.signature_help.dynamic_registration));
+    JSONValue signature_info = json_make_object();
+    json_object_const_key_set(&signature_info, "documentationFormat", markup_kind_array(connect_params.capabilities.text_document.signature_help.signature_information.documentation_format));
+    JSONValue signature_info_parameter_info = json_make_object();
+    json_object_const_key_set(&signature_info_parameter_info, "labelOffsetSupport", json_make_boolean(connect_params.capabilities.text_document.signature_help.signature_information.label_offset_support));
+    json_object_const_key_set(&signature_info, "parameterInformation", signature_info_parameter_info);
+    json_object_const_key_set(&signature_info, "activeParameterSupport", json_make_boolean(connect_params.capabilities.text_document.signature_help.signature_information.active_parameter_support));
+    json_object_const_key_set(&signature_help, "signatureInformation", signature_info);
+    json_object_const_key_set(&signature_help, "contextSupport", json_make_boolean(connect_params.capabilities.text_document.signature_help.context_support));
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
     json_object_const_key_set(&text_document, "hover", hover);
+    json_object_const_key_set(&text_document, "signatureHelp", signature_help);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

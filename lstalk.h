@@ -804,6 +804,64 @@ typedef struct LSTalk_HoverClientCapabilities {
 } LSTalk_HoverClientCapabilities;
 
 /**
+ * The client supports the following `SignatureInformation`
+ * specific properties.
+ */
+typedef struct LSTalk_SignatureInformation {
+    /**
+     * Client supports the follow content formats for the documentation
+     * property. The order describes the preferred format of the client.
+     */
+    int documentation_format;
+
+    /**
+     * Client capabilities specific to parameter information.
+     *
+     * parameterInformation:
+     * 
+     * The client supports processing label offsets instead of a
+     * simple label string.
+     *
+     * @since 3.14.0
+     */
+    int label_offset_support;
+
+    /**
+     * The client supports the `activeParameter` property on
+     * `SignatureInformation` literal.
+     *
+     * @since 3.16.0
+     */
+    int active_parameter_support;
+} LSTalk_SignatureInformation;
+
+/**
+ * Capabilities specific to the `textDocument/signatureHelp` request.
+ */
+typedef struct LSTalk_SignatureHelpClientCapabilities {
+    /**
+     * Whether signature help supports dynamic registration.
+     */
+    int dynamic_registration;
+
+    /**
+     * The client supports the following `SignatureInformation`
+     * specific properties.
+     */
+    LSTalk_SignatureInformation signature_information;
+
+    /**
+     * The client supports to send additional context information for a
+     * `textDocument/signatureHelp` request. A client that opts into
+     * contextSupport will also support the `retriggerCharacters` on
+     * `SignatureHelpOptions`.
+     *
+     * @since 3.15.0
+     */
+    int context_support;
+} LSTalk_SignatureHelpClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -818,6 +876,11 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * Capabilities specific to the `textDocument/hover` request.
      */
     LSTalk_HoverClientCapabilities hover;
+
+    /**
+     * Capabilities specific to the `textDocument/signatureHelp` request.
+     */
+    LSTalk_SignatureHelpClientCapabilities signature_help;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
