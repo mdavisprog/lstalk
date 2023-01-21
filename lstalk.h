@@ -756,6 +756,14 @@ typedef struct LSTalk_CompletionClientCapabilities {
      * `textDocument/completion` request.
      */
     int context_support;
+
+    /**
+	 * The client's default when the completion item doesn't provide a
+	 * `insertTextMode` property.
+	 *
+	 * @since 3.17.0
+	 */
+	int insert_text_mode;
 } LSTalk_CompletionClientCapabilities;
 
 /**
