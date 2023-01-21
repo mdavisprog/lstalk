@@ -750,6 +750,12 @@ typedef struct LSTalk_CompletionClientCapabilities {
      * the initial version of the protocol.
      */
     long long completion_item_kind_value_set;
+
+    /**
+     * The client supports to send additional context information for a
+     * `textDocument/completion` request.
+     */
+    int context_support;
 } LSTalk_CompletionClientCapabilities;
 
 /**
