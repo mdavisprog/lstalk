@@ -1183,6 +1183,23 @@ typedef struct LSTalk_CodeLensClientCapabilities {
 } LSTalk_CodeLensClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/documentLink` request.
+ */
+typedef struct LSTalk_DocumentLinkClientCapabilities {
+    /**
+	 * Whether document link supports dynamic registration.
+	 */
+	int dynamic_registration;
+
+	/**
+	 * Whether the client supports the `tooltip` property on `DocumentLink`.
+	 *
+	 * @since 3.15.0
+	 */
+	int tooltip_support;
+} LSTalk_DocumentLinkClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1253,6 +1270,11 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * Capabilities specific to the `textDocument/codeLens` request.
      */
     LSTalk_CodeLensClientCapabilities code_lens;
+
+    /**
+	 * Capabilities specific to the `textDocument/documentLink` request.
+	 */
+	LSTalk_DocumentLinkClientCapabilities document_link;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
