@@ -950,6 +950,16 @@ typedef struct LSTalk_ReferenceClientCapabilities {
 } LSTalk_ReferenceClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/documentHighlight` request.
+ */
+typedef struct LSTalk_DocumentHighlightClientCapabilities {
+    /**
+	 * Whether document highlight supports dynamic registration.
+	 */
+	int dynamic_registration;
+} LSTalk_DocumentHighlightClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1000,6 +1010,11 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * Capabilities specific to the `textDocument/references` request.
      */
     LSTalk_ReferenceClientCapabilities references;
+
+    /**
+	 * Capabilities specific to the `textDocument/documentHighlight` request.
+	 */
+	LSTalk_DocumentHighlightClientCapabilities document_highlight;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
