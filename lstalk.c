@@ -1337,6 +1337,17 @@ static void client_info_clear(ClientInfo* info) {
     }
 }
 
+static JSONValue client_info(ClientInfo* info) {
+    if (info == NULL) {
+        return json_make_null();
+    }
+
+    JSONValue result = json_make_object();
+    json_object_const_key_set(&result, "name", json_make_string_const(info->name));
+    json_object_const_key_set(&result, "version", json_make_string_const(info->version));
+    return result;
+}
+
 typedef struct LSTalk_Context {
     Vector servers;
     LSTalk_ServerID server_id;
@@ -1674,10 +1685,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
 
-    JSONValue client_info = json_make_object();
-    json_object_const_key_set(&client_info, "name", json_make_string_const(context->client_info.name));
-    json_object_const_key_set(&client_info, "version", json_make_string_const(context->client_info.version));
-
     JSONValue workspace_edit = json_make_object();
     json_object_const_key_set(&workspace_edit, "documentChanges", json_make_boolean(connect_params.capabilities.workspace.workspace_edit.document_changes));
     json_object_const_key_set(&workspace_edit, "resourceOperations", resource_operation_kind_array(connect_params.capabilities.workspace.workspace_edit.resource_operations));
@@ -1834,7 +1841,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
-    json_object_const_key_set(&params, "clientInfo", client_info);
+    json_object_const_key_set(&params, "clientInfo", client_info(&context->client_info));
     json_object_const_key_set(&params, "locale", json_make_string_const(context->locale));
     json_object_const_key_set(&params, "rootUri", json_make_string(connect_params.root_uri));
     json_object_const_key_set(&params, "clientCapabilities", client_capabilities);
