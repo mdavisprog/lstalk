@@ -1911,6 +1911,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue range_formatting = json_make_object();
     dynamic_registration(&range_formatting, connect_params.capabilities.text_document.range_formatting.dynamic_registration);
 
+    JSONValue on_type_formatting = json_make_object();
+    dynamic_registration(&on_type_formatting, connect_params.capabilities.text_document.on_type_formatting.dynamic_registration);
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -1929,6 +1932,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "colorProvider", color_provider);
     json_object_const_key_set(&text_document, "formatting", formatting);
     json_object_const_key_set(&text_document, "rangeFormatting", range_formatting);
+    json_object_const_key_set(&text_document, "onTypeFormatting", on_type_formatting);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

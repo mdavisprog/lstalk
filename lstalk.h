@@ -1187,16 +1187,16 @@ typedef struct LSTalk_CodeLensClientCapabilities {
  */
 typedef struct LSTalk_DocumentLinkClientCapabilities {
     /**
-	 * Whether document link supports dynamic registration.
-	 */
-	int dynamic_registration;
+     * Whether document link supports dynamic registration.
+     */
+    int dynamic_registration;
 
-	/**
-	 * Whether the client supports the `tooltip` property on `DocumentLink`.
-	 *
-	 * @since 3.15.0
-	 */
-	int tooltip_support;
+    /**
+     * Whether the client supports the `tooltip` property on `DocumentLink`.
+     *
+     * @since 3.15.0
+     */
+    int tooltip_support;
 } LSTalk_DocumentLinkClientCapabilities;
 
 /**
@@ -1207,9 +1207,9 @@ typedef struct LSTalk_DocumentLinkClientCapabilities {
  */
 typedef struct LSTalk_DocumentColorClientCapabilities {
     /**
-	 * Whether document color supports dynamic registration.
-	 */
-	int dynamic_registration;
+     * Whether document color supports dynamic registration.
+     */
+    int dynamic_registration;
 } LSTalk_DocumentColorClientCapabilities;
 
 /**
@@ -1217,9 +1217,9 @@ typedef struct LSTalk_DocumentColorClientCapabilities {
  */
 typedef struct LSTalk_DocumentFormattingClientCapabilities {
     /**
-	 * Whether formatting supports dynamic registration.
-	 */
-	int dynamic_registration;
+     * Whether formatting supports dynamic registration.
+     */
+    int dynamic_registration;
 } LSTalk_DocumentFormattingClientCapabilities;
 
 /**
@@ -1227,10 +1227,20 @@ typedef struct LSTalk_DocumentFormattingClientCapabilities {
  */
 typedef struct LSTalk_DocumentRangeFormattingClientCapabilities {
     /**
-	 * Whether formatting supports dynamic registration.
-	 */
-	int dynamic_registration;
+     * Whether formatting supports dynamic registration.
+     */
+    int dynamic_registration;
 } LSTalk_DocumentRangeFormattingClientCapabilities;
+
+/**
+ * Capabilities specific to the `textDocument/onTypeFormatting` request.
+ */
+typedef struct LSTalk_DocumentOnTypeFormattingClientCapabilities {
+    /**
+     * Whether on type formatting supports dynamic registration.
+     */
+    int dynamic_registration;
+} LSTalk_DocumentOnTypeFormattingClientCapabilities;
 
 /**
  * Text document specific client capabilities.
@@ -1305,27 +1315,32 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
     LSTalk_CodeLensClientCapabilities code_lens;
 
     /**
-	 * Capabilities specific to the `textDocument/documentLink` request.
-	 */
-	LSTalk_DocumentLinkClientCapabilities document_link;
+     * Capabilities specific to the `textDocument/documentLink` request.
+     */
+    LSTalk_DocumentLinkClientCapabilities document_link;
 
     /**
-	 * Capabilities specific to the `textDocument/documentColor` and the
-	 * `textDocument/colorPresentation` request.
-	 *
-	 * @since 3.6.0
-	 */
-	LSTalk_DocumentColorClientCapabilities color_provider;
+     * Capabilities specific to the `textDocument/documentColor` and the
+     * `textDocument/colorPresentation` request.
+     *
+     * @since 3.6.0
+     */
+    LSTalk_DocumentColorClientCapabilities color_provider;
 
     /**
-	 * Capabilities specific to the `textDocument/formatting` request.
-	 */
-	LSTalk_DocumentFormattingClientCapabilities formatting;
+     * Capabilities specific to the `textDocument/formatting` request.
+     */
+    LSTalk_DocumentFormattingClientCapabilities formatting;
 
     /**
-	 * Capabilities specific to the `textDocument/rangeFormatting` request.
-	 */
-	LSTalk_DocumentRangeFormattingClientCapabilities range_formatting;
+     * Capabilities specific to the `textDocument/rangeFormatting` request.
+     */
+    LSTalk_DocumentRangeFormattingClientCapabilities range_formatting;
+
+    /**
+     * Capabilities specific to the `textDocument/onTypeFormatting` request.
+     */
+    LSTalk_DocumentOnTypeFormattingClientCapabilities on_type_formatting;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
