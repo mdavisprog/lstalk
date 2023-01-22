@@ -1223,6 +1223,16 @@ typedef struct LSTalk_DocumentFormattingClientCapabilities {
 } LSTalk_DocumentFormattingClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/rangeFormatting` request.
+ */
+typedef struct LSTalk_DocumentRangeFormattingClientCapabilities {
+    /**
+	 * Whether formatting supports dynamic registration.
+	 */
+	int dynamic_registration;
+} LSTalk_DocumentRangeFormattingClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1311,6 +1321,11 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
 	 * Capabilities specific to the `textDocument/formatting` request.
 	 */
 	LSTalk_DocumentFormattingClientCapabilities formatting;
+
+    /**
+	 * Capabilities specific to the `textDocument/rangeFormatting` request.
+	 */
+	LSTalk_DocumentRangeFormattingClientCapabilities range_formatting;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
