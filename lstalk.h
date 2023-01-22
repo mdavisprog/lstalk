@@ -1213,6 +1213,16 @@ typedef struct LSTalk_DocumentColorClientCapabilities {
 } LSTalk_DocumentColorClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/formatting` request.
+ */
+typedef struct LSTalk_DocumentFormattingClientCapabilities {
+    /**
+	 * Whether formatting supports dynamic registration.
+	 */
+	int dynamic_registration;
+} LSTalk_DocumentFormattingClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1296,6 +1306,11 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
 	 * @since 3.6.0
 	 */
 	LSTalk_DocumentColorClientCapabilities color_provider;
+
+    /**
+	 * Capabilities specific to the `textDocument/formatting` request.
+	 */
+	LSTalk_DocumentFormattingClientCapabilities formatting;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
