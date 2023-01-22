@@ -1902,6 +1902,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     dynamic_registration(&document_link, connect_params.capabilities.text_document.document_link.dynamic_registration);
     json_object_const_key_set(&document_link, "tooltipSupport", json_make_boolean(connect_params.capabilities.text_document.document_link.tooltip_support));
 
+    JSONValue color_provider = json_make_object();
+    dynamic_registration(&color_provider, connect_params.capabilities.text_document.color_provider.dynamic_registration);
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -1917,6 +1920,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "codeAction", code_action);
     json_object_const_key_set(&text_document, "codeLens", text_document_code_lens);
     json_object_const_key_set(&text_document, "documentLink", document_link);
+    json_object_const_key_set(&text_document, "colorProvider", color_provider);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

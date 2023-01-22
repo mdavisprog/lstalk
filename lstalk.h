@@ -1200,6 +1200,19 @@ typedef struct LSTalk_DocumentLinkClientCapabilities {
 } LSTalk_DocumentLinkClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/documentColor` and the
+ * `textDocument/colorPresentation` request.
+ *
+ * @since 3.6.0
+ */
+typedef struct LSTalk_DocumentColorClientCapabilities {
+    /**
+	 * Whether document color supports dynamic registration.
+	 */
+	int dynamic_registration;
+} LSTalk_DocumentColorClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1275,6 +1288,14 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
 	 * Capabilities specific to the `textDocument/documentLink` request.
 	 */
 	LSTalk_DocumentLinkClientCapabilities document_link;
+
+    /**
+	 * Capabilities specific to the `textDocument/documentColor` and the
+	 * `textDocument/colorPresentation` request.
+	 *
+	 * @since 3.6.0
+	 */
+	LSTalk_DocumentColorClientCapabilities color_provider;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
