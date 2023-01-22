@@ -1589,6 +1589,22 @@ static JSONValue completion_item_kind_array(long long value) {
     return result;
 }
 
+static JSONValue code_action_kind_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_CODEACTIONKIND_EMPTY) { json_array_push(&result, json_make_string_const("")); }
+    if (value & LSTALK_CODEACTIONKIND_QUICKFIX) { json_array_push(&result, json_make_string_const("quickfix")); }
+    if (value & LSTALK_CODEACTIONKIND_REFACTOR) { json_array_push(&result, json_make_string_const("refactor")); }
+    if (value & LSTALK_CODEACTIONKIND_REFACTOREXTRACT) { json_array_push(&result, json_make_string_const("refactor.extract")); }
+    if (value & LSTALK_CODEACTIONKIND_REFACTORINLINE) { json_array_push(&result, json_make_string_const("refactor.inline")); }
+    if (value & LSTALK_CODEACTIONKIND_REFACTORREWRITE) { json_array_push(&result, json_make_string_const("refactor.rewrite")); }
+    if (value & LSTALK_CODEACTIONKIND_SOURCE) { json_array_push(&result, json_make_string_const("source")); }
+    if (value & LSTALK_CODEACTIONKIND_SOURCEORGANIZEIMPORTS) { json_array_push(&result, json_make_string_const("source.organizeImports")); }
+    if (value & LSTALK_CODEACTIONKIND_SOURCEFIXALL) { json_array_push(&result, json_make_string_const("source.fixAll")); }
+
+    return result;
+}
+
 static void dynamic_registration(JSONValue* root, int value) {
     if (root == NULL || root->type != JSON_VALUE_OBJECT) {
         return;
@@ -1860,6 +1876,25 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&document_symbol, "tagSupport", document_symbol_tag_support);
     json_object_const_key_set(&document_symbol, "labelSupport", document_symbol_tag_support);
 
+    JSONValue code_action = json_make_object();
+    dynamic_registration(&code_action, connect_params.capabilities.text_document.code_action.dynamic_registration);
+    JSONValue code_action_kind = json_make_object();
+    json_object_const_key_set(&code_action_kind, "valueSet", code_action_kind_array(connect_params.capabilities.text_document.code_action.code_action_value_set));
+    JSONValue code_action_literal_support = json_make_object();
+    json_object_const_key_set(&code_action_literal_support, "codeActionKind", code_action_kind);
+    json_object_const_key_set(&code_action, "codeActionLiteralSupport", code_action_literal_support);
+    json_object_const_key_set(&code_action, "isPreferredSupport", json_make_boolean(connect_params.capabilities.text_document.code_action.is_preferred_support));
+    json_object_const_key_set(&code_action, "disabledSupport", json_make_boolean(connect_params.capabilities.text_document.code_action.disabled_support));
+    json_object_const_key_set(&code_action, "dataSupport", json_make_boolean(connect_params.capabilities.text_document.code_action.data_support));
+    JSONValue code_action_resolve_support_properties = json_make_array();
+    for (int i = 0; i < connect_params.capabilities.text_document.code_action.resolve_support_count; i++) {
+        json_array_push(&code_action_resolve_support_properties, json_make_string(connect_params.capabilities.text_document.code_action.resolve_support_properties[i]));
+    }
+    JSONValue code_action_resolve_support = json_make_object();
+    json_object_const_key_set(&code_action_resolve_support, "properties", code_action_resolve_support_properties);
+    json_object_const_key_set(&code_action, "resolveSupport", code_action_resolve_support);
+    json_object_const_key_set(&code_action, "honorsChangeAnnotations", json_make_boolean(connect_params.capabilities.text_document.code_action.honors_change_annotations));
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -1872,6 +1907,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "references", references);
     json_object_const_key_set(&text_document, "documentHighlight", document_highlight);
     json_object_const_key_set(&text_document, "documentSymbol", document_symbol);
+    json_object_const_key_set(&text_document, "codeAction", code_action);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

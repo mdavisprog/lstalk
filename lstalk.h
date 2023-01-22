@@ -231,6 +231,89 @@ typedef enum {
 } LSTalk_CompletionItemKind;
 
 /**
+ * A set of predefined code action kinds.
+ */
+typedef enum {
+    /**
+	 * Empty kind.
+	 */
+    LSTALK_CODEACTIONKIND_EMPTY = 1 << 0,
+
+	/**
+	 * Base kind for quickfix actions: 'quickfix'.
+	 */
+    LSTALK_CODEACTIONKIND_QUICKFIX = 1 << 1,
+
+	/**
+	 * Base kind for refactoring actions: 'refactor'.
+	 */
+    LSTALK_CODEACTIONKIND_REFACTOR = 1 << 2,
+
+	/**
+	 * Base kind for refactoring extraction actions: 'refactor.extract'.
+	 *
+	 * Example extract actions:
+	 *
+	 * - Extract method
+	 * - Extract function
+	 * - Extract variable
+	 * - Extract interface from class
+	 * - ...
+	 */
+    LSTALK_CODEACTIONKIND_REFACTOREXTRACT = 1 << 3,
+
+	/**
+	 * Base kind for refactoring inline actions: 'refactor.inline'.
+	 *
+	 * Example inline actions:
+	 *
+	 * - Inline function
+	 * - Inline variable
+	 * - Inline constant
+	 * - ...
+	 */
+    LSTALK_CODEACTIONKIND_REFACTORINLINE = 1 << 4,
+
+	/**
+	 * Base kind for refactoring rewrite actions: 'refactor.rewrite'.
+	 *
+	 * Example rewrite actions:
+	 *
+	 * - Convert JavaScript function to class
+	 * - Add or remove parameter
+	 * - Encapsulate field
+	 * - Make method static
+	 * - Move method to base class
+	 * - ...
+	 */
+    LSTALK_CODEACTIONKIND_REFACTORREWRITE = 1 << 5,
+
+	/**
+	 * Base kind for source actions: `source`.
+	 *
+	 * Source code actions apply to the entire file.
+	 */
+    LSTALK_CODEACTIONKIND_SOURCE = 1 << 6,
+
+	/**
+	 * Base kind for an organize imports source action:
+	 * `source.organizeImports`.
+	 */
+    LSTALK_CODEACTIONKIND_SOURCEORGANIZEIMPORTS = 1 << 7,
+
+	/**
+	 * Base kind for a 'fix all' source action: `source.fixAll`.
+	 *
+	 * 'Fix all' actions automatically fix errors that have a clear fix that
+	 * do not require user input. They should not suppress errors or perform
+	 * unsafe fixes such as generating new types or classes.
+	 *
+	 * @since 3.17.0
+	 */
+    LSTALK_CODEACTIONKIND_SOURCEFIXALL = 1 << 8,
+} LSTalk_CodeActionKind;
+
+/**
  * Capabilities specific to `WorkspaceEdit`s
  */
 typedef struct LSTalk_WorkspaceEditClientCapabilities {
@@ -1013,6 +1096,83 @@ typedef struct LSTalk_DocumentSymbolClientCapabilities {
 } LSTalk_DocumentSymbolClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/codeAction` request.
+ */
+typedef struct LSTalk_CodeActionClientCapabilities {
+    /**
+	 * Whether code action supports dynamic registration.
+	 */
+	int dynamic_registration;
+
+	/**
+	 * The client supports code action literals as a valid
+	 * response of the `textDocument/codeAction` request.
+	 *
+	 * @since 3.8.0
+	 *
+	 * codeActionLiteralSupport:
+     * 
+     * The code action kind is supported with the following value
+     * set.
+     *
+     * codeActionKind:
+     * 
+     * The code action kind values the client supports. When this
+     * property exists the client also guarantees that it will
+     * handle values outside its set gracefully and falls back
+     * to a default value when unknown.
+     */
+    int code_action_value_set;
+
+	/**
+	 * Whether code action supports the `isPreferred` property.
+	 *
+	 * @since 3.15.0
+	 */
+	int is_preferred_support;
+
+	/**
+	 * Whether code action supports the `disabled` property.
+	 *
+	 * @since 3.16.0
+	 */
+	int disabled_support;
+
+	/**
+	 * Whether code action supports the `data` property which is
+	 * preserved between a `textDocument/codeAction` and a
+	 * `codeAction/resolve` request.
+	 *
+	 * @since 3.16.0
+	 */
+	int data_support;
+
+	/**
+	 * Whether the client supports resolving additional code action
+	 * properties via a separate `codeAction/resolve` request.
+	 *
+	 * @since 3.16.0
+	 *
+	 * resolveSupport:
+     * 
+     * The properties that a client can resolve lazily.
+     */
+	char** resolve_support_properties;
+    int resolve_support_count;
+
+	/**
+	 * Whether the client honors the change annotations in
+	 * text edits and resource operations returned via the
+	 * `CodeAction#edit` property by for example presenting
+	 * the workspace edit in the user interface and asking
+	 * for confirmation.
+	 *
+	 * @since 3.16.0
+	 */
+	int honors_change_annotations;
+} LSTalk_CodeActionClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1073,6 +1233,11 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
 	 * Capabilities specific to the `textDocument/documentSymbol` request.
 	 */
 	LSTalk_DocumentSymbolClientCapabilities document_symbol;
+
+    /**
+	 * Capabilities specific to the `textDocument/codeAction` request.
+	 */
+	LSTalk_CodeActionClientCapabilities code_action;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
