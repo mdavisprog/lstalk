@@ -1578,6 +1578,14 @@ static JSONValue completion_item_kind_array(long long value) {
     return result;
 }
 
+static void dynamic_registration(JSONValue* root, int value) {
+    if (root == NULL || root->type != JSON_VALUE_OBJECT) {
+        return;
+    }
+
+    json_object_const_key_set(root, "dynamicRegistration", json_make_boolean(value));
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1680,14 +1688,14 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace_edit, "changeAnnotationSupport", change_annotation_support);
 
     JSONValue did_change_configuration = json_make_object();
-    json_object_const_key_set(&did_change_configuration, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.did_change_configuration.dynamic_registration));
+    dynamic_registration(&did_change_configuration, connect_params.capabilities.workspace.did_change_configuration.dynamic_registration);
 
     JSONValue did_change_watched_files = json_make_object();
-    json_object_const_key_set(&did_change_watched_files, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.did_change_watched_files.dynamic_registration));
+    dynamic_registration(&did_change_watched_files, connect_params.capabilities.workspace.did_change_watched_files.dynamic_registration);
     json_object_const_key_set(&did_change_watched_files, "relativePatternSupport", json_make_boolean(connect_params.capabilities.workspace.did_change_watched_files.relative_pattern_support));
 
     JSONValue symbol = json_make_object();
-    json_object_const_key_set(&symbol, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.symbol.dynamic_registration));
+    dynamic_registration(&symbol, connect_params.capabilities.workspace.symbol.dynamic_registration);
     JSONValue symbol_kind = json_make_object();
     json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_array(connect_params.capabilities.workspace.symbol.symbol_kind_value_set));
     json_object_const_key_set(&symbol, "symbolKind", symbol_kind);
@@ -1703,7 +1711,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&symbol, "resolveSupport", resolve_support);
 
     JSONValue execute_command = json_make_object();
-    json_object_const_key_set(&execute_command, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.execute_command.dynamic_registration));
+    dynamic_registration(&execute_command, connect_params.capabilities.workspace.execute_command.dynamic_registration);
 
     JSONValue semantic_tokens = json_make_object();
     json_object_const_key_set(&semantic_tokens, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.semantic_tokens.refresh_support));
@@ -1712,7 +1720,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&code_lens, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.code_lens.refresh_support));
 
     JSONValue file_operations = json_make_object();
-    json_object_const_key_set(&file_operations, "dynamicRegistration", json_make_boolean(connect_params.capabilities.workspace.file_operations.dynamic_registration));
+    dynamic_registration(&file_operations, connect_params.capabilities.workspace.file_operations.dynamic_registration);
     json_object_const_key_set(&file_operations, "didCreate", json_make_boolean(connect_params.capabilities.workspace.file_operations.did_create));
     json_object_const_key_set(&file_operations, "willCreate", json_make_boolean(connect_params.capabilities.workspace.file_operations.will_create));
     json_object_const_key_set(&file_operations, "didRename", json_make_boolean(connect_params.capabilities.workspace.file_operations.did_rename));
@@ -1746,7 +1754,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace, "diagnostics", diagnostics);
 
     JSONValue synchronization = json_make_object();
-    json_object_const_key_set(&synchronization, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.synchronization.dynamic_registration));
+    dynamic_registration(&synchronization, connect_params.capabilities.text_document.synchronization.dynamic_registration);
     json_object_const_key_set(&synchronization, "willSave", json_make_boolean(connect_params.capabilities.text_document.synchronization.will_save));
     json_object_const_key_set(&synchronization, "willSaveWaitUntil", json_make_boolean(connect_params.capabilities.text_document.synchronization.will_save_wait_until));
     json_object_const_key_set(&synchronization, "didSave", json_make_boolean(connect_params.capabilities.text_document.synchronization.did_save));
@@ -1774,7 +1782,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&completion_item, "labelDetailsSupport", json_make_boolean(connect_params.capabilities.text_document.completion.completion_item.label_details_support));
 
     JSONValue completion = json_make_object();
-    json_object_const_key_set(&completion, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.completion.dynamic_registration));
+    dynamic_registration(&completion, connect_params.capabilities.text_document.completion.dynamic_registration);
     json_object_const_key_set(&completion, "completionItem", completion_item);
     JSONValue completion_item_kind = json_make_object();
     json_object_const_key_set(&completion_item_kind, "valueSet", completion_item_kind_array(connect_params.capabilities.text_document.completion.completion_item_kind_value_set));
@@ -1790,11 +1798,11 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&completion, "completionList", completion_list_item_defaults);
 
     JSONValue hover = json_make_object();
-    json_object_const_key_set(&hover, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.hover.dynamic_registration));
+    dynamic_registration(&hover, connect_params.capabilities.text_document.hover.dynamic_registration);
     json_object_const_key_set(&hover, "contentFormat", markup_kind_array(connect_params.capabilities.text_document.hover.content_format));
 
     JSONValue signature_help = json_make_object();
-    json_object_const_key_set(&signature_help, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.signature_help.dynamic_registration));
+    dynamic_registration(&signature_help, connect_params.capabilities.text_document.signature_help.dynamic_registration);
     JSONValue signature_info = json_make_object();
     json_object_const_key_set(&signature_info, "documentationFormat", markup_kind_array(connect_params.capabilities.text_document.signature_help.signature_information.documentation_format));
     JSONValue signature_info_parameter_info = json_make_object();
@@ -1805,11 +1813,11 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&signature_help, "contextSupport", json_make_boolean(connect_params.capabilities.text_document.signature_help.context_support));
 
     JSONValue declaration = json_make_object();
-    json_object_const_key_set(&declaration, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.declaration.dynamic_registration));
+    dynamic_registration(&declaration, connect_params.capabilities.text_document.declaration.dynamic_registration);
     json_object_const_key_set(&declaration, "linkSupport", json_make_boolean(connect_params.capabilities.text_document.declaration.link_support));
 
     JSONValue definition = json_make_object();
-    json_object_const_key_set(&definition, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.definition.dynamic_registration));
+    dynamic_registration(&definition, connect_params.capabilities.text_document.definition.dynamic_registration);
     json_object_const_key_set(&definition, "linkSupport", json_make_boolean(connect_params.capabilities.text_document.definition.link_support));
 
     JSONValue text_document = json_make_object();
