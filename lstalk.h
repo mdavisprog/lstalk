@@ -235,81 +235,81 @@ typedef enum {
  */
 typedef enum {
     /**
-	 * Empty kind.
-	 */
+     * Empty kind.
+     */
     LSTALK_CODEACTIONKIND_EMPTY = 1 << 0,
 
-	/**
-	 * Base kind for quickfix actions: 'quickfix'.
-	 */
+    /**
+     * Base kind for quickfix actions: 'quickfix'.
+     */
     LSTALK_CODEACTIONKIND_QUICKFIX = 1 << 1,
 
-	/**
-	 * Base kind for refactoring actions: 'refactor'.
-	 */
+    /**
+     * Base kind for refactoring actions: 'refactor'.
+     */
     LSTALK_CODEACTIONKIND_REFACTOR = 1 << 2,
 
-	/**
-	 * Base kind for refactoring extraction actions: 'refactor.extract'.
-	 *
-	 * Example extract actions:
-	 *
-	 * - Extract method
-	 * - Extract function
-	 * - Extract variable
-	 * - Extract interface from class
-	 * - ...
-	 */
+    /**
+     * Base kind for refactoring extraction actions: 'refactor.extract'.
+     *
+     * Example extract actions:
+     *
+     * - Extract method
+     * - Extract function
+     * - Extract variable
+     * - Extract interface from class
+     * - ...
+     */
     LSTALK_CODEACTIONKIND_REFACTOREXTRACT = 1 << 3,
 
-	/**
-	 * Base kind for refactoring inline actions: 'refactor.inline'.
-	 *
-	 * Example inline actions:
-	 *
-	 * - Inline function
-	 * - Inline variable
-	 * - Inline constant
-	 * - ...
-	 */
+    /**
+     * Base kind for refactoring inline actions: 'refactor.inline'.
+     *
+     * Example inline actions:
+     *
+     * - Inline function
+     * - Inline variable
+     * - Inline constant
+     * - ...
+     */
     LSTALK_CODEACTIONKIND_REFACTORINLINE = 1 << 4,
 
-	/**
-	 * Base kind for refactoring rewrite actions: 'refactor.rewrite'.
-	 *
-	 * Example rewrite actions:
-	 *
-	 * - Convert JavaScript function to class
-	 * - Add or remove parameter
-	 * - Encapsulate field
-	 * - Make method static
-	 * - Move method to base class
-	 * - ...
-	 */
+    /**
+     * Base kind for refactoring rewrite actions: 'refactor.rewrite'.
+     *
+     * Example rewrite actions:
+     *
+     * - Convert JavaScript function to class
+     * - Add or remove parameter
+     * - Encapsulate field
+     * - Make method static
+     * - Move method to base class
+     * - ...
+     */
     LSTALK_CODEACTIONKIND_REFACTORREWRITE = 1 << 5,
 
-	/**
-	 * Base kind for source actions: `source`.
-	 *
-	 * Source code actions apply to the entire file.
-	 */
+    /**
+     * Base kind for source actions: `source`.
+     *
+     * Source code actions apply to the entire file.
+     */
     LSTALK_CODEACTIONKIND_SOURCE = 1 << 6,
 
-	/**
-	 * Base kind for an organize imports source action:
-	 * `source.organizeImports`.
-	 */
+    /**
+     * Base kind for an organize imports source action:
+     * `source.organizeImports`.
+     */
     LSTALK_CODEACTIONKIND_SOURCEORGANIZEIMPORTS = 1 << 7,
 
-	/**
-	 * Base kind for a 'fix all' source action: `source.fixAll`.
-	 *
-	 * 'Fix all' actions automatically fix errors that have a clear fix that
-	 * do not require user input. They should not suppress errors or perform
-	 * unsafe fixes such as generating new types or classes.
-	 *
-	 * @since 3.17.0
-	 */
+    /**
+     * Base kind for a 'fix all' source action: `source.fixAll`.
+     *
+     * 'Fix all' actions automatically fix errors that have a clear fix that
+     * do not require user input. They should not suppress errors or perform
+     * unsafe fixes such as generating new types or classes.
+     *
+     * @since 3.17.0
+     */
     LSTALK_CODEACTIONKIND_SOURCEFIXALL = 1 << 8,
 } LSTalk_CodeActionKind;
 
@@ -1037,9 +1037,9 @@ typedef struct LSTalk_ReferenceClientCapabilities {
  */
 typedef struct LSTalk_DocumentHighlightClientCapabilities {
     /**
-	 * Whether document highlight supports dynamic registration.
-	 */
-	int dynamic_registration;
+     * Whether document highlight supports dynamic registration.
+     */
+    int dynamic_registration;
 } LSTalk_DocumentHighlightClientCapabilities;
 
 /**
@@ -1047,15 +1047,15 @@ typedef struct LSTalk_DocumentHighlightClientCapabilities {
  */
 typedef struct LSTalk_DocumentSymbolClientCapabilities {
     /**
-	 * Whether document symbol supports dynamic registration.
-	 */
-	int dynamic_registration;
+     * Whether document symbol supports dynamic registration.
+     */
+    int dynamic_registration;
 
-	/**
-	 * Specific capabilities for the `SymbolKind` in the
-	 * `textDocument/documentSymbol` request.
-	 *
-	 * symbolKind:
+    /**
+     * Specific capabilities for the `SymbolKind` in the
+     * `textDocument/documentSymbol` request.
+     *
+     * symbolKind:
      * 
      * The symbol kind values the client supports. When this
      * property exists the client also guarantees that it will
@@ -1068,31 +1068,31 @@ typedef struct LSTalk_DocumentSymbolClientCapabilities {
      */
     int symbol_kind_value_set;
 
-	/**
-	 * The client supports hierarchical document symbols.
-	 */
-	int hierarchical_document_symbol_support;
+    /**
+     * The client supports hierarchical document symbols.
+     */
+    int hierarchical_document_symbol_support;
 
-	/**
-	 * The client supports tags on `SymbolInformation`. Tags are supported on
-	 * `DocumentSymbol` if `hierarchicalDocumentSymbolSupport` is set to true.
-	 * Clients supporting tags have to handle unknown tags gracefully.
-	 *
-	 * @since 3.16.0
-	 *
-	 * tagSupport:
+    /**
+     * The client supports tags on `SymbolInformation`. Tags are supported on
+     * `DocumentSymbol` if `hierarchicalDocumentSymbolSupport` is set to true.
+     * Clients supporting tags have to handle unknown tags gracefully.
+     *
+     * @since 3.16.0
+     *
+     * tagSupport:
      * 
      * The tags supported by the client.
      */
     int tag_support_value_set;
 
-	/**
-	 * The client supports an additional label presented in the UI when
-	 * registering a document symbol provider.
-	 *
-	 * @since 3.16.0
-	 */
-	int label_support;
+    /**
+     * The client supports an additional label presented in the UI when
+     * registering a document symbol provider.
+     *
+     * @since 3.16.0
+     */
+    int label_support;
 } LSTalk_DocumentSymbolClientCapabilities;
 
 /**
@@ -1100,17 +1100,17 @@ typedef struct LSTalk_DocumentSymbolClientCapabilities {
  */
 typedef struct LSTalk_CodeActionClientCapabilities {
     /**
-	 * Whether code action supports dynamic registration.
-	 */
-	int dynamic_registration;
+     * Whether code action supports dynamic registration.
+     */
+    int dynamic_registration;
 
-	/**
-	 * The client supports code action literals as a valid
-	 * response of the `textDocument/codeAction` request.
-	 *
-	 * @since 3.8.0
-	 *
-	 * codeActionLiteralSupport:
+    /**
+     * The client supports code action literals as a valid
+     * response of the `textDocument/codeAction` request.
+     *
+     * @since 3.8.0
+     *
+     * codeActionLiteralSupport:
      * 
      * The code action kind is supported with the following value
      * set.
@@ -1124,53 +1124,63 @@ typedef struct LSTalk_CodeActionClientCapabilities {
      */
     int code_action_value_set;
 
-	/**
-	 * Whether code action supports the `isPreferred` property.
-	 *
-	 * @since 3.15.0
-	 */
-	int is_preferred_support;
+    /**
+     * Whether code action supports the `isPreferred` property.
+     *
+     * @since 3.15.0
+     */
+    int is_preferred_support;
 
-	/**
-	 * Whether code action supports the `disabled` property.
-	 *
-	 * @since 3.16.0
-	 */
-	int disabled_support;
+    /**
+     * Whether code action supports the `disabled` property.
+     *
+     * @since 3.16.0
+     */
+    int disabled_support;
 
-	/**
-	 * Whether code action supports the `data` property which is
-	 * preserved between a `textDocument/codeAction` and a
-	 * `codeAction/resolve` request.
-	 *
-	 * @since 3.16.0
-	 */
-	int data_support;
+    /**
+     * Whether code action supports the `data` property which is
+     * preserved between a `textDocument/codeAction` and a
+     * `codeAction/resolve` request.
+     *
+     * @since 3.16.0
+     */
+    int data_support;
 
-	/**
-	 * Whether the client supports resolving additional code action
-	 * properties via a separate `codeAction/resolve` request.
-	 *
-	 * @since 3.16.0
-	 *
-	 * resolveSupport:
+    /**
+     * Whether the client supports resolving additional code action
+     * properties via a separate `codeAction/resolve` request.
+     *
+     * @since 3.16.0
+     *
+     * resolveSupport:
      * 
      * The properties that a client can resolve lazily.
      */
-	char** resolve_support_properties;
+    char** resolve_support_properties;
     int resolve_support_count;
 
-	/**
-	 * Whether the client honors the change annotations in
-	 * text edits and resource operations returned via the
-	 * `CodeAction#edit` property by for example presenting
-	 * the workspace edit in the user interface and asking
-	 * for confirmation.
-	 *
-	 * @since 3.16.0
-	 */
-	int honors_change_annotations;
+    /**
+     * Whether the client honors the change annotations in
+     * text edits and resource operations returned via the
+     * `CodeAction#edit` property by for example presenting
+     * the workspace edit in the user interface and asking
+     * for confirmation.
+     *
+     * @since 3.16.0
+     */
+    int honors_change_annotations;
 } LSTalk_CodeActionClientCapabilities;
+
+/**
+ * Capabilities specific to the `textDocument/codeLens` request.
+ */
+typedef struct LSTalk_CodeLensClientCapabilities {
+    /**
+     * Whether code lens supports dynamic registration.
+     */
+    int dynamic_registration;
+} LSTalk_CodeLensClientCapabilities;
 
 /**
  * Text document specific client capabilities.
@@ -1225,19 +1235,24 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
     LSTalk_ReferenceClientCapabilities references;
 
     /**
-	 * Capabilities specific to the `textDocument/documentHighlight` request.
-	 */
-	LSTalk_DocumentHighlightClientCapabilities document_highlight;
+     * Capabilities specific to the `textDocument/documentHighlight` request.
+     */
+    LSTalk_DocumentHighlightClientCapabilities document_highlight;
 
     /**
-	 * Capabilities specific to the `textDocument/documentSymbol` request.
-	 */
-	LSTalk_DocumentSymbolClientCapabilities document_symbol;
+     * Capabilities specific to the `textDocument/documentSymbol` request.
+     */
+    LSTalk_DocumentSymbolClientCapabilities document_symbol;
 
     /**
-	 * Capabilities specific to the `textDocument/codeAction` request.
-	 */
-	LSTalk_CodeActionClientCapabilities code_action;
+     * Capabilities specific to the `textDocument/codeAction` request.
+     */
+    LSTalk_CodeActionClientCapabilities code_action;
+
+    /**
+     * Capabilities specific to the `textDocument/codeLens` request.
+     */
+    LSTalk_CodeLensClientCapabilities code_lens;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
