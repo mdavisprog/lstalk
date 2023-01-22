@@ -919,6 +919,27 @@ typedef struct LSTalk_TypeDefinitionClientCapabilities {
 } LSTalk_TypeDefinitionClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/implementation` request.
+ *
+ * @since 3.6.0
+ */
+typedef struct LSTalk_ImplementationClientCapabilities {
+    /**
+     * Whether implementation supports dynamic registration. If this is set to
+     * `true` the client supports the new `ImplementationRegistrationOptions`
+     * return value for the corresponding server capability as well.
+     */
+    int dynamic_registration;
+
+    /**
+     * The client supports additional metadata in the form of definition links.
+     *
+     * @since 3.14.0
+     */
+    int link_support;
+} LSTalk_ImplementationClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -952,11 +973,18 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
     LSTalk_DefinitionClientCapabilities definition;
 
     /**
-	 * Capabilities specific to the `textDocument/typeDefinition` request.
-	 *
-	 * @since 3.6.0
-	 */
-	LSTalk_TypeDefinitionClientCapabilities type_definition;
+     * Capabilities specific to the `textDocument/typeDefinition` request.
+     *
+     * @since 3.6.0
+     */
+    LSTalk_TypeDefinitionClientCapabilities type_definition;
+
+    /**
+     * Capabilities specific to the `textDocument/implementation` request.
+     *
+     * @since 3.6.0
+     */
+    LSTalk_ImplementationClientCapabilities implementation;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
