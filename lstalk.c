@@ -1835,6 +1835,10 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     dynamic_registration(&definition, connect_params.capabilities.text_document.definition.dynamic_registration);
     link_support(&definition, connect_params.capabilities.text_document.definition.link_support);
 
+    JSONValue type_definition = json_make_object();
+    dynamic_registration(&type_definition, connect_params.capabilities.text_document.type_definition.dynamic_registration);
+    link_support(&type_definition, connect_params.capabilities.text_document.type_definition.link_support);
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -1842,6 +1846,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "signatureHelp", signature_help);
     json_object_const_key_set(&text_document, "declaration", declaration);
     json_object_const_key_set(&text_document, "definition", definition);
+    json_object_const_key_set(&text_document, "typeDefinition", type_definition);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
