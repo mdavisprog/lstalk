@@ -1597,6 +1597,14 @@ static void dynamic_registration(JSONValue* root, int value) {
     json_object_const_key_set(root, "dynamicRegistration", json_make_boolean(value));
 }
 
+static void link_support(JSONValue* root, int value) {
+    if (root == NULL || root->type != JSON_VALUE_OBJECT) {
+        return;
+    }
+
+    json_object_const_key_set(root, "linkSupport", json_make_boolean(value));
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1821,11 +1829,11 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
 
     JSONValue declaration = json_make_object();
     dynamic_registration(&declaration, connect_params.capabilities.text_document.declaration.dynamic_registration);
-    json_object_const_key_set(&declaration, "linkSupport", json_make_boolean(connect_params.capabilities.text_document.declaration.link_support));
+    link_support(&declaration, connect_params.capabilities.text_document.declaration.link_support);
 
     JSONValue definition = json_make_object();
     dynamic_registration(&definition, connect_params.capabilities.text_document.definition.dynamic_registration);
-    json_object_const_key_set(&definition, "linkSupport", json_make_boolean(connect_params.capabilities.text_document.definition.link_support));
+    link_support(&definition, connect_params.capabilities.text_document.definition.link_support);
 
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
