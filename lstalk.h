@@ -940,6 +940,16 @@ typedef struct LSTalk_ImplementationClientCapabilities {
 } LSTalk_ImplementationClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/references` request.
+ */
+typedef struct LSTalk_ReferenceClientCapabilities {
+    /**
+     * Whether references supports dynamic registration.
+     */
+    int dynamic_registration;
+} LSTalk_ReferenceClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -985,6 +995,11 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * @since 3.6.0
      */
     LSTalk_ImplementationClientCapabilities implementation;
+
+    /**
+     * Capabilities specific to the `textDocument/references` request.
+     */
+    LSTalk_ReferenceClientCapabilities references;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
