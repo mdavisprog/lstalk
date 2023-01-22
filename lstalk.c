@@ -1849,6 +1849,17 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue document_highlight = json_make_object();
     dynamic_registration(&document_highlight, connect_params.capabilities.text_document.document_highlight.dynamic_registration);
 
+    JSONValue document_symbol = json_make_object();
+    dynamic_registration(&document_symbol, connect_params.capabilities.text_document.document_symbol.dynamic_registration);
+    JSONValue document_symbol_symbol_kind = json_make_object();
+    json_object_const_key_set(&document_symbol_symbol_kind, "valueSet", symbol_kind_array(connect_params.capabilities.text_document.document_symbol.symbol_kind_value_set));
+    json_object_const_key_set(&document_symbol, "symbolKind", document_symbol_symbol_kind);
+    json_object_const_key_set(&document_symbol, "hierarchicalDocumentSymbolSupport", json_make_boolean(connect_params.capabilities.text_document.document_symbol.hierarchical_document_symbol_support));
+    JSONValue document_symbol_tag_support = json_make_object();
+    json_object_const_key_set(&document_symbol_tag_support, "valueSet", symbol_tag_array(connect_params.capabilities.text_document.document_symbol.tag_support_value_set));
+    json_object_const_key_set(&document_symbol, "tagSupport", document_symbol_tag_support);
+    json_object_const_key_set(&document_symbol, "labelSupport", document_symbol_tag_support);
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -1860,6 +1871,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "implementation", implementation);
     json_object_const_key_set(&text_document, "references", references);
     json_object_const_key_set(&text_document, "documentHighlight", document_highlight);
+    json_object_const_key_set(&text_document, "documentSymbol", document_symbol);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

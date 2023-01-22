@@ -960,6 +960,59 @@ typedef struct LSTalk_DocumentHighlightClientCapabilities {
 } LSTalk_DocumentHighlightClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/documentSymbol` request.
+ */
+typedef struct LSTalk_DocumentSymbolClientCapabilities {
+    /**
+	 * Whether document symbol supports dynamic registration.
+	 */
+	int dynamic_registration;
+
+	/**
+	 * Specific capabilities for the `SymbolKind` in the
+	 * `textDocument/documentSymbol` request.
+	 *
+	 * symbolKind:
+     * 
+     * The symbol kind values the client supports. When this
+     * property exists the client also guarantees that it will
+     * handle values outside its set gracefully and falls back
+     * to a default value when unknown.
+     *
+     * If this property is not present the client only supports
+     * the symbol kinds from `File` to `Array` as defined in
+     * the initial version of the protocol.
+     */
+    int symbol_kind_value_set;
+
+	/**
+	 * The client supports hierarchical document symbols.
+	 */
+	int hierarchical_document_symbol_support;
+
+	/**
+	 * The client supports tags on `SymbolInformation`. Tags are supported on
+	 * `DocumentSymbol` if `hierarchicalDocumentSymbolSupport` is set to true.
+	 * Clients supporting tags have to handle unknown tags gracefully.
+	 *
+	 * @since 3.16.0
+	 *
+	 * tagSupport:
+     * 
+     * The tags supported by the client.
+     */
+    int tag_support_value_set;
+
+	/**
+	 * The client supports an additional label presented in the UI when
+	 * registering a document symbol provider.
+	 *
+	 * @since 3.16.0
+	 */
+	int label_support;
+} LSTalk_DocumentSymbolClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1015,6 +1068,11 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
 	 * Capabilities specific to the `textDocument/documentHighlight` request.
 	 */
 	LSTalk_DocumentHighlightClientCapabilities document_highlight;
+
+    /**
+	 * Capabilities specific to the `textDocument/documentSymbol` request.
+	 */
+	LSTalk_DocumentSymbolClientCapabilities document_symbol;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
