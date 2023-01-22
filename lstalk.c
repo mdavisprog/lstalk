@@ -1809,8 +1809,8 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&declaration, "linkSupport", json_make_boolean(connect_params.capabilities.text_document.declaration.link_support));
 
     JSONValue definition = json_make_object();
-    json_object_const_key_set(&declaration, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.definition.dynamic_registration));
-    json_object_const_key_set(&declaration, "linkSupport", json_make_boolean(connect_params.capabilities.text_document.definition.link_support));
+    json_object_const_key_set(&definition, "dynamicRegistration", json_make_boolean(connect_params.capabilities.text_document.definition.dynamic_registration));
+    json_object_const_key_set(&definition, "linkSupport", json_make_boolean(connect_params.capabilities.text_document.definition.link_support));
 
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
