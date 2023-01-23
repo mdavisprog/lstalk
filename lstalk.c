@@ -1970,6 +1970,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue linked_editing_range = json_make_object();
     dynamic_registration(&selection_range, connect_params.capabilities.text_document.linked_editing_range.dynamic_registration);
 
+    JSONValue call_hierarchy = json_make_object();
+    dynamic_registration(&call_hierarchy, connect_params.capabilities.text_document.call_hierarchy.dynamic_registration);
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -1994,6 +1997,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "foldingRange", folding_range);
     json_object_const_key_set(&text_document, "selectionRange", selection_range);
     json_object_const_key_set(&text_document, "linkedEditingRange", linked_editing_range);
+    json_object_const_key_set(&text_document, "callHierarchy", call_hierarchy);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

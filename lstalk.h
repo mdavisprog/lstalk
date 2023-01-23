@@ -1466,6 +1466,21 @@ typedef struct LSTalk_LinkedEditingRangeClientCapabilities {
 } LSTalk_LinkedEditingRangeClientCapabilities;
 
 /**
+ * Capabilities specific to the various call hierarchy requests.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_CallHierarchyClientCapabilities {
+    /**
+	 * Whether implementation supports dynamic registration. If this is set to
+	 * `true` the client supports the new `(TextDocumentRegistrationOptions &
+	 * StaticRegistrationOptions)` return value for the corresponding server
+	 * capability as well.
+	 */
+	int dynamic_registration;
+} LSTalk_CallHierarchyClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1596,6 +1611,13 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
 	 * @since 3.16.0
 	 */
 	LSTalk_LinkedEditingRangeClientCapabilities linked_editing_range;
+
+    /**
+	 * Capabilities specific to the various call hierarchy requests.
+	 *
+	 * @since 3.16.0
+	 */
+	LSTalk_CallHierarchyClientCapabilities call_hierarchy;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
