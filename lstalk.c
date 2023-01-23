@@ -1914,6 +1914,12 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue on_type_formatting = json_make_object();
     dynamic_registration(&on_type_formatting, connect_params.capabilities.text_document.on_type_formatting.dynamic_registration);
 
+    JSONValue rename = json_make_object();
+    dynamic_registration(&rename, connect_params.capabilities.text_document.rename.dynamic_registration);
+    json_object_const_key_set(&rename, "prepareSupport", json_make_boolean(connect_params.capabilities.text_document.rename.prepare_support));
+    json_object_const_key_set(&rename, "prepareSupportDefaultBehavior", json_make_int(connect_params.capabilities.text_document.rename.prepare_support_default_behavior));
+    json_object_const_key_set(&rename, "honorsChangeAnnotations", json_make_boolean(connect_params.capabilities.text_document.rename.honors_change_annotations));
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -1933,6 +1939,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "formatting", formatting);
     json_object_const_key_set(&text_document, "rangeFormatting", range_formatting);
     json_object_const_key_set(&text_document, "onTypeFormatting", on_type_formatting);
+    json_object_const_key_set(&text_document, "rename", rename);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

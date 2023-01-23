@@ -313,6 +313,14 @@ typedef enum {
     LSTALK_CODEACTIONKIND_SOURCEFIXALL = 1 << 8,
 } LSTalk_CodeActionKind;
 
+typedef enum {
+    /**
+     * The client's default behavior is to select the identifier
+     * according to the language's syntax rule.
+     */
+    LSTALK_PREPARESUPPORTDEFAULTBEHAVIOR_IDENTIFIER = 1,
+} LSTalk_PrepareSupportDefaultBehavior;
+
 /**
  * Capabilities specific to `WorkspaceEdit`s
  */
@@ -1243,6 +1251,46 @@ typedef struct LSTalk_DocumentOnTypeFormattingClientCapabilities {
 } LSTalk_DocumentOnTypeFormattingClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/rename` request.
+ */
+typedef struct LSTalk_RenameClientCapabilities {
+    /**
+     * Whether rename supports dynamic registration.
+     */
+    int dynamic_registration;
+
+    /**
+     * Client supports testing for validity of rename operations
+     * before execution.
+     *
+     * @since version 3.12.0
+     */
+    int prepare_support;
+
+    /**
+     * Client supports the default behavior result
+     * (`{ defaultBehavior: boolean }`).
+     *
+     * The value indicates the default behavior used by the
+     * client.
+     *
+     * @since version 3.16.0
+     */
+    LSTalk_PrepareSupportDefaultBehavior prepare_support_default_behavior;
+
+    /**
+     * Whether the client honors the change annotations in
+     * text edits and resource operations returned via the
+     * rename request's workspace edit by for example presenting
+     * the workspace edit in the user interface and asking
+     * for confirmation.
+     *
+     * @since 3.16.0
+     */
+    int honors_change_annotations;
+} LSTalk_RenameClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1341,6 +1389,11 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * Capabilities specific to the `textDocument/onTypeFormatting` request.
      */
     LSTalk_DocumentOnTypeFormattingClientCapabilities on_type_formatting;
+
+    /**
+     * Capabilities specific to the `textDocument/rename` request.
+     */
+    LSTalk_RenameClientCapabilities rename;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
