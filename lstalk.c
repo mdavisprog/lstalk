@@ -1671,6 +1671,10 @@ static JSONValue string_array(char** array, int count) {
     return result;
 }
 
+//
+// Begin Workspace Objects
+//
+
 static JSONValue make_workspace_edit_object(LSTalk_WorkspaceEditClientCapabilities* workspace_edit) {
     JSONValue result = json_make_object();
 
@@ -1684,6 +1688,27 @@ static JSONValue make_workspace_edit_object(LSTalk_WorkspaceEditClientCapabiliti
 
     return result;
 }
+
+static JSONValue make_workspace_symbol_object(LSTalk_WorkspaceSymbolClientCapabilities* symbol) {
+    JSONValue result = json_make_object();
+
+    dynamic_registration(&result, symbol->dynamic_registration);
+    JSONValue symbol_kind = json_make_object();
+    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_array(symbol->symbol_kind_value_set));
+    json_object_const_key_set(&result, "symbolKind", symbol_kind);
+    JSONValue tag_support = json_make_object();
+    json_object_const_key_set(&tag_support, "valueSet", symbol_tag_array(symbol->tag_support_value_set));
+    json_object_const_key_set(&result, "tagSupport", tag_support);
+    JSONValue resolve_support = json_make_object();
+    json_object_const_key_set(&resolve_support, "properties", string_array(symbol->resolve_support_properties, symbol->resolve_support_count));
+    json_object_const_key_set(&result, "resolveSupport", resolve_support);
+
+    return result;
+}
+
+//
+// Begin Client Capabilities Objects
+//
 
 static JSONValue make_window_object(LSTalk_Window* window) {
     JSONValue result = json_make_object();
@@ -1824,18 +1849,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     dynamic_registration(&did_change_watched_files, connect_params.capabilities.workspace.did_change_watched_files.dynamic_registration);
     json_object_const_key_set(&did_change_watched_files, "relativePatternSupport", json_make_boolean(connect_params.capabilities.workspace.did_change_watched_files.relative_pattern_support));
 
-    JSONValue symbol = json_make_object();
-    dynamic_registration(&symbol, connect_params.capabilities.workspace.symbol.dynamic_registration);
-    JSONValue symbol_kind = json_make_object();
-    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_array(connect_params.capabilities.workspace.symbol.symbol_kind_value_set));
-    json_object_const_key_set(&symbol, "symbolKind", symbol_kind);
-    JSONValue tag_support = json_make_object();
-    json_object_const_key_set(&tag_support, "valueSet", symbol_tag_array(connect_params.capabilities.workspace.symbol.tag_support_value_set));
-    json_object_const_key_set(&symbol, "tagSupport", tag_support);
-    JSONValue resolve_support = json_make_object();
-    json_object_const_key_set(&resolve_support, "properties", string_array(connect_params.capabilities.workspace.symbol.resolve_support_properties, connect_params.capabilities.workspace.symbol.resolve_support_count));
-    json_object_const_key_set(&symbol, "resolveSupport", resolve_support);
-
     JSONValue execute_command = json_make_object();
     dynamic_registration(&execute_command, connect_params.capabilities.workspace.execute_command.dynamic_registration);
 
@@ -1868,7 +1881,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace, "workspaceEdit", make_workspace_edit_object(&connect_params.capabilities.workspace.workspace_edit));
     json_object_const_key_set(&workspace, "didChangeConfiguration", did_change_configuration);
     json_object_const_key_set(&workspace, "didChangeWatchedFiles", did_change_watched_files);
-    json_object_const_key_set(&workspace, "symbol", symbol);
+    json_object_const_key_set(&workspace, "symbol", make_workspace_symbol_object(&connect_params.capabilities.workspace.symbol));
     json_object_const_key_set(&workspace, "executeCommand", execute_command);
     json_object_const_key_set(&workspace, "workspaceFolders", json_make_boolean(connect_params.capabilities.workspace.workspace_folders));
     json_object_const_key_set(&workspace, "configuration", json_make_boolean(connect_params.capabilities.workspace.configuration));
