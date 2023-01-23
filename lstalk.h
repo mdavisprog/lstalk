@@ -1451,6 +1451,21 @@ typedef struct LSTalk_SelectionRangeClientCapabilities {
 } LSTalk_SelectionRangeClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/linkedEditingRange` request.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_LinkedEditingRangeClientCapabilities {
+    /**
+	 * Whether the implementation supports dynamic registration.
+	 * If this is set to `true` the client supports the new
+	 * `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+	 * return value for the corresponding server capability as well.
+	 */
+	int dynamic_registration;
+} LSTalk_LinkedEditingRangeClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1574,6 +1589,13 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
 	 * @since 3.15.0
 	 */
 	LSTalk_SelectionRangeClientCapabilities selection_range;
+
+    /**
+	 * Capabilities specific to the `textDocument/linkedEditingRange` request.
+	 *
+	 * @since 3.16.0
+	 */
+	LSTalk_LinkedEditingRangeClientCapabilities linked_editing_range;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
