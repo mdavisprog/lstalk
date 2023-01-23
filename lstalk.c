@@ -1720,6 +1720,52 @@ static JSONValue make_workspace_file_operations_object(LSTalk_FileOperations* fi
     return result;
 }
 
+static JSONValue make_workspace_object(LSTalk_Workspace* workspace) {
+    JSONValue result = json_make_object();
+
+    JSONValue did_change_configuration = json_make_object();
+    dynamic_registration(&did_change_configuration, workspace->did_change_configuration.dynamic_registration);
+
+    JSONValue did_change_watched_files = json_make_object();
+    dynamic_registration(&did_change_watched_files, workspace->did_change_watched_files.dynamic_registration);
+    json_object_const_key_set(&did_change_watched_files, "relativePatternSupport", json_make_boolean(workspace->did_change_watched_files.relative_pattern_support));
+
+    JSONValue execute_command = json_make_object();
+    dynamic_registration(&execute_command, workspace->execute_command.dynamic_registration);
+
+    JSONValue semantic_tokens = json_make_object();
+    json_object_const_key_set(&semantic_tokens, "refreshSupport", json_make_boolean(workspace->semantic_tokens.refresh_support));
+
+    JSONValue code_lens = json_make_object();
+    json_object_const_key_set(&code_lens, "refreshSupport", json_make_boolean(workspace->code_lens.refresh_support));
+
+    JSONValue inline_value = json_make_object();
+    json_object_const_key_set(&inline_value, "refreshSupport", json_make_boolean(workspace->inline_value.refresh_support));
+
+    JSONValue inlay_hint = json_make_object();
+    json_object_const_key_set(&inlay_hint, "refreshSupport", json_make_boolean(workspace->inlay_hint.refresh_support));
+
+    JSONValue diagnostics = json_make_object();
+    json_object_const_key_set(&diagnostics, "refreshSupport", json_make_boolean(workspace->diagnostics.refresh_support));
+
+    json_object_const_key_set(&result, "applyEdit", json_make_boolean(workspace->apply_edit));
+    json_object_const_key_set(&result, "workspaceEdit", make_workspace_edit_object(&workspace->workspace_edit));
+    json_object_const_key_set(&result, "didChangeConfiguration", did_change_configuration);
+    json_object_const_key_set(&result, "didChangeWatchedFiles", did_change_watched_files);
+    json_object_const_key_set(&result, "symbol", make_workspace_symbol_object(&workspace->symbol));
+    json_object_const_key_set(&result, "executeCommand", execute_command);
+    json_object_const_key_set(&result, "workspaceFolders", json_make_boolean(workspace->workspace_folders));
+    json_object_const_key_set(&result, "configuration", json_make_boolean(workspace->configuration));
+    json_object_const_key_set(&result, "semanticTokens", semantic_tokens);
+    json_object_const_key_set(&result, "codeLens", code_lens);
+    json_object_const_key_set(&result, "fileOperations", make_workspace_file_operations_object(&workspace->file_operations));
+    json_object_const_key_set(&result, "inlineValue", inline_value);
+    json_object_const_key_set(&result, "inlayHint", inlay_hint);
+    json_object_const_key_set(&result, "diagnostics", diagnostics);
+
+    return result;
+}
+
 //
 // Begin Client Capabilities Objects
 //
@@ -1856,47 +1902,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
 
-    JSONValue did_change_configuration = json_make_object();
-    dynamic_registration(&did_change_configuration, connect_params.capabilities.workspace.did_change_configuration.dynamic_registration);
-
-    JSONValue did_change_watched_files = json_make_object();
-    dynamic_registration(&did_change_watched_files, connect_params.capabilities.workspace.did_change_watched_files.dynamic_registration);
-    json_object_const_key_set(&did_change_watched_files, "relativePatternSupport", json_make_boolean(connect_params.capabilities.workspace.did_change_watched_files.relative_pattern_support));
-
-    JSONValue execute_command = json_make_object();
-    dynamic_registration(&execute_command, connect_params.capabilities.workspace.execute_command.dynamic_registration);
-
-    JSONValue semantic_tokens = json_make_object();
-    json_object_const_key_set(&semantic_tokens, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.semantic_tokens.refresh_support));
-
-    JSONValue code_lens = json_make_object();
-    json_object_const_key_set(&code_lens, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.code_lens.refresh_support));
-
-    JSONValue inline_value = json_make_object();
-    json_object_const_key_set(&inline_value, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.inline_value.refresh_support));
-
-    JSONValue inlay_hint = json_make_object();
-    json_object_const_key_set(&inlay_hint, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.inlay_hint.refresh_support));
-
-    JSONValue diagnostics = json_make_object();
-    json_object_const_key_set(&diagnostics, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.diagnostics.refresh_support));
-
-    JSONValue workspace = json_make_object();
-    json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
-    json_object_const_key_set(&workspace, "workspaceEdit", make_workspace_edit_object(&connect_params.capabilities.workspace.workspace_edit));
-    json_object_const_key_set(&workspace, "didChangeConfiguration", did_change_configuration);
-    json_object_const_key_set(&workspace, "didChangeWatchedFiles", did_change_watched_files);
-    json_object_const_key_set(&workspace, "symbol", make_workspace_symbol_object(&connect_params.capabilities.workspace.symbol));
-    json_object_const_key_set(&workspace, "executeCommand", execute_command);
-    json_object_const_key_set(&workspace, "workspaceFolders", json_make_boolean(connect_params.capabilities.workspace.workspace_folders));
-    json_object_const_key_set(&workspace, "configuration", json_make_boolean(connect_params.capabilities.workspace.configuration));
-    json_object_const_key_set(&workspace, "semanticTokens", semantic_tokens);
-    json_object_const_key_set(&workspace, "codeLens", code_lens);
-    json_object_const_key_set(&workspace, "fileOperations", make_workspace_file_operations_object(&connect_params.capabilities.workspace.file_operations));
-    json_object_const_key_set(&workspace, "inlineValue", inline_value);
-    json_object_const_key_set(&workspace, "inlayHint", inlay_hint);
-    json_object_const_key_set(&workspace, "diagnostics", diagnostics);
-
     JSONValue synchronization = json_make_object();
     dynamic_registration(&synchronization, connect_params.capabilities.text_document.synchronization.dynamic_registration);
     json_object_const_key_set(&synchronization, "willSave", json_make_boolean(connect_params.capabilities.text_document.synchronization.will_save));
@@ -2000,7 +2005,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&code_action, "honorsChangeAnnotations", json_make_boolean(connect_params.capabilities.text_document.code_action.honors_change_annotations));
 
     JSONValue text_document_code_lens = json_make_object();
-    dynamic_registration(&code_lens, connect_params.capabilities.text_document.code_lens.dynamic_registration);
+    dynamic_registration(&text_document_code_lens, connect_params.capabilities.text_document.code_lens.dynamic_registration);
 
     JSONValue document_link = json_make_object();
     dynamic_registration(&document_link, connect_params.capabilities.text_document.document_link.dynamic_registration);
@@ -2116,7 +2121,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "selectionRange", selection_range);
     json_object_const_key_set(&text_document, "linkedEditingRange", linked_editing_range);
     json_object_const_key_set(&text_document, "callHierarchy", call_hierarchy);
-    json_object_const_key_set(&text_document, "semanticTokens", semantic_tokens);
+    json_object_const_key_set(&text_document, "semanticTokens", text_document_semantic_tokens);
     json_object_const_key_set(&text_document, "moniker", moniker);
     json_object_const_key_set(&text_document, "typeHierarchy", type_hierarchy);
     json_object_const_key_set(&text_document, "inlineValue", text_document_inline_value);
@@ -2131,7 +2136,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&notebook_document, "synchronization", notebook_sync);
 
     JSONValue client_capabilities = json_make_object();
-    json_object_const_key_set(&client_capabilities, "workspace", workspace);
+    json_object_const_key_set(&client_capabilities, "workspace", make_workspace_object(&connect_params.capabilities.workspace));
     json_object_const_key_set(&client_capabilities, "textDocument", text_document);
     json_object_const_key_set(&client_capabilities, "notebookDocument", notebook_document);
     json_object_const_key_set(&client_capabilities, "window", make_window_object(&connect_params.capabilities.window));
