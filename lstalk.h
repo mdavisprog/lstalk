@@ -1613,6 +1613,19 @@ typedef struct LSTalk_TypeHierarchyClientCapabilities {
 } LSTalk_TypeHierarchyClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/inlineValue` request.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_InlineValueClientCapabilities {
+    /**
+     * Whether implementation supports dynamic registration for inline
+     * value providers.
+     */
+    int dynamic_registration;
+} LSTalk_InlineValueClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1771,6 +1784,13 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * @since 3.17.0
      */
     LSTalk_TypeHierarchyClientCapabilities type_hierarchy;
+
+    /**
+     * Capabilities specific to the `textDocument/inlineValue` request.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_InlineValueClientCapabilities inline_value;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
