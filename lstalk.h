@@ -1436,6 +1436,21 @@ typedef struct LSTalk_FoldingRangeClientCapabilities {
 } LSTalk_FoldingRangeClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/selectionRange` request.
+ *
+ * @since 3.15.0
+ */
+typedef struct LSTalk_SelectionRangeClientCapabilities {
+    /**
+	 * Whether implementation supports dynamic registration for selection range
+	 * providers. If this is set to `true` the client supports the new
+	 * `SelectionRangeRegistrationOptions` return value for the corresponding
+	 * server capability as well.
+	 */
+	int dynamic_registration;
+} LSTalk_SelectionRangeClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1552,6 +1567,13 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
 	 * @since 3.10.0
 	 */
 	LSTalk_FoldingRangeClientCapabilities folding_range;
+
+    /**
+	 * Capabilities specific to the `textDocument/selectionRange` request.
+	 *
+	 * @since 3.15.0
+	 */
+	LSTalk_SelectionRangeClientCapabilities selection_range;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
