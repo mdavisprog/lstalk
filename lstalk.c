@@ -2010,6 +2010,10 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
         string_array(connect_params.capabilities.text_document.inlay_hint.properties, connect_params.capabilities.text_document.inlay_hint.properties_count));
     json_object_const_key_set(&text_document_inlay_hint, "resolveSupport", text_document_inlay_hint_resolve_support);
 
+    JSONValue text_document_diagnostic = json_make_object();
+    dynamic_registration(&text_document_diagnostic, connect_params.capabilities.text_document.diagnostic.dynamic_registration);
+    json_object_const_key_set(&text_document_diagnostic, "relatedDocumentSupport", json_make_boolean(connect_params.capabilities.text_document.diagnostic.related_document_support));
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -2040,6 +2044,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "typeHierarchy", type_hierarchy);
     json_object_const_key_set(&text_document, "inlineValue", text_document_inline_value);
     json_object_const_key_set(&text_document, "inlayHint", text_document_inlay_hint);
+    json_object_const_key_set(&text_document, "diagnostic", text_document_diagnostic);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

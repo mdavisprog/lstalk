@@ -1649,6 +1649,27 @@ typedef struct LSTalk_InlayHintClientCapabilities {
 } LSTalk_InlayHintClientCapabilities;
 
 /**
+ * Client capabilities specific to diagnostic pull requests.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_DiagnosticClientCapabilities {
+    /**
+     * Whether implementation supports dynamic registration. If this is set to
+     * `true` the client supports the new
+     * `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+     * return value for the corresponding server capability as well.
+     */
+    int dynamic_registration;
+
+    /**
+     * Whether the clients supports related documents for document diagnostic
+     * pulls.
+     */
+    int related_document_support;
+} LSTalk_DiagnosticClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1821,6 +1842,13 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * @since 3.17.0
      */
     LSTalk_InlayHintClientCapabilities inlay_hint;
+
+    /**
+     * Capabilities specific to the diagnostic pull model.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_DiagnosticClientCapabilities diagnostic;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
