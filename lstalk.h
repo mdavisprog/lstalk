@@ -368,6 +368,35 @@ typedef enum {
 } LSTalk_TokenFormat;
 
 /**
+ * A set of predefined position encoding kinds.
+ *
+ * @since 3.17.0
+ */
+typedef enum {
+    /**
+     * Character offsets count UTF-8 code units (e.g bytes).
+     */
+    LSTALK_POSITIONENCODINGKIND_UTF8 = 1 << 0,
+
+    /**
+     * Character offsets count UTF-16 code units.
+     *
+     * This is the default and must always be supported
+     * by servers
+     */
+    LSTALK_POSITIONENCODINGKIND_UTF16 = 1 << 1,
+
+    /**
+     * Character offsets count UTF-32 code units.
+     *
+     * Implementation note: these are the same as Unicode code points,
+     * so this `PositionEncodingKind` may also be used for an
+     * encoding-agnostic representation of character offsets.
+     */
+    LSTALK_POSITIONENCODINGKIND_UTF32 = 1 << 2,
+} LSTalk_PositionEncodingKind;
+
+/**
  * Capabilities specific to `WorkspaceEdit`s
  */
 typedef struct LSTalk_WorkspaceEditClientCapabilities {
@@ -1947,6 +1976,114 @@ typedef struct LSTalk_Window {
 } LSTalk_Window;
 
 /**
+ * Client capabilities specific to regular expressions.
+ */
+typedef struct LSTalk_RegularExpressionsClientCapabilities {
+    /**
+     * The engine's name.
+     */
+    char* engine;
+
+    /**
+     * The engine's version.
+     */
+    char* version;
+} LSTalk_RegularExpressionsClientCapabilities;
+
+/**
+ * Client capabilities specific to the used markdown parser.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_MarkdownClientCapabilities {
+    /**
+     * The name of the parser.
+     */
+    char* parser;
+
+    /**
+     * The version of the parser.
+     */
+    char* version;
+
+    /**
+     * A list of HTML tags that the client allows / supports in
+     * Markdown.
+     *
+     * @since 3.17.0
+     */
+    char** allowed_tags;
+    int allowed_tags_count;
+} LSTalk_MarkdownClientCapabilities;
+
+/**
+ * General client capabilities.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_General {
+    /**
+     * Client capability that signals how the client
+     * handles stale requests (e.g. a request
+     * for which the client will not process the response
+     * anymore since the information is outdated).
+     *
+     * @since 3.17.0
+     *
+     * staleRequestSupport:
+     * 
+     * The client will actively cancel the request.
+     */
+    int cancel;
+
+    /**
+     * The list of requests for which the client
+     * will retry the request if it receives a
+     * response with error code `ContentModified``
+     * 
+     * staleRequestSupport
+     */
+    char** retry_on_content_modified;
+    int retry_on_content_modified_count;
+
+    /**
+     * Client capabilities specific to regular expressions.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_RegularExpressionsClientCapabilities regular_expressions;
+
+    /**
+     * Client capabilities specific to the client's markdown parser.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_MarkdownClientCapabilities markdown;
+
+    /**
+     * The position encodings supported by the client. Client and server
+     * have to agree on the same position encoding to ensure that offsets
+     * (e.g. character position in a line) are interpreted the same on both
+     * side.
+     *
+     * To keep the protocol backwards compatible the following applies: if
+     * the value 'utf-16' is missing from the array of position encodings
+     * servers can assume that the client supports UTF-16. UTF-16 is
+     * therefore a mandatory encoding.
+     *
+     * If omitted it defaults to ['utf-16'].
+     *
+     * Implementation considerations: since the conversion from one encoding
+     * into another requires the content of the file / line the conversion
+     * is best done where the file is read which is usually on the server
+     * side.
+     *
+     * @since 3.17.0
+     */
+    int position_encodings;
+} LSTalk_General;
+
+/**
  * The capabilities provided by the client (editor or tool)
  */
 typedef struct LSTalk_ClientCapabilities {
@@ -1971,6 +2108,13 @@ typedef struct LSTalk_ClientCapabilities {
      * Window specific client capabilities.
      */
     LSTalk_Window window;
+
+    /**
+     * General client capabilities.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_General general;
 } LSTalk_ClientCapabilities;
 
 typedef struct LSTalk_ConnectParams {

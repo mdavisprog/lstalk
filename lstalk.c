@@ -1637,6 +1637,16 @@ static JSONValue token_format_array(int value) {
     return result;
 }
 
+static JSONValue position_encoding_kind_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_POSITIONENCODINGKIND_UTF8) { json_array_push(&result, json_make_string_const("utf-8")); }
+    if (value & LSTALK_POSITIONENCODINGKIND_UTF16) { json_array_push(&result, json_make_string_const("utf-16")); }
+    if (value & LSTALK_POSITIONENCODINGKIND_UTF32) { json_array_push(&result, json_make_string_const("utf-32")); }
+
+    return result;
+}
+
 static void dynamic_registration(JSONValue* root, int value) {
     if (root == NULL || root->type != JSON_VALUE_OBJECT) {
         return;
@@ -1675,6 +1685,32 @@ static JSONValue make_window_object(LSTalk_Window* window) {
     json_object_const_key_set(&result, "workDoneProgress", json_make_boolean(window->work_done_progress));
     json_object_const_key_set(&result, "showMessage", show_message);
     json_object_const_key_set(&result, "showDocument", show_document);
+
+    return result;
+}
+
+static JSONValue make_general_object(LSTalk_General* general) {
+    JSONValue result = json_make_object();
+
+    JSONValue stale_request_support = json_make_object();
+    json_object_const_key_set(&stale_request_support, "cancel", json_make_boolean(general->cancel));
+    json_object_const_key_set(&stale_request_support, "retryOnContentModified",
+        string_array(general->retry_on_content_modified, general->retry_on_content_modified_count));
+    
+    JSONValue regular_expressions = json_make_object();
+    json_object_const_key_set(&regular_expressions, "engine", json_make_string(general->regular_expressions.engine));
+    json_object_const_key_set(&regular_expressions, "version", json_make_string(general->regular_expressions.version));
+
+    JSONValue markdown = json_make_object();
+    json_object_const_key_set(&markdown, "parser", json_make_string(general->markdown.parser));
+    json_object_const_key_set(&markdown, "version", json_make_string(general->markdown.version));
+    json_object_const_key_set(&markdown, "allowedTags",
+        string_array(general->markdown.allowed_tags, general->markdown.allowed_tags_count));
+
+    json_object_const_key_set(&result, "staleRequestSupport", stale_request_support);
+    json_object_const_key_set(&result, "regularExpressions", regular_expressions);
+    json_object_const_key_set(&result, "markdown", markdown);
+    json_object_const_key_set(&result, "positionEncodings", position_encoding_kind_array(general->position_encodings));
 
     return result;
 }
@@ -2076,6 +2112,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&client_capabilities, "textDocument", text_document);
     json_object_const_key_set(&client_capabilities, "notebookDocument", notebook_document);
     json_object_const_key_set(&client_capabilities, "window", make_window_object(&connect_params.capabilities.window));
+    json_object_const_key_set(&client_capabilities, "general", make_general_object(&connect_params.capabilities.general));
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
