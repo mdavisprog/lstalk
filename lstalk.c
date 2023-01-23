@@ -1671,6 +1671,20 @@ static JSONValue string_array(char** array, int count) {
     return result;
 }
 
+static JSONValue make_workspace_edit_object(LSTalk_WorkspaceEditClientCapabilities* workspace_edit) {
+    JSONValue result = json_make_object();
+
+    json_object_const_key_set(&result, "documentChanges", json_make_boolean(workspace_edit->document_changes));
+    json_object_const_key_set(&result, "resourceOperations", resource_operation_kind_array(workspace_edit->resource_operations));
+    json_object_const_key_set(&result, "failureHandling", failure_handling_array(workspace_edit->failure_handling));
+    json_object_const_key_set(&result, "normalizesLineEndings", json_make_boolean(workspace_edit->normalizes_line_endings));
+    JSONValue change_annotation_support = json_make_object();
+    json_object_const_key_set(&change_annotation_support, "groupsOnLabel", json_make_boolean(workspace_edit->groups_on_label));
+    json_object_const_key_set(&result, "changeAnnotationSupport", change_annotation_support);
+
+    return result;
+}
+
 static JSONValue make_window_object(LSTalk_Window* window) {
     JSONValue result = json_make_object();
 
@@ -1803,15 +1817,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
 
-    JSONValue workspace_edit = json_make_object();
-    json_object_const_key_set(&workspace_edit, "documentChanges", json_make_boolean(connect_params.capabilities.workspace.workspace_edit.document_changes));
-    json_object_const_key_set(&workspace_edit, "resourceOperations", resource_operation_kind_array(connect_params.capabilities.workspace.workspace_edit.resource_operations));
-    json_object_const_key_set(&workspace_edit, "failureHandling", failure_handling_array(connect_params.capabilities.workspace.workspace_edit.failure_handling));
-    json_object_const_key_set(&workspace_edit, "normalizesLineEndings", json_make_boolean(connect_params.capabilities.workspace.workspace_edit.normalizes_line_endings));
-    JSONValue change_annotation_support = json_make_object();
-    json_object_const_key_set(&change_annotation_support, "groupsOnLabel", json_make_boolean(connect_params.capabilities.workspace.workspace_edit.groups_on_label));
-    json_object_const_key_set(&workspace_edit, "changeAnnotationSupport", change_annotation_support);
-
     JSONValue did_change_configuration = json_make_object();
     dynamic_registration(&did_change_configuration, connect_params.capabilities.workspace.did_change_configuration.dynamic_registration);
 
@@ -1860,7 +1865,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
 
     JSONValue workspace = json_make_object();
     json_object_const_key_set(&workspace, "applyEdit", json_make_boolean(connect_params.capabilities.workspace.apply_edit));
-    json_object_const_key_set(&workspace, "workspaceEdit", workspace_edit);
+    json_object_const_key_set(&workspace, "workspaceEdit", make_workspace_edit_object(&connect_params.capabilities.workspace.workspace_edit));
     json_object_const_key_set(&workspace, "didChangeConfiguration", did_change_configuration);
     json_object_const_key_set(&workspace, "didChangeWatchedFiles", did_change_watched_files);
     json_object_const_key_set(&workspace, "symbol", symbol);
