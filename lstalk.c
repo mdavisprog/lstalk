@@ -1605,6 +1605,20 @@ static JSONValue code_action_kind_array(int value) {
     return result;
 }
 
+typedef enum {
+    DIAGNOSTICTAG_Unnecessary = 1,
+    DIAGNOSTICTAG_Deprecated = 2,
+} DiagnosticTag;
+
+static JSONValue diagnostic_tag_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_DIAGNOSTICTAG_UNNECESSARY) { json_array_push(&result, json_make_int(DIAGNOSTICTAG_Unnecessary)); }
+    if (value & LSTALK_DIAGNOSTICTAG_DEPRECATED) { json_array_push(&result, json_make_int(DIAGNOSTICTAG_Deprecated)); }
+
+    return result;
+}
+
 static void dynamic_registration(JSONValue* root, int value) {
     if (root == NULL || root->type != JSON_VALUE_OBJECT) {
         return;
@@ -1920,6 +1934,15 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&rename, "prepareSupportDefaultBehavior", json_make_int(connect_params.capabilities.text_document.rename.prepare_support_default_behavior));
     json_object_const_key_set(&rename, "honorsChangeAnnotations", json_make_boolean(connect_params.capabilities.text_document.rename.honors_change_annotations));
 
+    JSONValue publish_diagnostics = json_make_object();
+    json_object_const_key_set(&publish_diagnostics, "relatedInformation", json_make_boolean(connect_params.capabilities.text_document.publish_diagnostics.related_information));
+    JSONValue publish_diagnostics_tag_support = json_make_object();
+    json_object_const_key_set(&publish_diagnostics_tag_support, "valueSet", diagnostic_tag_array(connect_params.capabilities.text_document.publish_diagnostics.value_set));
+    json_object_const_key_set(&publish_diagnostics, "tagSupport", publish_diagnostics_tag_support);
+    json_object_const_key_set(&publish_diagnostics, "versionSupport", json_make_boolean(connect_params.capabilities.text_document.publish_diagnostics.version_support));
+    json_object_const_key_set(&publish_diagnostics, "codeDescriptionSupport", json_make_boolean(connect_params.capabilities.text_document.publish_diagnostics.code_description_support));
+    json_object_const_key_set(&publish_diagnostics, "dataSupport", json_make_boolean(connect_params.capabilities.text_document.publish_diagnostics.data_support));
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -1940,6 +1963,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "rangeFormatting", range_formatting);
     json_object_const_key_set(&text_document, "onTypeFormatting", on_type_formatting);
     json_object_const_key_set(&text_document, "rename", rename);
+    json_object_const_key_set(&text_document, "publishDiagnostics", publish_diagnostics);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

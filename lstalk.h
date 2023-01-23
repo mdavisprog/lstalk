@@ -322,6 +322,28 @@ typedef enum {
 } LSTalk_PrepareSupportDefaultBehavior;
 
 /**
+ * The diagnostic tags.
+ *
+ * @since 3.15.0
+ */
+typedef enum {
+    /**
+	 * Unused or unnecessary code.
+	 *
+	 * Clients are allowed to render diagnostics with this tag faded out
+	 * instead of having an error squiggle.
+	 */
+    LSTALK_DIAGNOSTICTAG_UNNECESSARY = 1 << 0,
+
+	/**
+	 * Deprecated or obsolete code.
+	 *
+	 * Clients are allowed to rendered diagnostics with this tag strike through.
+	 */
+    LSTALK_DIAGNOSTICTAG_DEPRECATED = 1 << 1,
+} LSTalk_DiagnosticTag;
+
+/**
  * Capabilities specific to `WorkspaceEdit`s
  */
 typedef struct LSTalk_WorkspaceEditClientCapabilities {
@@ -1291,6 +1313,53 @@ typedef struct LSTalk_RenameClientCapabilities {
 } LSTalk_RenameClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/publishDiagnostics`
+ * notification.
+ */
+typedef struct LSTalk_PublishDiagnosticsClientCapabilities {
+    /**
+	 * Whether the clients accepts diagnostics with related information.
+	 */
+	int related_information;
+
+	/**
+	 * Client supports the tag property to provide meta data about a diagnostic.
+	 * Clients supporting tags have to handle unknown tags gracefully.
+	 *
+	 * @since 3.15.0
+	 *
+	 * tagSupport:
+     * 
+     * The tags supported by the client.
+     */
+    int value_set;
+
+	/**
+	 * Whether the client interprets the version property of the
+	 * `textDocument/publishDiagnostics` notification's parameter.
+	 *
+	 * @since 3.15.0
+	 */
+	int version_support;
+
+	/**
+	 * Client supports a codeDescription property
+	 *
+	 * @since 3.16.0
+	 */
+	int code_description_support;
+
+	/**
+	 * Whether code action supports the `data` property which is
+	 * preserved between a `textDocument/publishDiagnostics` and
+	 * `textDocument/codeAction` request.
+	 *
+	 * @since 3.16.0
+	 */
+	int data_support;
+} LSTalk_PublishDiagnosticsClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1394,6 +1463,12 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * Capabilities specific to the `textDocument/rename` request.
      */
     LSTalk_RenameClientCapabilities rename;
+
+    /**
+	 * Capabilities specific to the `textDocument/publishDiagnostics`
+	 * notification.
+	 */
+	LSTalk_PublishDiagnosticsClientCapabilities publish_diagnostics;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
