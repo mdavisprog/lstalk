@@ -1789,18 +1789,36 @@ static JSONValue make_text_document_completion_item_object(LSTalk_CompletionItem
     json_object_const_key_set(&result, "documentationFormat", markup_kind_array(completion_item->documentation_format));
     json_object_const_key_set(&result, "deprecatedSupport", json_make_boolean(completion_item->deprecated_support));
     json_object_const_key_set(&result, "preselectSupport", json_make_boolean(completion_item->preselect_support));
-    JSONValue completion_item_tag_support = json_make_object();
-    json_object_const_key_set(&completion_item_tag_support, "valueSet", completion_item_tag_array(completion_item->tag_support_value_set));
-    json_object_const_key_set(&result, "tagSupport", completion_item_tag_support);
+    JSONValue item_tag_support = json_make_object();
+    json_object_const_key_set(&item_tag_support, "valueSet", completion_item_tag_array(completion_item->tag_support_value_set));
+    json_object_const_key_set(&result, "tagSupport", item_tag_support);
     json_object_const_key_set(&result, "insertReplaceSupport", json_make_boolean(completion_item->insert_replace_support));
-    JSONValue completion_item_resolve_properties = json_make_object();
-    json_object_const_key_set(&completion_item_resolve_properties, "properties",
+    JSONValue item_resolve_properties = json_make_object();
+    json_object_const_key_set(&item_resolve_properties, "properties",
         string_array(completion_item->resolve_support_properties, completion_item->resolve_support_count));
-    json_object_const_key_set(&result, "resolveSupport", completion_item_resolve_properties);
-    JSONValue completion_item_insert_text_mode = json_make_object();
-    json_object_const_key_set(&completion_item_insert_text_mode, "valueSet", insert_text_mode_array(completion_item->insert_text_mode_support_value_set));
-    json_object_const_key_set(&result, "insertTextModeSupport", completion_item_insert_text_mode);
+    json_object_const_key_set(&result, "resolveSupport", item_resolve_properties);
+    JSONValue insert_text_mode = json_make_object();
+    json_object_const_key_set(&insert_text_mode, "valueSet", insert_text_mode_array(completion_item->insert_text_mode_support_value_set));
+    json_object_const_key_set(&result, "insertTextModeSupport", insert_text_mode);
     json_object_const_key_set(&result, "labelDetailsSupport", json_make_boolean(completion_item->label_details_support));
+
+    return result;
+}
+
+static JSONValue make_text_document_completion_object(LSTalk_CompletionClientCapabilities* completion) {
+    JSONValue result = json_make_object();
+
+    dynamic_registration(&result, completion->dynamic_registration);
+    json_object_const_key_set(&result, "completionItem", make_text_document_completion_item_object(&completion->completion_item));
+    JSONValue item_kind = json_make_object();
+    json_object_const_key_set(&item_kind, "valueSet", completion_item_kind_array(completion->completion_item_kind_value_set));
+    json_object_const_key_set(&result, "completionItemKind", item_kind);
+    json_object_const_key_set(&result, "contextSupport", json_make_boolean(completion->context_support));
+    json_object_const_key_set(&result, "insertTextMode", json_make_int(completion->insert_text_mode));
+    JSONValue item_defaults = json_make_object();
+    json_object_const_key_set(&item_defaults, "itemDefaults",
+        string_array(completion->completion_list_item_defaults, completion->completion_list_item_defaults_count));
+    json_object_const_key_set(&result, "completionList", item_defaults);
 
     return result;
 }
@@ -1940,19 +1958,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     server.id = context->server_id++;
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
-
-    JSONValue completion = json_make_object();
-    dynamic_registration(&completion, connect_params.capabilities.text_document.completion.dynamic_registration);
-    json_object_const_key_set(&completion, "completionItem", make_text_document_completion_item_object(&connect_params.capabilities.text_document.completion.completion_item));
-    JSONValue completion_item_kind = json_make_object();
-    json_object_const_key_set(&completion_item_kind, "valueSet", completion_item_kind_array(connect_params.capabilities.text_document.completion.completion_item_kind_value_set));
-    json_object_const_key_set(&completion, "completionItemKind", completion_item_kind);
-    json_object_const_key_set(&completion, "contextSupport", json_make_boolean(connect_params.capabilities.text_document.completion.context_support));
-    json_object_const_key_set(&completion, "insertTextMode", json_make_int(connect_params.capabilities.text_document.completion.insert_text_mode));
-    JSONValue completion_list_item_defaults = json_make_object();
-    json_object_const_key_set(&completion_list_item_defaults, "itemDefaults",
-        string_array(connect_params.capabilities.text_document.completion.completion_list_item_defaults, connect_params.capabilities.text_document.completion.completion_list_item_defaults_count));
-    json_object_const_key_set(&completion, "completionList", completion_list_item_defaults);
 
     JSONValue hover = json_make_object();
     dynamic_registration(&hover, connect_params.capabilities.text_document.hover.dynamic_registration);
@@ -2112,7 +2117,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
 
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", make_text_document_synchronization_object(&connect_params.capabilities.text_document.synchronization));
-    json_object_const_key_set(&text_document, "completion", completion);
+    json_object_const_key_set(&text_document, "completion", make_text_document_completion_object(&connect_params.capabilities.text_document.completion));
     json_object_const_key_set(&text_document, "hover", hover);
     json_object_const_key_set(&text_document, "signatureHelp", signature_help);
     json_object_const_key_set(&text_document, "declaration", declaration);
