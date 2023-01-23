@@ -1645,6 +1645,14 @@ static void link_support(JSONValue* root, int value) {
     json_object_const_key_set(root, "linkSupport", json_make_boolean(value));
 }
 
+static JSONValue string_array(char** array, int count) {
+    JSONValue result = json_make_array();
+    for (int i = 0; i < count; i++) {
+        json_array_push(&result, json_make_string(array[i]));
+    }
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -1757,12 +1765,8 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue tag_support = json_make_object();
     json_object_const_key_set(&tag_support, "valueSet", symbol_tag_array(connect_params.capabilities.workspace.symbol.tag_support_value_set));
     json_object_const_key_set(&symbol, "tagSupport", tag_support);
-    JSONValue resolve_support_properties = json_make_array();
-    for (int i = 0; i < connect_params.capabilities.workspace.symbol.resolve_support_count; i++) {
-        json_array_push(&resolve_support_properties, json_make_string(connect_params.capabilities.workspace.symbol.resolve_support_properties[i]));
-    }
     JSONValue resolve_support = json_make_object();
-    json_object_const_key_set(&resolve_support, "properties", resolve_support_properties);
+    json_object_const_key_set(&resolve_support, "properties", string_array(connect_params.capabilities.workspace.symbol.resolve_support_properties, connect_params.capabilities.workspace.symbol.resolve_support_count));
     json_object_const_key_set(&symbol, "resolveSupport", resolve_support);
 
     JSONValue execute_command = json_make_object();
@@ -1824,12 +1828,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&completion_item_tag_support, "valueSet", completion_item_tag_array(connect_params.capabilities.text_document.completion.completion_item.tag_support_value_set));
     json_object_const_key_set(&completion_item, "tagSupport", completion_item_tag_support);
     json_object_const_key_set(&completion_item, "insertReplaceSupport", json_make_boolean(connect_params.capabilities.text_document.completion.completion_item.insert_replace_support));
-    JSONValue completion_item_resolve_properties_array = json_make_array();
-    for (int i = 0; i < connect_params.capabilities.text_document.completion.completion_item.resolve_support_count; i++) {
-        json_array_push(&completion_item_resolve_properties_array, json_make_string(connect_params.capabilities.text_document.completion.completion_item.resolve_support_properties[i]));
-    }
     JSONValue completion_item_resolve_properties = json_make_object();
-    json_object_const_key_set(&completion_item_resolve_properties, "properties", completion_item_resolve_properties_array);
+    json_object_const_key_set(&completion_item_resolve_properties, "properties",
+        string_array(connect_params.capabilities.text_document.completion.completion_item.resolve_support_properties, connect_params.capabilities.text_document.completion.completion_item.resolve_support_count));
     json_object_const_key_set(&completion_item, "resolveSupport", completion_item_resolve_properties);
     JSONValue completion_item_insert_text_mode = json_make_object();
     json_object_const_key_set(&completion_item_insert_text_mode, "valueSet", insert_text_mode_array(connect_params.capabilities.text_document.completion.completion_item.insert_text_mode_support_value_set));
@@ -1844,12 +1845,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&completion, "completionItemKind", completion_item_kind);
     json_object_const_key_set(&completion, "contextSupport", json_make_boolean(connect_params.capabilities.text_document.completion.context_support));
     json_object_const_key_set(&completion, "insertTextMode", json_make_int(connect_params.capabilities.text_document.completion.insert_text_mode));
-    JSONValue completion_list_item_defaults_array = json_make_array();
-    for (int i = 0; i < connect_params.capabilities.text_document.completion.completion_list_item_defaults_count; i++) {
-        json_array_push(&completion_list_item_defaults_array, json_make_string(connect_params.capabilities.text_document.completion.completion_list_item_defaults[i]));
-    }
     JSONValue completion_list_item_defaults = json_make_object();
-    json_object_const_key_set(&completion_list_item_defaults, "itemDefaults", completion_list_item_defaults_array);
+    json_object_const_key_set(&completion_list_item_defaults, "itemDefaults",
+        string_array(connect_params.capabilities.text_document.completion.completion_list_item_defaults, connect_params.capabilities.text_document.completion.completion_list_item_defaults_count));
     json_object_const_key_set(&completion, "completionList", completion_list_item_defaults);
 
     JSONValue hover = json_make_object();
@@ -1910,12 +1908,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&code_action, "isPreferredSupport", json_make_boolean(connect_params.capabilities.text_document.code_action.is_preferred_support));
     json_object_const_key_set(&code_action, "disabledSupport", json_make_boolean(connect_params.capabilities.text_document.code_action.disabled_support));
     json_object_const_key_set(&code_action, "dataSupport", json_make_boolean(connect_params.capabilities.text_document.code_action.data_support));
-    JSONValue code_action_resolve_support_properties = json_make_array();
-    for (int i = 0; i < connect_params.capabilities.text_document.code_action.resolve_support_count; i++) {
-        json_array_push(&code_action_resolve_support_properties, json_make_string(connect_params.capabilities.text_document.code_action.resolve_support_properties[i]));
-    }
     JSONValue code_action_resolve_support = json_make_object();
-    json_object_const_key_set(&code_action_resolve_support, "properties", code_action_resolve_support_properties);
+    json_object_const_key_set(&code_action_resolve_support, "properties",
+        string_array(connect_params.capabilities.text_document.code_action.resolve_support_properties, connect_params.capabilities.text_document.code_action.resolve_support_count));
     json_object_const_key_set(&code_action, "resolveSupport", code_action_resolve_support);
     json_object_const_key_set(&code_action, "honorsChangeAnnotations", json_make_boolean(connect_params.capabilities.text_document.code_action.honors_change_annotations));
 
