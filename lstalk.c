@@ -1629,6 +1629,14 @@ static JSONValue folding_range_kind_array(int value) {
     return result;
 }
 
+static JSONValue token_format_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_TOKENFORMAT_RELATIVE) { json_array_push(&result, json_make_string_const("relative")); }
+
+    return result;
+}
+
 static void dynamic_registration(JSONValue* root, int value) {
     if (root == NULL || root->type != JSON_VALUE_OBJECT) {
         return;
@@ -1968,6 +1976,24 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue call_hierarchy = json_make_object();
     dynamic_registration(&call_hierarchy, connect_params.capabilities.text_document.call_hierarchy.dynamic_registration);
 
+    JSONValue text_document_semantic_tokens = json_make_object();
+    dynamic_registration(&text_document_semantic_tokens, connect_params.capabilities.text_document.semantic_tokens.dynamic_registration);
+    JSONValue text_document_semantic_tokens_requests_full = json_make_object();
+    json_object_const_key_set(&text_document_semantic_tokens_requests_full, "delta", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.delta));
+    JSONValue text_document_semantic_tokens_requests = json_make_object();
+    json_object_const_key_set(&text_document_semantic_tokens_requests, "range", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.range));
+    json_object_const_key_set(&text_document_semantic_tokens_requests, "full", text_document_semantic_tokens_requests_full);
+    json_object_const_key_set(&text_document_semantic_tokens, "requests", text_document_semantic_tokens_requests);
+    json_object_const_key_set(&text_document_semantic_tokens, "tokenTypes",
+        string_array(connect_params.capabilities.text_document.semantic_tokens.token_types, connect_params.capabilities.text_document.semantic_tokens.token_types_count));
+    json_object_const_key_set(&text_document_semantic_tokens, "tokenModifiers",
+        string_array(connect_params.capabilities.text_document.semantic_tokens.token_modifiers, connect_params.capabilities.text_document.semantic_tokens.token_modifiers_count));
+    json_object_const_key_set(&text_document_semantic_tokens, "formats", token_format_array(connect_params.capabilities.text_document.semantic_tokens.formats));
+    json_object_const_key_set(&text_document_semantic_tokens, "overlappingTokenSupport", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.overlapping_token_support));
+    json_object_const_key_set(&text_document_semantic_tokens, "multilineTokenSupport", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.multiline_token_support));
+    json_object_const_key_set(&text_document_semantic_tokens, "serverCancelSupport", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.server_cancel_support));
+    json_object_const_key_set(&text_document_semantic_tokens, "augmentsSyntaxTokens", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.augments_syntax_tokens));
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -1993,6 +2019,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "selectionRange", selection_range);
     json_object_const_key_set(&text_document, "linkedEditingRange", linked_editing_range);
     json_object_const_key_set(&text_document, "callHierarchy", call_hierarchy);
+    json_object_const_key_set(&text_document, "semanticTokens", semantic_tokens);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

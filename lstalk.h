@@ -328,18 +328,18 @@ typedef enum {
  */
 typedef enum {
     /**
-	 * Unused or unnecessary code.
-	 *
-	 * Clients are allowed to render diagnostics with this tag faded out
-	 * instead of having an error squiggle.
-	 */
+     * Unused or unnecessary code.
+     *
+     * Clients are allowed to render diagnostics with this tag faded out
+     * instead of having an error squiggle.
+     */
     LSTALK_DIAGNOSTICTAG_UNNECESSARY = 1 << 0,
 
-	/**
-	 * Deprecated or obsolete code.
-	 *
-	 * Clients are allowed to rendered diagnostics with this tag strike through.
-	 */
+    /**
+     * Deprecated or obsolete code.
+     *
+     * Clients are allowed to rendered diagnostics with this tag strike through.
+     */
     LSTALK_DIAGNOSTICTAG_DEPRECATED = 1 << 1,
 } LSTalk_DiagnosticTag;
 
@@ -348,20 +348,24 @@ typedef enum {
  */
 typedef enum {
     /**
-	 * Folding range for a comment
-	 */
+     * Folding range for a comment
+     */
     LSTALK_FOLDINGRANGEKIND_COMMENT = 1 << 0,
 
-	/**
-	 * Folding range for a imports or includes
-	 */
+    /**
+     * Folding range for a imports or includes
+     */
     LSTALK_FOLDINGRANGEKIND_IMPORTS = 1 << 1,
 
-	/**
-	 * Folding range for a region (e.g. `#region`)
-	 */
+    /**
+     * Folding range for a region (e.g. `#region`)
+     */
     LSTALK_FOLDINGRANGEKIND_REGION = 1 << 2,
 } LSTalk_FoldingRangeKind;
+
+typedef enum {
+    LSTALK_TOKENFORMAT_RELATIVE = 1 << 0,
+} LSTalk_TokenFormat;
 
 /**
  * Capabilities specific to `WorkspaceEdit`s
@@ -1338,45 +1342,45 @@ typedef struct LSTalk_RenameClientCapabilities {
  */
 typedef struct LSTalk_PublishDiagnosticsClientCapabilities {
     /**
-	 * Whether the clients accepts diagnostics with related information.
-	 */
-	int related_information;
+     * Whether the clients accepts diagnostics with related information.
+     */
+    int related_information;
 
-	/**
-	 * Client supports the tag property to provide meta data about a diagnostic.
-	 * Clients supporting tags have to handle unknown tags gracefully.
-	 *
-	 * @since 3.15.0
-	 *
-	 * tagSupport:
+    /**
+     * Client supports the tag property to provide meta data about a diagnostic.
+     * Clients supporting tags have to handle unknown tags gracefully.
+     *
+     * @since 3.15.0
+     *
+     * tagSupport:
      * 
      * The tags supported by the client.
      */
     int value_set;
 
-	/**
-	 * Whether the client interprets the version property of the
-	 * `textDocument/publishDiagnostics` notification's parameter.
-	 *
-	 * @since 3.15.0
-	 */
-	int version_support;
+    /**
+     * Whether the client interprets the version property of the
+     * `textDocument/publishDiagnostics` notification's parameter.
+     *
+     * @since 3.15.0
+     */
+    int version_support;
 
-	/**
-	 * Client supports a codeDescription property
-	 *
-	 * @since 3.16.0
-	 */
-	int code_description_support;
+    /**
+     * Client supports a codeDescription property
+     *
+     * @since 3.16.0
+     */
+    int code_description_support;
 
-	/**
-	 * Whether code action supports the `data` property which is
-	 * preserved between a `textDocument/publishDiagnostics` and
-	 * `textDocument/codeAction` request.
-	 *
-	 * @since 3.16.0
-	 */
-	int data_support;
+    /**
+     * Whether code action supports the `data` property which is
+     * preserved between a `textDocument/publishDiagnostics` and
+     * `textDocument/codeAction` request.
+     *
+     * @since 3.16.0
+     */
+    int data_support;
 } LSTalk_PublishDiagnosticsClientCapabilities;
 
 /**
@@ -1386,33 +1390,33 @@ typedef struct LSTalk_PublishDiagnosticsClientCapabilities {
  */
 typedef struct LSTalk_FoldingRangeClientCapabilities {
     /**
-	 * Whether implementation supports dynamic registration for folding range
-	 * providers. If this is set to `true` the client supports the new
-	 * `FoldingRangeRegistrationOptions` return value for the corresponding
-	 * server capability as well.
-	 */
-	int dynamic_registration;
+     * Whether implementation supports dynamic registration for folding range
+     * providers. If this is set to `true` the client supports the new
+     * `FoldingRangeRegistrationOptions` return value for the corresponding
+     * server capability as well.
+     */
+    int dynamic_registration;
 
-	/**
-	 * The maximum number of folding ranges that the client prefers to receive
-	 * per document. The value serves as a hint, servers are free to follow the
-	 * limit.
-	 */
-	unsigned int range_limit;
+    /**
+     * The maximum number of folding ranges that the client prefers to receive
+     * per document. The value serves as a hint, servers are free to follow the
+     * limit.
+     */
+    unsigned int range_limit;
 
-	/**
-	 * If set, the client signals that it only supports folding complete lines.
-	 * If set, client will ignore specified `startCharacter` and `endCharacter`
-	 * properties in a FoldingRange.
-	 */
-	int line_folding_only;
+    /**
+     * If set, the client signals that it only supports folding complete lines.
+     * If set, client will ignore specified `startCharacter` and `endCharacter`
+     * properties in a FoldingRange.
+     */
+    int line_folding_only;
 
-	/**
-	 * Specific options for the folding range kind.
-	 *
-	 * @since 3.17.0
-	 *
-	 * foldingRangeKind:
+    /**
+     * Specific options for the folding range kind.
+     *
+     * @since 3.17.0
+     *
+     * foldingRangeKind:
      * 
      * The folding range kind values the client supports. When this
      * property exists the client also guarantees that it will
@@ -1421,11 +1425,11 @@ typedef struct LSTalk_FoldingRangeClientCapabilities {
      */
     int value_set;
 
-	/**
-	 * Specific options for the folding range.
-	 * @since 3.17.0
-	 *
-	 * foldingRange:
+    /**
+     * Specific options for the folding range.
+     * @since 3.17.0
+     *
+     * foldingRange:
      * 
     * If set, the client signals that it supports setting collapsedText on
     * folding ranges to display custom labels instead of the default text.
@@ -1442,12 +1446,12 @@ typedef struct LSTalk_FoldingRangeClientCapabilities {
  */
 typedef struct LSTalk_SelectionRangeClientCapabilities {
     /**
-	 * Whether implementation supports dynamic registration for selection range
-	 * providers. If this is set to `true` the client supports the new
-	 * `SelectionRangeRegistrationOptions` return value for the corresponding
-	 * server capability as well.
-	 */
-	int dynamic_registration;
+     * Whether implementation supports dynamic registration for selection range
+     * providers. If this is set to `true` the client supports the new
+     * `SelectionRangeRegistrationOptions` return value for the corresponding
+     * server capability as well.
+     */
+    int dynamic_registration;
 } LSTalk_SelectionRangeClientCapabilities;
 
 /**
@@ -1457,12 +1461,12 @@ typedef struct LSTalk_SelectionRangeClientCapabilities {
  */
 typedef struct LSTalk_LinkedEditingRangeClientCapabilities {
     /**
-	 * Whether the implementation supports dynamic registration.
-	 * If this is set to `true` the client supports the new
-	 * `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
-	 * return value for the corresponding server capability as well.
-	 */
-	int dynamic_registration;
+     * Whether the implementation supports dynamic registration.
+     * If this is set to `true` the client supports the new
+     * `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+     * return value for the corresponding server capability as well.
+     */
+    int dynamic_registration;
 } LSTalk_LinkedEditingRangeClientCapabilities;
 
 /**
@@ -1472,13 +1476,111 @@ typedef struct LSTalk_LinkedEditingRangeClientCapabilities {
  */
 typedef struct LSTalk_CallHierarchyClientCapabilities {
     /**
-	 * Whether implementation supports dynamic registration. If this is set to
-	 * `true` the client supports the new `(TextDocumentRegistrationOptions &
-	 * StaticRegistrationOptions)` return value for the corresponding server
-	 * capability as well.
-	 */
-	int dynamic_registration;
+     * Whether implementation supports dynamic registration. If this is set to
+     * `true` the client supports the new `(TextDocumentRegistrationOptions &
+     * StaticRegistrationOptions)` return value for the corresponding server
+     * capability as well.
+     */
+    int dynamic_registration;
 } LSTalk_CallHierarchyClientCapabilities;
+
+/**
+ * Capabilities specific to the various semantic token requests.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_SemanticTokensClientCapabilities {
+    /**
+     * Whether implementation supports dynamic registration. If this is set to
+     * `true` the client supports the new `(TextDocumentRegistrationOptions &
+     * StaticRegistrationOptions)` return value for the corresponding server
+     * capability as well.
+     */
+    int dynamic_registration;
+
+    /**
+     * Which requests the client supports and might send to the server
+     * depending on the server's capability. Please note that clients might not
+     * show semantic tokens or degrade some of the user experience if a range
+     * or full request is advertised by the client but not provided by the
+     * server. If for example the client capability `requests.full` and
+     * `request.range` are both set to true but the server only provides a
+     * range provider the client might not render a minimap correctly or might
+     * even decide to not show any semantic tokens at all.
+     *
+     * requests:
+    /**
+     * The client will send the `textDocument/semanticTokens/range` request
+     * if the server provides a corresponding handler.
+     *
+     * range?: boolean | {}
+     */
+    int range;
+
+    /**
+     * requests:
+     * 
+     * The client will send the `textDocument/semanticTokens/full` request
+     * if the server provides a corresponding handler.
+     *
+     * full?: boolean | {}
+     * 
+     * The client will send the `textDocument/semanticTokens/full/delta`
+     * request if the server provides a corresponding handler.
+     */
+    int delta;
+
+    /**
+     * The token types that the client supports.
+     */
+    char** token_types;
+    int token_types_count;
+
+    /**
+     * The token modifiers that the client supports.
+     */
+    char** token_modifiers;
+    int token_modifiers_count;
+
+    /**
+     * The formats the clients supports.
+     */
+    int formats;
+
+    /**
+     * Whether the client supports tokens that can overlap each other.
+     */
+    int overlapping_token_support;
+
+    /**
+     * Whether the client supports tokens that can span multiple lines.
+     */
+    int multiline_token_support;
+
+    /**
+     * Whether the client allows the server to actively cancel a
+     * semantic token request, e.g. supports returning
+     * ErrorCodes.ServerCancelled. If a server does the client
+     * needs to retrigger the request.
+     *
+     * @since 3.17.0
+     */
+    int server_cancel_support;
+
+    /**
+     * Whether the client uses semantic tokens to augment existing
+     * syntax tokens. If set to `true` client side created syntax
+     * tokens and semantic tokens are both used for colorization. If
+     * set to `false` the client only uses the returned semantic tokens
+     * for colorization.
+     *
+     * If the value is `undefined` then the client behavior is not
+     * specified.
+     *
+     * @since 3.17.0
+     */
+    int augments_syntax_tokens;
+} LSTalk_SemanticTokensClientCapabilities;
 
 /**
  * Text document specific client capabilities.
@@ -1586,38 +1688,45 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
     LSTalk_RenameClientCapabilities rename;
 
     /**
-	 * Capabilities specific to the `textDocument/publishDiagnostics`
-	 * notification.
-	 */
-	LSTalk_PublishDiagnosticsClientCapabilities publish_diagnostics;
+     * Capabilities specific to the `textDocument/publishDiagnostics`
+     * notification.
+     */
+    LSTalk_PublishDiagnosticsClientCapabilities publish_diagnostics;
 
     /**
-	 * Capabilities specific to the `textDocument/foldingRange` request.
-	 *
-	 * @since 3.10.0
-	 */
-	LSTalk_FoldingRangeClientCapabilities folding_range;
+     * Capabilities specific to the `textDocument/foldingRange` request.
+     *
+     * @since 3.10.0
+     */
+    LSTalk_FoldingRangeClientCapabilities folding_range;
 
     /**
-	 * Capabilities specific to the `textDocument/selectionRange` request.
-	 *
-	 * @since 3.15.0
-	 */
-	LSTalk_SelectionRangeClientCapabilities selection_range;
+     * Capabilities specific to the `textDocument/selectionRange` request.
+     *
+     * @since 3.15.0
+     */
+    LSTalk_SelectionRangeClientCapabilities selection_range;
 
     /**
-	 * Capabilities specific to the `textDocument/linkedEditingRange` request.
-	 *
-	 * @since 3.16.0
-	 */
-	LSTalk_LinkedEditingRangeClientCapabilities linked_editing_range;
+     * Capabilities specific to the `textDocument/linkedEditingRange` request.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_LinkedEditingRangeClientCapabilities linked_editing_range;
 
     /**
-	 * Capabilities specific to the various call hierarchy requests.
-	 *
-	 * @since 3.16.0
-	 */
-	LSTalk_CallHierarchyClientCapabilities call_hierarchy;
+     * Capabilities specific to the various call hierarchy requests.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_CallHierarchyClientCapabilities call_hierarchy;
+
+    /**
+     * Capabilities specific to the various semantic token requests.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_SemanticTokensClientCapabilities semantic_tokens;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
