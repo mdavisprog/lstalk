@@ -1583,6 +1583,21 @@ typedef struct LSTalk_SemanticTokensClientCapabilities {
 } LSTalk_SemanticTokensClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/moniker` request.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_MonikerClientCapabilities {
+    /**
+     * Whether implementation supports dynamic registration. If this is set to
+     * `true` the client supports the new `(TextDocumentRegistrationOptions &
+     * StaticRegistrationOptions)` return value for the corresponding server
+     * capability as well.
+     */
+    int dynamic_registration;
+} LSTalk_MonikerClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1727,6 +1742,13 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * @since 3.16.0
      */
     LSTalk_SemanticTokensClientCapabilities semantic_tokens;
+
+    /**
+     * Capabilities specific to the `textDocument/moniker` request.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_MonikerClientCapabilities moniker;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
