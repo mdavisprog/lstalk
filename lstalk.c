@@ -1997,6 +1997,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue moniker = json_make_object();
     dynamic_registration(&moniker, connect_params.capabilities.text_document.moniker.dynamic_registration);
 
+    JSONValue type_hierarchy = json_make_object();
+    dynamic_registration(&type_hierarchy, connect_params.capabilities.text_document.type_hierarchy.dynamic_registration);
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -2024,6 +2027,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "callHierarchy", call_hierarchy);
     json_object_const_key_set(&text_document, "semanticTokens", semantic_tokens);
     json_object_const_key_set(&text_document, "moniker", moniker);
+    json_object_const_key_set(&text_document, "typeHierarchy", type_hierarchy);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
