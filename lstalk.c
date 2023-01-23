@@ -1767,6 +1767,21 @@ static JSONValue make_workspace_object(LSTalk_Workspace* workspace) {
 }
 
 //
+// Begin Text Document Objects
+//
+
+static JSONValue make_text_document_synchronization_object(LSTalk_TextDocumentSyncClientCapabilities* sync) {
+    JSONValue result = json_make_object();
+
+    dynamic_registration(&result, sync->dynamic_registration);
+    json_object_const_key_set(&result, "willSave", json_make_boolean(sync->will_save));
+    json_object_const_key_set(&result, "willSaveWaitUntil", json_make_boolean(sync->will_save_wait_until));
+    json_object_const_key_set(&result, "didSave", json_make_boolean(sync->did_save));
+
+    return result;
+}
+
+//
 // Begin Client Capabilities Objects
 //
 
@@ -1901,12 +1916,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     server.id = context->server_id++;
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
-
-    JSONValue synchronization = json_make_object();
-    dynamic_registration(&synchronization, connect_params.capabilities.text_document.synchronization.dynamic_registration);
-    json_object_const_key_set(&synchronization, "willSave", json_make_boolean(connect_params.capabilities.text_document.synchronization.will_save));
-    json_object_const_key_set(&synchronization, "willSaveWaitUntil", json_make_boolean(connect_params.capabilities.text_document.synchronization.will_save_wait_until));
-    json_object_const_key_set(&synchronization, "didSave", json_make_boolean(connect_params.capabilities.text_document.synchronization.did_save));
 
     JSONValue completion_item = json_make_object();
     json_object_const_key_set(&completion_item, "snippetSupport", json_make_boolean(connect_params.capabilities.text_document.completion.completion_item.snippet_support));
@@ -2097,7 +2106,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document_diagnostic, "relatedDocumentSupport", json_make_boolean(connect_params.capabilities.text_document.diagnostic.related_document_support));
 
     JSONValue text_document = json_make_object();
-    json_object_const_key_set(&text_document, "synchronization", synchronization);
+    json_object_const_key_set(&text_document, "synchronization", make_text_document_synchronization_object(&connect_params.capabilities.text_document.synchronization));
     json_object_const_key_set(&text_document, "completion", completion);
     json_object_const_key_set(&text_document, "hover", hover);
     json_object_const_key_set(&text_document, "signatureHelp", signature_help);
