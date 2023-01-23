@@ -1661,6 +1661,24 @@ static JSONValue string_array(char** array, int count) {
     return result;
 }
 
+static JSONValue make_window_object(LSTalk_Window* window) {
+    JSONValue result = json_make_object();
+
+    JSONValue show_message_message_action_item = json_make_object();
+    json_object_const_key_set(&show_message_message_action_item, "additionalPropertiesSupport", json_make_boolean(window->show_message.message_action_item_additional_properties_support));
+    JSONValue show_message = json_make_object();
+    json_object_const_key_set(&show_message, "messageActionItem", show_message_message_action_item);
+
+    JSONValue show_document = json_make_object();
+    json_object_const_key_set(&show_document, "support", json_make_boolean(window->show_document.support));
+
+    json_object_const_key_set(&result, "workDoneProgress", json_make_boolean(window->work_done_progress));
+    json_object_const_key_set(&result, "showMessage", show_message);
+    json_object_const_key_set(&result, "showDocument", show_document);
+
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -2057,6 +2075,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
     json_object_const_key_set(&client_capabilities, "textDocument", text_document);
     json_object_const_key_set(&client_capabilities, "notebookDocument", notebook_document);
+    json_object_const_key_set(&client_capabilities, "window", make_window_object(&connect_params.capabilities.window));
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));

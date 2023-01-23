@@ -1886,6 +1886,67 @@ typedef struct LSTalk_NotebookDocumentClientCapabilities {
 } LSTalk_NotebookDocumentClientCapabilities;
 
 /**
+ * Show message request client capabilities
+ */
+typedef struct LSTalk_ShowMessageRequestClientCapabilities {
+    /**
+     * Capabilities specific to the `MessageActionItem` type.
+     *
+     * messageActionItem:
+     * 
+     * Whether the client supports additional attributes which
+     * are preserved and sent back to the server in the
+     * request's response.
+     */
+    int message_action_item_additional_properties_support;
+} LSTalk_ShowMessageRequestClientCapabilities;
+
+/**
+ * Client capabilities for the show document request.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_ShowDocumentClientCapabilities {
+    /**
+     * The client has support for the show document
+     * request.
+     */
+    int support;
+} LSTalk_ShowDocumentClientCapabilities;
+
+/**
+ * Window specific client capabilities.
+ */
+typedef struct LSTalk_Window {
+    /**
+     * It indicates whether the client supports server initiated
+     * progress using the `window/workDoneProgress/create` request.
+     *
+     * The capability also controls Whether client supports handling
+     * of progress notifications. If set servers are allowed to report a
+     * `workDoneProgress` property in the request specific server
+     * capabilities.
+     *
+     * @since 3.15.0
+     */
+    int work_done_progress;
+
+    /**
+     * Capabilities specific to the showMessage request
+     *
+     * @since 3.16.0
+     */
+    LSTalk_ShowMessageRequestClientCapabilities show_message;
+
+    /**
+     * Client capabilities for the show document request.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_ShowDocumentClientCapabilities show_document;
+} LSTalk_Window;
+
+/**
  * The capabilities provided by the client (editor or tool)
  */
 typedef struct LSTalk_ClientCapabilities {
@@ -1905,6 +1966,11 @@ typedef struct LSTalk_ClientCapabilities {
      * @since 3.17.0
      */
     LSTalk_NotebookDocumentClientCapabilities notebook_document;
+
+    /**
+     * Window specific client capabilities.
+     */
+    LSTalk_Window window;
 } LSTalk_ClientCapabilities;
 
 typedef struct LSTalk_ConnectParams {
