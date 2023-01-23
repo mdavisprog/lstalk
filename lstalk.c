@@ -1706,6 +1706,20 @@ static JSONValue make_workspace_symbol_object(LSTalk_WorkspaceSymbolClientCapabi
     return result;
 }
 
+static JSONValue make_workspace_file_operations_object(LSTalk_FileOperations* file_ops) {
+    JSONValue result = json_make_object();
+
+    dynamic_registration(&result, file_ops->dynamic_registration);
+    json_object_const_key_set(&result, "didCreate", json_make_boolean(file_ops->did_create));
+    json_object_const_key_set(&result, "willCreate", json_make_boolean(file_ops->will_create));
+    json_object_const_key_set(&result, "didRename", json_make_boolean(file_ops->did_rename));
+    json_object_const_key_set(&result, "willRename", json_make_boolean(file_ops->will_rename));
+    json_object_const_key_set(&result, "didDelete", json_make_boolean(file_ops->did_delete));
+    json_object_const_key_set(&result, "willDelete", json_make_boolean(file_ops->will_delete));
+
+    return result;
+}
+
 //
 // Begin Client Capabilities Objects
 //
@@ -1858,15 +1872,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue code_lens = json_make_object();
     json_object_const_key_set(&code_lens, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.code_lens.refresh_support));
 
-    JSONValue file_operations = json_make_object();
-    dynamic_registration(&file_operations, connect_params.capabilities.workspace.file_operations.dynamic_registration);
-    json_object_const_key_set(&file_operations, "didCreate", json_make_boolean(connect_params.capabilities.workspace.file_operations.did_create));
-    json_object_const_key_set(&file_operations, "willCreate", json_make_boolean(connect_params.capabilities.workspace.file_operations.will_create));
-    json_object_const_key_set(&file_operations, "didRename", json_make_boolean(connect_params.capabilities.workspace.file_operations.did_rename));
-    json_object_const_key_set(&file_operations, "willRename", json_make_boolean(connect_params.capabilities.workspace.file_operations.will_rename));
-    json_object_const_key_set(&file_operations, "didDelete", json_make_boolean(connect_params.capabilities.workspace.file_operations.did_delete));
-    json_object_const_key_set(&file_operations, "willDelete", json_make_boolean(connect_params.capabilities.workspace.file_operations.will_delete));
-
     JSONValue inline_value = json_make_object();
     json_object_const_key_set(&inline_value, "refreshSupport", json_make_boolean(connect_params.capabilities.workspace.inline_value.refresh_support));
 
@@ -1887,7 +1892,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&workspace, "configuration", json_make_boolean(connect_params.capabilities.workspace.configuration));
     json_object_const_key_set(&workspace, "semanticTokens", semantic_tokens);
     json_object_const_key_set(&workspace, "codeLens", code_lens);
-    json_object_const_key_set(&workspace, "fileOperations", file_operations);
+    json_object_const_key_set(&workspace, "fileOperations", make_workspace_file_operations_object(&connect_params.capabilities.workspace.file_operations));
     json_object_const_key_set(&workspace, "inlineValue", inline_value);
     json_object_const_key_set(&workspace, "inlayHint", inlay_hint);
     json_object_const_key_set(&workspace, "diagnostics", diagnostics);
