@@ -2046,9 +2046,17 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "inlayHint", text_document_inlay_hint);
     json_object_const_key_set(&text_document, "diagnostic", text_document_diagnostic);
 
+    JSONValue notebook_sync = json_make_object();
+    dynamic_registration(&notebook_sync, connect_params.capabilities.notebook_document.synchronization.dynamic_registration);
+    json_object_const_key_set(&notebook_sync, "executionSummarySupport", json_make_boolean(connect_params.capabilities.notebook_document.synchronization.execution_summary_support));
+
+    JSONValue notebook_document = json_make_object();
+    json_object_const_key_set(&notebook_document, "synchronization", notebook_sync);
+
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
     json_object_const_key_set(&client_capabilities, "textDocument", text_document);
+    json_object_const_key_set(&client_capabilities, "notebookDocument", notebook_document);
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));

@@ -1852,6 +1852,40 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
+ * Notebook specific client capabilities.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_NotebookDocumentSyncClientCapabilities {
+    /**
+     * Whether implementation supports dynamic registration. If this is
+     * set to `true` the client supports the new
+     * `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+     * return value for the corresponding server capability as well.
+     */
+    int dynamic_registration;
+
+    /**
+     * The client supports sending execution summary data per cell.
+     */
+    int execution_summary_support;
+} LSTalk_NotebookDocumentSyncClientCapabilities;
+
+/**
+ * Capabilities specific to the notebook document support.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_NotebookDocumentClientCapabilities {
+    /**
+     * Capabilities specific to notebook document synchronization
+     *
+     * @since 3.17.0
+     */
+    LSTalk_NotebookDocumentSyncClientCapabilities synchronization;
+} LSTalk_NotebookDocumentClientCapabilities;
+
+/**
  * The capabilities provided by the client (editor or tool)
  */
 typedef struct LSTalk_ClientCapabilities {
@@ -1864,6 +1898,13 @@ typedef struct LSTalk_ClientCapabilities {
      * Text document specific client capabilities.
      */
     LSTalk_TextDocumentClientCapabilities text_document;
+
+    /**
+     * Capabilities specific to the notebook document support.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_NotebookDocumentClientCapabilities notebook_document;
 } LSTalk_ClientCapabilities;
 
 typedef struct LSTalk_ConnectParams {
