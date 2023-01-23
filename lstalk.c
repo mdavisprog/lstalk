@@ -2003,6 +2003,13 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue text_document_inline_value = json_make_object();
     dynamic_registration(&text_document_inline_value, connect_params.capabilities.text_document.inline_value.dynamic_registration);
 
+    JSONValue text_document_inlay_hint = json_make_object();
+    dynamic_registration(&text_document_inlay_hint, connect_params.capabilities.text_document.inlay_hint.dynamic_registration);
+    JSONValue text_document_inlay_hint_resolve_support = json_make_object();
+    json_object_const_key_set(&text_document_inlay_hint_resolve_support, "properties",
+        string_array(connect_params.capabilities.text_document.inlay_hint.properties, connect_params.capabilities.text_document.inlay_hint.properties_count));
+    json_object_const_key_set(&text_document_inlay_hint, "resolveSupport", text_document_inlay_hint_resolve_support);
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -2032,6 +2039,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "moniker", moniker);
     json_object_const_key_set(&text_document, "typeHierarchy", type_hierarchy);
     json_object_const_key_set(&text_document, "inlineValue", text_document_inline_value);
+    json_object_const_key_set(&text_document, "inlayHint", text_document_inlay_hint);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);

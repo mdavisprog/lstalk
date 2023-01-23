@@ -1626,6 +1626,29 @@ typedef struct LSTalk_InlineValueClientCapabilities {
 } LSTalk_InlineValueClientCapabilities;
 
 /**
+ * Inlay hint client capabilities.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_InlayHintClientCapabilities {
+    /**
+     * Whether inlay hints support dynamic registration.
+     */
+    int dynamic_registration;
+
+    /**
+     * Indicates which properties a client can resolve lazily on a inlay
+     * hint.
+     *
+     * resolveSupport:
+     * 
+     * The properties that a client can resolve lazily.
+     */
+    char** properties;
+    int properties_count;
+} LSTalk_InlayHintClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1791,6 +1814,13 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
      * @since 3.17.0
      */
     LSTalk_InlineValueClientCapabilities inline_value;
+
+    /**
+     * Capabilities specific to the `textDocument/inlayHint` request.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_InlayHintClientCapabilities inlay_hint;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**
