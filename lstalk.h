@@ -344,6 +344,26 @@ typedef enum {
 } LSTalk_DiagnosticTag;
 
 /**
+ * A set of predefined range kinds.
+ */
+typedef enum {
+    /**
+	 * Folding range for a comment
+	 */
+    LSTALK_FOLDINGRANGEKIND_COMMENT = 1 << 0,
+
+	/**
+	 * Folding range for a imports or includes
+	 */
+    LSTALK_FOLDINGRANGEKIND_IMPORTS = 1 << 1,
+
+	/**
+	 * Folding range for a region (e.g. `#region`)
+	 */
+    LSTALK_FOLDINGRANGEKIND_REGION = 1 << 2,
+} LSTalk_FoldingRangeKind;
+
+/**
  * Capabilities specific to `WorkspaceEdit`s
  */
 typedef struct LSTalk_WorkspaceEditClientCapabilities {
@@ -1360,6 +1380,62 @@ typedef struct LSTalk_PublishDiagnosticsClientCapabilities {
 } LSTalk_PublishDiagnosticsClientCapabilities;
 
 /**
+ * Capabilities specific to the `textDocument/foldingRange` request.
+ *
+ * @since 3.10.0
+ */
+typedef struct LSTalk_FoldingRangeClientCapabilities {
+    /**
+	 * Whether implementation supports dynamic registration for folding range
+	 * providers. If this is set to `true` the client supports the new
+	 * `FoldingRangeRegistrationOptions` return value for the corresponding
+	 * server capability as well.
+	 */
+	int dynamic_registration;
+
+	/**
+	 * The maximum number of folding ranges that the client prefers to receive
+	 * per document. The value serves as a hint, servers are free to follow the
+	 * limit.
+	 */
+	unsigned int range_limit;
+
+	/**
+	 * If set, the client signals that it only supports folding complete lines.
+	 * If set, client will ignore specified `startCharacter` and `endCharacter`
+	 * properties in a FoldingRange.
+	 */
+	int line_folding_only;
+
+	/**
+	 * Specific options for the folding range kind.
+	 *
+	 * @since 3.17.0
+	 *
+	 * foldingRangeKind:
+     * 
+     * The folding range kind values the client supports. When this
+     * property exists the client also guarantees that it will
+     * handle values outside its set gracefully and falls back
+     * to a default value when unknown.
+     */
+    int value_set;
+
+	/**
+	 * Specific options for the folding range.
+	 * @since 3.17.0
+	 *
+	 * foldingRange:
+     * 
+    * If set, the client signals that it supports setting collapsedText on
+    * folding ranges to display custom labels instead of the default text.
+    *
+    * @since 3.17.0
+    */
+    int collapsed_text;
+} LSTalk_FoldingRangeClientCapabilities;
+
+/**
  * Text document specific client capabilities.
  */
 typedef struct LSTalk_TextDocumentClientCapabilities {
@@ -1469,6 +1545,13 @@ typedef struct LSTalk_TextDocumentClientCapabilities {
 	 * notification.
 	 */
 	LSTalk_PublishDiagnosticsClientCapabilities publish_diagnostics;
+
+    /**
+	 * Capabilities specific to the `textDocument/foldingRange` request.
+	 *
+	 * @since 3.10.0
+	 */
+	LSTalk_FoldingRangeClientCapabilities folding_range;
 } LSTalk_TextDocumentClientCapabilities;
 
 /**

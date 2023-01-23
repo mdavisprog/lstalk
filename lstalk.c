@@ -1619,6 +1619,16 @@ static JSONValue diagnostic_tag_array(int value) {
     return result;
 }
 
+static JSONValue folding_range_kind_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_FOLDINGRANGEKIND_COMMENT) { json_array_push(&result, json_make_string_const("comment")); }
+    if (value & LSTALK_FOLDINGRANGEKIND_IMPORTS) { json_array_push(&result, json_make_string_const("imports")); }
+    if (value & LSTALK_FOLDINGRANGEKIND_REGION) { json_array_push(&result, json_make_string_const("region")); }
+
+    return result;
+}
+
 static void dynamic_registration(JSONValue* root, int value) {
     if (root == NULL || root->type != JSON_VALUE_OBJECT) {
         return;
@@ -1943,6 +1953,17 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&publish_diagnostics, "codeDescriptionSupport", json_make_boolean(connect_params.capabilities.text_document.publish_diagnostics.code_description_support));
     json_object_const_key_set(&publish_diagnostics, "dataSupport", json_make_boolean(connect_params.capabilities.text_document.publish_diagnostics.data_support));
 
+    JSONValue folding_range = json_make_object();
+    dynamic_registration(&folding_range, connect_params.capabilities.text_document.folding_range.dynamic_registration);
+    json_object_const_key_set(&folding_range, "rangeLimit", json_make_int(connect_params.capabilities.text_document.folding_range.range_limit));
+    json_object_const_key_set(&folding_range, "lineFoldingOnly", json_make_boolean(connect_params.capabilities.text_document.folding_range.line_folding_only));
+    JSONValue folding_range_kind = json_make_object();
+    json_object_const_key_set(&folding_range_kind, "valueSet", folding_range_kind_array(connect_params.capabilities.text_document.folding_range.value_set));
+    json_object_const_key_set(&folding_range, "foldingRangeKind", folding_range_kind);
+    JSONValue folding_range_folding_range = json_make_object();
+    json_object_const_key_set(&folding_range_folding_range, "collapsedText", json_make_boolean(connect_params.capabilities.text_document.folding_range.collapsed_text));
+    json_object_const_key_set(&folding_range, "foldingRange", folding_range_folding_range);
+
     JSONValue text_document = json_make_object();
     json_object_const_key_set(&text_document, "synchronization", synchronization);
     json_object_const_key_set(&text_document, "completion", completion);
@@ -1964,6 +1985,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "onTypeFormatting", on_type_formatting);
     json_object_const_key_set(&text_document, "rename", rename);
     json_object_const_key_set(&text_document, "publishDiagnostics", publish_diagnostics);
+    json_object_const_key_set(&text_document, "foldingRange", folding_range);
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", workspace);
