@@ -1823,6 +1823,22 @@ static JSONValue make_text_document_completion_object(LSTalk_CompletionClientCap
     return result;
 }
 
+static JSONValue make_text_document_signature_object(LSTalk_SignatureHelpClientCapabilities* signature_help) {
+    JSONValue result = json_make_object();
+
+    dynamic_registration(&result, signature_help->dynamic_registration);
+    JSONValue info = json_make_object();
+    json_object_const_key_set(&info, "documentationFormat", markup_kind_array(signature_help->signature_information.documentation_format));
+    JSONValue parameter_info = json_make_object();
+    json_object_const_key_set(&parameter_info, "labelOffsetSupport", json_make_boolean(signature_help->signature_information.label_offset_support));
+    json_object_const_key_set(&info, "parameterInformation", parameter_info);
+    json_object_const_key_set(&info, "activeParameterSupport", json_make_boolean(signature_help->signature_information.active_parameter_support));
+    json_object_const_key_set(&result, "signatureInformation", info);
+    json_object_const_key_set(&result, "contextSupport", json_make_boolean(signature_help->context_support));
+
+    return result;
+}
+
 //
 // Begin Client Capabilities Objects
 //
@@ -1962,17 +1978,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue hover = json_make_object();
     dynamic_registration(&hover, connect_params.capabilities.text_document.hover.dynamic_registration);
     json_object_const_key_set(&hover, "contentFormat", markup_kind_array(connect_params.capabilities.text_document.hover.content_format));
-
-    JSONValue signature_help = json_make_object();
-    dynamic_registration(&signature_help, connect_params.capabilities.text_document.signature_help.dynamic_registration);
-    JSONValue signature_info = json_make_object();
-    json_object_const_key_set(&signature_info, "documentationFormat", markup_kind_array(connect_params.capabilities.text_document.signature_help.signature_information.documentation_format));
-    JSONValue signature_info_parameter_info = json_make_object();
-    json_object_const_key_set(&signature_info_parameter_info, "labelOffsetSupport", json_make_boolean(connect_params.capabilities.text_document.signature_help.signature_information.label_offset_support));
-    json_object_const_key_set(&signature_info, "parameterInformation", signature_info_parameter_info);
-    json_object_const_key_set(&signature_info, "activeParameterSupport", json_make_boolean(connect_params.capabilities.text_document.signature_help.signature_information.active_parameter_support));
-    json_object_const_key_set(&signature_help, "signatureInformation", signature_info);
-    json_object_const_key_set(&signature_help, "contextSupport", json_make_boolean(connect_params.capabilities.text_document.signature_help.context_support));
 
     JSONValue declaration = json_make_object();
     dynamic_registration(&declaration, connect_params.capabilities.text_document.declaration.dynamic_registration);
@@ -2119,7 +2124,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "synchronization", make_text_document_synchronization_object(&connect_params.capabilities.text_document.synchronization));
     json_object_const_key_set(&text_document, "completion", make_text_document_completion_object(&connect_params.capabilities.text_document.completion));
     json_object_const_key_set(&text_document, "hover", hover);
-    json_object_const_key_set(&text_document, "signatureHelp", signature_help);
+    json_object_const_key_set(&text_document, "signatureHelp", make_text_document_signature_object(&connect_params.capabilities.text_document.signature_help));
     json_object_const_key_set(&text_document, "declaration", declaration);
     json_object_const_key_set(&text_document, "definition", definition);
     json_object_const_key_set(&text_document, "typeDefinition", type_definition);
