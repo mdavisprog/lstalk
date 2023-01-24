@@ -53,6 +53,129 @@ typedef enum {
     LSTALK_DEBUGFLAGS_PRINT_RESPONSES = 1 << 1,
 } LSTalk_DebugFlags;
 
+typedef struct LSTalk_ConnectParams {
+    /**
+     * The rootUri of the workspace. Is null if no folder is open.
+     */
+    char* root_uri;
+
+    /**
+     * The initial trace setting. If omitted trace is disabled ('off').
+     */
+    LSTalk_Trace trace;
+} LSTalk_ConnectParams;
+
+/**
+ * Forward declaraction with the defintion defined below the API.
+ */
+struct LSTalk_ClientCapabilities;
+
+/**
+ * Initializes a LSTalk_Context object to be used with all of the API functions.
+ * 
+ * @return A heap-allocated LSTalk_Context object. Must be freed with lstalk_shutdown.
+ */
+struct LSTalk_Context* lstalk_init();
+
+/**
+ * Cleans up a LSTalk_Context object. This will close any existing connections to servers
+ * and send shutdown/exit requests to them. The context object memory is then freed.
+ * 
+ * @param context - The context object to shutdown.
+ */
+void lstalk_shutdown(struct LSTalk_Context* context);
+
+/**
+ * Retrieves the current version number for the LSTalk library.
+ * 
+ * @param major - A pointer to store the major version number.
+ * @param minor - A pointer to store the minor version number.
+ * @param revision - A pointer to store the revision number.
+ */
+void lstalk_version(int* major, int* minor, int* revision);
+
+/**
+ * Sets the client information for the given LSTalk_Context object. The default
+ * name is "lstalk" and the default version is the library's version number.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param name - A pointer to the name of the client. This function will allocate
+ *               its own copy of the string.
+ * @param version - A pointer to the version of the client. This function will
+ *                  allocate its own copy of the string.
+ */
+void lstalk_set_client_info(struct LSTalk_Context* context, char* name, char* version);
+
+/**
+ * Sets the locale of the client. The default value is 'en'.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param locale - This is an IETF tag. The string is copied.
+ */
+void lstalk_set_locale(struct LSTalk_Context* context, char* locale);
+
+/**
+ * Gets the LSTalk_ClientCapabilities object for the context object.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * 
+ * @return - A pointer to the LSTalk_ClientCapabilities object to set properties on.
+ */
+struct LSTalk_ClientCapabilities* lstalk_get_client_capabilities(struct LSTalk_Context* context);
+
+/**
+ * Sets debug flags for the given context object.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param flags - Bitwise flags set from LSTalk_DebugFlags.
+ */
+void lstalk_set_debug_flags(struct LSTalk_Context* context, int flags);
+
+/**
+ * Attempts to connect to a language server at the given URI. This should be a path on the machine to an
+ * executable that can be started by the library.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param uri - File path to the language server executable.
+ * 
+ * @return - Server ID representing a connection to the language server. Will be LSTALK_INVALID_SERVER_ID if
+ *           no connection can be made.
+ */
+LSTalk_ServerID lstalk_connect(struct LSTalk_Context* context, const char* uri, LSTalk_ConnectParams connect_params);
+
+/**
+ * Retrieve the current connection status given a Server ID.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param id - A LSTalk_ServerID to check the connection status for.
+ * 
+ * @return - The LSTalk_ConnectionStatus of the given server ID.
+ */
+LSTalk_ConnectionStatus lstalk_get_connection_status(struct LSTalk_Context* context, LSTalk_ServerID id);
+
+/**
+ * Requests to close a connection to a connected language server given the LSTalk_ServerID.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param id - The LSTalk_ServerID connection to close.
+ * 
+ * @return - A non-zero value if closed successfully. 0 if there was an error.
+ */
+int lstalk_close(struct LSTalk_Context* context, LSTalk_ServerID id);
+
+/**
+ * Process responses for all connected server.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * 
+ * @return - A non-zero value if response were processed. 0 if nothing was processed.
+ */
+int lstalk_process_responses(struct LSTalk_Context* context);
+
+//
+// The section below contains the definitions of interfaces used in communicating
+// with the language server.
+//
 /**
  * The kind of resource operations supported by the client.
  */
@@ -2151,120 +2274,6 @@ typedef struct LSTalk_ClientCapabilities {
      */
     LSTalk_General general;
 } LSTalk_ClientCapabilities;
-
-typedef struct LSTalk_ConnectParams {
-    /**
-     * The rootUri of the workspace. Is null if no folder is open.
-     */
-    char* root_uri;
-
-    /**
-     * The initial trace setting. If omitted trace is disabled ('off').
-     */
-    LSTalk_Trace trace;
-} LSTalk_ConnectParams;
-
-/**
- * Initializes a LSTalk_Context object to be used with all of the API functions.
- * 
- * @return A heap-allocated LSTalk_Context object. Must be freed with lstalk_shutdown.
- */
-struct LSTalk_Context* lstalk_init();
-
-/**
- * Cleans up a LSTalk_Context object. This will close any existing connections to servers
- * and send shutdown/exit requests to them. The context object memory is then freed.
- * 
- * @param context - The context object to shutdown.
- */
-void lstalk_shutdown(struct LSTalk_Context* context);
-
-/**
- * Retrieves the current version number for the LSTalk library.
- * 
- * @param major - A pointer to store the major version number.
- * @param minor - A pointer to store the minor version number.
- * @param revision - A pointer to store the revision number.
- */
-void lstalk_version(int* major, int* minor, int* revision);
-
-/**
- * Sets the client information for the given LSTalk_Context object. The default
- * name is "lstalk" and the default version is the library's version number.
- * 
- * @param context - An initialized LSTalk_Context object.
- * @param name - A pointer to the name of the client. This function will allocate
- *               its own copy of the string.
- * @param version - A pointer to the version of the client. This function will
- *                  allocate its own copy of the string.
- */
-void lstalk_set_client_info(struct LSTalk_Context* context, char* name, char* version);
-
-/**
- * Sets the locale of the client. The default value is 'en'.
- * 
- * @param context - An initialized LSTalk_Context object.
- * @param locale - This is an IETF tag. The string is copied.
- */
-void lstalk_set_locale(struct LSTalk_Context* context, char* locale);
-
-/**
- * Gets the LSTalk_ClientCapabilities object for the context object.
- * 
- * @param context - An initialized LSTalk_Context object.
- * 
- * @return - A pointer to the LSTalk_ClientCapabilities object to set properties on.
- */
-LSTalk_ClientCapabilities* lstalk_get_client_capabilities(struct LSTalk_Context* context);
-
-/**
- * Sets debug flags for the given context object.
- * 
- * @param context - An initialized LSTalk_Context object.
- * @param flags - Bitwise flags set from LSTalk_DebugFlags.
- */
-void lstalk_set_debug_flags(struct LSTalk_Context* context, int flags);
-
-/**
- * Attempts to connect to a language server at the given URI. This should be a path on the machine to an
- * executable that can be started by the library.
- * 
- * @param context - An initialized LSTalk_Context object.
- * @param uri - File path to the language server executable.
- * 
- * @return - Server ID representing a connection to the language server. Will be LSTALK_INVALID_SERVER_ID if
- *           no connection can be made.
- */
-LSTalk_ServerID lstalk_connect(struct LSTalk_Context* context, const char* uri, LSTalk_ConnectParams connect_params);
-
-/**
- * Retrieve the current connection status given a Server ID.
- * 
- * @param context - An initialized LSTalk_Context object.
- * @param id - A LSTalk_ServerID to check the connection status for.
- * 
- * @return - The LSTalk_ConnectionStatus of the given server ID.
- */
-LSTalk_ConnectionStatus lstalk_get_connection_status(struct LSTalk_Context* context, LSTalk_ServerID id);
-
-/**
- * Requests to close a connection to a connected language server given the LSTalk_ServerID.
- * 
- * @param context - An initialized LSTalk_Context object.
- * @param id - The LSTalk_ServerID connection to close.
- * 
- * @return - A non-zero value if closed successfully. 0 if there was an error.
- */
-int lstalk_close(struct LSTalk_Context* context, LSTalk_ServerID id);
-
-/**
- * Process responses for all connected server.
- * 
- * @param context - An initialized LSTalk_Context object.
- * 
- * @return - A non-zero value if response were processed. 0 if nothing was processed.
- */
-int lstalk_process_responses(struct LSTalk_Context* context);
 
 #ifdef LSTALK_TESTS
 void lstalk_tests();
