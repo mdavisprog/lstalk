@@ -1850,7 +1850,7 @@ static JSONValue make_text_document_symbol_object(LSTalk_DocumentSymbolClientCap
     JSONValue tag_support = json_make_object();
     json_object_const_key_set(&tag_support, "valueSet", symbol_tag_array(symbol->tag_support_value_set));
     json_object_const_key_set(&result, "tagSupport", tag_support);
-    json_object_const_key_set(&result, "labelSupport", tag_support);
+    json_object_const_key_set(&result, "labelSupport", json_make_boolean(symbol->label_support));
 
     return result;
 }
