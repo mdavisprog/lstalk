@@ -1498,7 +1498,7 @@ static JSONValue markup_kind_array(int value) {
     JSONValue result = json_make_array();
 
     if (value & LSTALK_MARKUPKIND_PLAINTEXT) { json_array_push(&result, json_make_string_const("plaintext")); }
-    if (value & LSTALK_MARKUPKIND_MARKDOWN) { json_array_push(&result, json_make_string_const("mardown")); }
+    if (value & LSTALK_MARKUPKIND_MARKDOWN) { json_array_push(&result, json_make_string_const("markdown")); }
 
     return result;
 }
