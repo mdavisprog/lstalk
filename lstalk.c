@@ -1855,6 +1855,27 @@ static JSONValue make_text_document_symbol_object(LSTalk_DocumentSymbolClientCap
     return result;
 }
 
+static JSONValue make_text_document_code_action_object(LSTalk_CodeActionClientCapabilities* code_action) {
+    JSONValue result = json_make_object();
+
+    dynamic_registration(&result, code_action->dynamic_registration);
+    JSONValue kind = json_make_object();
+    json_object_const_key_set(&kind, "valueSet", code_action_kind_array(code_action->code_action_value_set));
+    JSONValue literal_support = json_make_object();
+    json_object_const_key_set(&literal_support, "codeActionKind", kind);
+    json_object_const_key_set(&result, "codeActionLiteralSupport", literal_support);
+    json_object_const_key_set(&result, "isPreferredSupport", json_make_boolean(code_action->is_preferred_support));
+    json_object_const_key_set(&result, "disabledSupport", json_make_boolean(code_action->disabled_support));
+    json_object_const_key_set(&result, "dataSupport", json_make_boolean(code_action->data_support));
+    JSONValue resolve_support = json_make_object();
+    json_object_const_key_set(&resolve_support, "properties",
+        string_array(code_action->resolve_support_properties, code_action->resolve_support_count));
+    json_object_const_key_set(&result, "resolveSupport", resolve_support);
+    json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(code_action->honors_change_annotations));
+
+    return result;
+}
+
 //
 // Begin Client Capabilities Objects
 //
@@ -2017,22 +2038,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue document_highlight = json_make_object();
     dynamic_registration(&document_highlight, connect_params.capabilities.text_document.document_highlight.dynamic_registration);
 
-    JSONValue code_action = json_make_object();
-    dynamic_registration(&code_action, connect_params.capabilities.text_document.code_action.dynamic_registration);
-    JSONValue code_action_kind = json_make_object();
-    json_object_const_key_set(&code_action_kind, "valueSet", code_action_kind_array(connect_params.capabilities.text_document.code_action.code_action_value_set));
-    JSONValue code_action_literal_support = json_make_object();
-    json_object_const_key_set(&code_action_literal_support, "codeActionKind", code_action_kind);
-    json_object_const_key_set(&code_action, "codeActionLiteralSupport", code_action_literal_support);
-    json_object_const_key_set(&code_action, "isPreferredSupport", json_make_boolean(connect_params.capabilities.text_document.code_action.is_preferred_support));
-    json_object_const_key_set(&code_action, "disabledSupport", json_make_boolean(connect_params.capabilities.text_document.code_action.disabled_support));
-    json_object_const_key_set(&code_action, "dataSupport", json_make_boolean(connect_params.capabilities.text_document.code_action.data_support));
-    JSONValue code_action_resolve_support = json_make_object();
-    json_object_const_key_set(&code_action_resolve_support, "properties",
-        string_array(connect_params.capabilities.text_document.code_action.resolve_support_properties, connect_params.capabilities.text_document.code_action.resolve_support_count));
-    json_object_const_key_set(&code_action, "resolveSupport", code_action_resolve_support);
-    json_object_const_key_set(&code_action, "honorsChangeAnnotations", json_make_boolean(connect_params.capabilities.text_document.code_action.honors_change_annotations));
-
     JSONValue text_document_code_lens = json_make_object();
     dynamic_registration(&text_document_code_lens, connect_params.capabilities.text_document.code_lens.dynamic_registration);
 
@@ -2137,7 +2142,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "references", references);
     json_object_const_key_set(&text_document, "documentHighlight", document_highlight);
     json_object_const_key_set(&text_document, "documentSymbol", make_text_document_symbol_object(&connect_params.capabilities.text_document.document_symbol));
-    json_object_const_key_set(&text_document, "codeAction", code_action);
+    json_object_const_key_set(&text_document, "codeAction", make_text_document_code_action_object(&connect_params.capabilities.text_document.code_action));
     json_object_const_key_set(&text_document, "codeLens", text_document_code_lens);
     json_object_const_key_set(&text_document, "documentLink", document_link);
     json_object_const_key_set(&text_document, "colorProvider", color_provider);
