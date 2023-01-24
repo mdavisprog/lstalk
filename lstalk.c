@@ -2099,6 +2099,25 @@ static JSONValue make_general_object(LSTalk_General* general) {
     return result;
 }
 
+static JSONValue make_client_capabilities_object(LSTalk_ClientCapabilities* capabilities) {
+    JSONValue result = json_make_object();
+
+    JSONValue notebook_sync = json_make_object();
+    dynamic_registration(&notebook_sync, capabilities->notebook_document.synchronization.dynamic_registration);
+    json_object_const_key_set(&notebook_sync, "executionSummarySupport", json_make_boolean(capabilities->notebook_document.synchronization.execution_summary_support));
+
+    JSONValue notebook_document = json_make_object();
+    json_object_const_key_set(&notebook_document, "synchronization", notebook_sync);
+
+    json_object_const_key_set(&result, "workspace", make_workspace_object(&capabilities->workspace));
+    json_object_const_key_set(&result, "textDocument", make_text_document_object(&capabilities->text_document));
+    json_object_const_key_set(&result, "notebookDocument", notebook_document);
+    json_object_const_key_set(&result, "window", make_window_object(&capabilities->window));
+    json_object_const_key_set(&result, "general", make_general_object(&capabilities->general));
+
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -2187,26 +2206,12 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
 
-    JSONValue notebook_sync = json_make_object();
-    dynamic_registration(&notebook_sync, connect_params.capabilities.notebook_document.synchronization.dynamic_registration);
-    json_object_const_key_set(&notebook_sync, "executionSummarySupport", json_make_boolean(connect_params.capabilities.notebook_document.synchronization.execution_summary_support));
-
-    JSONValue notebook_document = json_make_object();
-    json_object_const_key_set(&notebook_document, "synchronization", notebook_sync);
-
-    JSONValue client_capabilities = json_make_object();
-    json_object_const_key_set(&client_capabilities, "workspace", make_workspace_object(&connect_params.capabilities.workspace));
-    json_object_const_key_set(&client_capabilities, "textDocument", make_text_document_object(&connect_params.capabilities.text_document));
-    json_object_const_key_set(&client_capabilities, "notebookDocument", notebook_document);
-    json_object_const_key_set(&client_capabilities, "window", make_window_object(&connect_params.capabilities.window));
-    json_object_const_key_set(&client_capabilities, "general", make_general_object(&connect_params.capabilities.general));
-
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
     json_object_const_key_set(&params, "clientInfo", client_info(&context->client_info));
     json_object_const_key_set(&params, "locale", json_make_string_const(context->locale));
     json_object_const_key_set(&params, "rootUri", json_make_string(connect_params.root_uri));
-    json_object_const_key_set(&params, "clientCapabilities", client_capabilities);
+    json_object_const_key_set(&params, "clientCapabilities", make_client_capabilities_object(&connect_params.capabilities));
     json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params.trace)));
 
     Request request = rpc_make_request(&server.request_id, "initialize", params);
