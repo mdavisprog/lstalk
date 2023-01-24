@@ -131,9 +131,11 @@ int main(int argc, char** argv) {
 
     char command[INPUT_BUFFER_SIZE];
     LSTalk_ServerID server_id = LSTALK_INVALID_SERVER_ID;
+    LSTalk_ServerID pending_id = LSTALK_INVALID_SERVER_ID;
     LSTalk_ConnectParams params;
     params.root_uri = NULL;
     params.trace = LSTALK_TRACE_OFF;
+    int debug_flags = LSTALK_DEBUGFLAGS_NONE;
 
     int quit = 0;
     while (!quit) {
@@ -141,14 +143,31 @@ int main(int argc, char** argv) {
             if (is_command(command, "quit")) {
                 quit = 1;
             } else if (is_command(command, "close")) {
-                lstalk_close(context, server_id);
+                if (lstalk_close(context, server_id)) {
+                    printf("Disconnected from server\n");
+                }
+                server_id = LSTALK_INVALID_SERVER_ID;
+            } else if (is_command(command, "show_requests")) {
+                debug_flags |= LSTALK_DEBUGFLAGS_PRINT_REQUESTS;
+                lstalk_set_debug_flags(context, debug_flags);
+            } else if (is_command(command, "show_responses")) {
+                debug_flags |= LSTALK_DEBUGFLAGS_PRINT_RESPONSES;
+                lstalk_set_debug_flags(context, debug_flags);
             } else {
-                server_id = lstalk_connect(context, command, params);
+                pending_id = lstalk_connect(context, command, params);
             }
             command[0] = 0;
         }
 
         lstalk_process_responses(context);
+
+        if (pending_id != LSTALK_INVALID_SERVER_ID && server_id == LSTALK_INVALID_SERVER_ID) {
+            if (lstalk_get_connection_status(context, pending_id) == LSTALK_CONNECTION_STATUS_CONNECTED) {
+                server_id = pending_id;
+                pending_id = LSTALK_INVALID_SERVER_ID;
+                printf("Connected to server\n");
+            }
+        }
     }
 
     lstalk_shutdown(context);

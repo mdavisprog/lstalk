@@ -1287,13 +1287,16 @@ static char* rpc_get_method(Request* request) {
     return method.value.string_value;
 }
 
-static void rpc_send_request(Process* server, Request* request) {
+static void rpc_send_request(Process* server, Request* request, int print_request) {
     if (server == NULL || request == NULL) {
         return;
     }
 
     JSONEncoder encoder = json_encode(&request->payload);
     process_request(server, encoder.string.data);
+    if (print_request) {
+        printf("%s\n", encoder.string.data);
+    }
     json_destroy_encoder(&encoder);
 }
 
@@ -1354,6 +1357,7 @@ typedef struct LSTalk_Context {
     ClientInfo client_info;
     char* locale;
     LSTalk_ClientCapabilities client_capabilities;
+    int debug_flags;
 } LSTalk_Context;
 
 static void server_close(Server* server) {
@@ -1368,6 +1372,10 @@ static void server_close(Server* server) {
         rpc_close_request(request);
     }
     vector_destroy(&server->requests);
+}
+
+static void server_send_request(LSTalk_Context* context, Process* server, Request* request) {
+    rpc_send_request(server, request, context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
 }
 
 static char* trace_to_string(LSTalk_Trace trace) {
@@ -2129,6 +2137,7 @@ LSTalk_Context* lstalk_init() {
     result->client_info.version = string_alloc_copy(buffer);
     result->locale = string_alloc_copy("en");
     memset(&result->client_capabilities, 0, sizeof(result->client_capabilities));
+    result->debug_flags = LSTALK_DEBUGFLAGS_NONE;
     return result;
 }
 
@@ -2201,6 +2210,14 @@ LSTalk_ClientCapabilities* lstalk_get_client_capabilities(LSTalk_Context* contex
     return &context->client_capabilities;
 }
 
+void lstalk_set_debug_flags(LSTalk_Context* context, int flags) {
+    if (context == NULL) {
+        return;
+    }
+
+    context->debug_flags = flags;
+}
+
 LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_ConnectParams connect_params) {
     if (context == NULL || uri == NULL) {
         return LSTALK_INVALID_SERVER_ID;
@@ -2225,7 +2242,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params.trace)));
 
     Request request = rpc_make_request(&server.request_id, "initialize", params);
-    rpc_send_request(server.process, &request);
+    server_send_request(context, server.process, &request);
     server.connection_status = LSTALK_CONNECTION_STATUS_CONNECTING;
     vector_push(&server.requests, &request);
     vector_push(&context->servers, &server);
@@ -2261,7 +2278,7 @@ int lstalk_close(LSTalk_Context* context, LSTalk_ServerID id) {
 
         if (server->id == id) {
             Request request = rpc_make_request(&server->request_id, "shutdown", json_make_null());
-            rpc_send_request(server->process, &request);
+            server_send_request(context, server->process, &request);
             vector_push(&server->requests, &request);
             return 1;
         }
@@ -2280,6 +2297,9 @@ int lstalk_process_responses(LSTalk_Context* context) {
         char* response = process_read(server->process);
 
         if (response != NULL) {
+            if (context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_RESPONSES) {
+                printf("%s\n", response);
+            }
             char* content_length = strstr(response, "Content-Length");
             if (content_length != NULL) {
                 int length = 0;
@@ -2299,11 +2319,11 @@ int lstalk_process_responses(LSTalk_Context* context) {
                             if (strcmp(method, "initialize") == 0) {
                                 server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
                                 Request initalized_request = rpc_make_notification("initialized", json_make_null());
-                                rpc_send_request(server->process, &initalized_request);
+                                server_send_request(context, server->process, &initalized_request);
                                 rpc_close_request(&initalized_request);
                             } else if (strcmp(method, "shutdown") == 0) {
                                 Request exit_notification = rpc_make_notification("exit", json_make_null());
-                                rpc_send_request(server->process, &exit_notification);
+                                server_send_request(context, server->process, &exit_notification);
                                 rpc_close_request(&exit_notification);
                                 server_close(server);
                                 vector_remove(&context->servers, i);

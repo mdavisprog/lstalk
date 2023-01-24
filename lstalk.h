@@ -19,6 +19,15 @@ typedef enum {
 } LSTalk_Trace;
 
 /**
+ * Flags to set to aid in debugging the library.
+ */
+typedef enum {
+    LSTALK_DEBUGFLAGS_NONE = 0,
+    LSTALK_DEBUGFLAGS_PRINT_REQUESTS = 1 << 0,
+    LSTALK_DEBUGFLAGS_PRINT_RESPONSES = 1 << 1,
+} LSTalk_DebugFlags;
+
+/**
  * The kind of resource operations supported by the client.
  */
 typedef enum {
@@ -2181,6 +2190,14 @@ void lstalk_set_locale(struct LSTalk_Context* context, char* locale);
  * @return - A pointer to the LSTalk_ClientCapabilities object to set properties on.
  */
 LSTalk_ClientCapabilities* lstalk_get_client_capabilities(struct LSTalk_Context* context);
+
+/**
+ * Sets debug flags for the given context object.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param flags - Bitwise flags set from LSTalk_DebugFlags.
+ */
+void lstalk_set_debug_flags(struct LSTalk_Context* context, int flags);
 
 /**
  * Attempts to connect to a language server at the given URI. This should be a path on the machine to an
