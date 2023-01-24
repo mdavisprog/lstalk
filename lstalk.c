@@ -1917,6 +1917,29 @@ static JSONValue make_text_document_folding_range_object(LSTalk_FoldingRangeClie
     return result;
 }
 
+static JSONValue make_text_document_semantic_tokens_object(LSTalk_SemanticTokensClientCapabilities* semantic_tokens) {
+    JSONValue result = json_make_object();
+
+    dynamic_registration(&result, semantic_tokens->dynamic_registration);
+    JSONValue requests_full = json_make_object();
+    json_object_const_key_set(&requests_full, "delta", json_make_boolean(semantic_tokens->delta));
+    JSONValue requests = json_make_object();
+    json_object_const_key_set(&requests, "range", json_make_boolean(semantic_tokens->range));
+    json_object_const_key_set(&requests, "full", requests_full);
+    json_object_const_key_set(&result, "requests", requests);
+    json_object_const_key_set(&result, "tokenTypes",
+        string_array(semantic_tokens->token_types, semantic_tokens->token_types_count));
+    json_object_const_key_set(&result, "tokenModifiers",
+        string_array(semantic_tokens->token_modifiers, semantic_tokens->token_modifiers_count));
+    json_object_const_key_set(&result, "formats", token_format_array(semantic_tokens->formats));
+    json_object_const_key_set(&result, "overlappingTokenSupport", json_make_boolean(semantic_tokens->overlapping_token_support));
+    json_object_const_key_set(&result, "multilineTokenSupport", json_make_boolean(semantic_tokens->multiline_token_support));
+    json_object_const_key_set(&result, "serverCancelSupport", json_make_boolean(semantic_tokens->server_cancel_support));
+    json_object_const_key_set(&result, "augmentsSyntaxTokens", json_make_boolean(semantic_tokens->augments_syntax_tokens));
+
+    return result;
+}
+
 //
 // Begin Client Capabilities Objects
 //
@@ -2107,24 +2130,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue call_hierarchy = json_make_object();
     dynamic_registration(&call_hierarchy, connect_params.capabilities.text_document.call_hierarchy.dynamic_registration);
 
-    JSONValue text_document_semantic_tokens = json_make_object();
-    dynamic_registration(&text_document_semantic_tokens, connect_params.capabilities.text_document.semantic_tokens.dynamic_registration);
-    JSONValue text_document_semantic_tokens_requests_full = json_make_object();
-    json_object_const_key_set(&text_document_semantic_tokens_requests_full, "delta", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.delta));
-    JSONValue text_document_semantic_tokens_requests = json_make_object();
-    json_object_const_key_set(&text_document_semantic_tokens_requests, "range", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.range));
-    json_object_const_key_set(&text_document_semantic_tokens_requests, "full", text_document_semantic_tokens_requests_full);
-    json_object_const_key_set(&text_document_semantic_tokens, "requests", text_document_semantic_tokens_requests);
-    json_object_const_key_set(&text_document_semantic_tokens, "tokenTypes",
-        string_array(connect_params.capabilities.text_document.semantic_tokens.token_types, connect_params.capabilities.text_document.semantic_tokens.token_types_count));
-    json_object_const_key_set(&text_document_semantic_tokens, "tokenModifiers",
-        string_array(connect_params.capabilities.text_document.semantic_tokens.token_modifiers, connect_params.capabilities.text_document.semantic_tokens.token_modifiers_count));
-    json_object_const_key_set(&text_document_semantic_tokens, "formats", token_format_array(connect_params.capabilities.text_document.semantic_tokens.formats));
-    json_object_const_key_set(&text_document_semantic_tokens, "overlappingTokenSupport", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.overlapping_token_support));
-    json_object_const_key_set(&text_document_semantic_tokens, "multilineTokenSupport", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.multiline_token_support));
-    json_object_const_key_set(&text_document_semantic_tokens, "serverCancelSupport", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.server_cancel_support));
-    json_object_const_key_set(&text_document_semantic_tokens, "augmentsSyntaxTokens", json_make_boolean(connect_params.capabilities.text_document.semantic_tokens.augments_syntax_tokens));
-
     JSONValue moniker = json_make_object();
     dynamic_registration(&moniker, connect_params.capabilities.text_document.moniker.dynamic_registration);
 
@@ -2170,7 +2175,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "selectionRange", selection_range);
     json_object_const_key_set(&text_document, "linkedEditingRange", linked_editing_range);
     json_object_const_key_set(&text_document, "callHierarchy", call_hierarchy);
-    json_object_const_key_set(&text_document, "semanticTokens", text_document_semantic_tokens);
+    json_object_const_key_set(&text_document, "semanticTokens", make_text_document_semantic_tokens_object(&connect_params.capabilities.text_document.semantic_tokens));
     json_object_const_key_set(&text_document, "moniker", moniker);
     json_object_const_key_set(&text_document, "typeHierarchy", type_hierarchy);
     json_object_const_key_set(&text_document, "inlineValue", text_document_inline_value);
