@@ -1940,6 +1940,117 @@ static JSONValue make_text_document_semantic_tokens_object(LSTalk_SemanticTokens
     return result;
 }
 
+static JSONValue make_text_document_object(LSTalk_TextDocumentClientCapabilities* text_document) {
+    JSONValue result = json_make_object();
+
+    JSONValue hover = json_make_object();
+    dynamic_registration(&hover, text_document->hover.dynamic_registration);
+    json_object_const_key_set(&hover, "contentFormat", markup_kind_array(text_document->hover.content_format));
+
+    JSONValue declaration = json_make_object();
+    dynamic_registration(&declaration, text_document->declaration.dynamic_registration);
+    link_support(&declaration, text_document->declaration.link_support);
+
+    JSONValue definition = json_make_object();
+    dynamic_registration(&definition, text_document->definition.dynamic_registration);
+    link_support(&definition, text_document->definition.link_support);
+
+    JSONValue type_definition = json_make_object();
+    dynamic_registration(&type_definition, text_document->type_definition.dynamic_registration);
+    link_support(&type_definition, text_document->type_definition.link_support);
+
+    JSONValue implementation = json_make_object();
+    dynamic_registration(&implementation, text_document->implementation.dynamic_registration);
+    link_support(&implementation, text_document->implementation.link_support);
+
+    JSONValue references = json_make_object();
+    dynamic_registration(&references, text_document->references.dynamic_registration);
+
+    JSONValue document_highlight = json_make_object();
+    dynamic_registration(&document_highlight, text_document->document_highlight.dynamic_registration);
+
+    JSONValue code_lens = json_make_object();
+    dynamic_registration(&code_lens, text_document->code_lens.dynamic_registration);
+
+    JSONValue document_link = json_make_object();
+    dynamic_registration(&document_link, text_document->document_link.dynamic_registration);
+    json_object_const_key_set(&document_link, "tooltipSupport", json_make_boolean(text_document->document_link.tooltip_support));
+
+    JSONValue color_provider = json_make_object();
+    dynamic_registration(&color_provider, text_document->color_provider.dynamic_registration);
+
+    JSONValue formatting = json_make_object();
+    dynamic_registration(&formatting, text_document->formatting.dynamic_registration);
+
+    JSONValue range_formatting = json_make_object();
+    dynamic_registration(&range_formatting, text_document->range_formatting.dynamic_registration);
+
+    JSONValue on_type_formatting = json_make_object();
+    dynamic_registration(&on_type_formatting, text_document->on_type_formatting.dynamic_registration);
+
+    JSONValue selection_range = json_make_object();
+    dynamic_registration(&selection_range, text_document->selection_range.dynamic_registration);
+
+    JSONValue linked_editing_range = json_make_object();
+    dynamic_registration(&selection_range, text_document->linked_editing_range.dynamic_registration);
+
+    JSONValue call_hierarchy = json_make_object();
+    dynamic_registration(&call_hierarchy, text_document->call_hierarchy.dynamic_registration);
+
+    JSONValue moniker = json_make_object();
+    dynamic_registration(&moniker, text_document->moniker.dynamic_registration);
+
+    JSONValue type_hierarchy = json_make_object();
+    dynamic_registration(&type_hierarchy, text_document->type_hierarchy.dynamic_registration);
+
+    JSONValue inline_value = json_make_object();
+    dynamic_registration(&inline_value, text_document->inline_value.dynamic_registration);
+
+    JSONValue inlay_hint = json_make_object();
+    dynamic_registration(&inlay_hint, text_document->inlay_hint.dynamic_registration);
+    JSONValue inlay_hint_resolve_support = json_make_object();
+    json_object_const_key_set(&inlay_hint_resolve_support, "properties",
+        string_array(text_document->inlay_hint.properties, text_document->inlay_hint.properties_count));
+    json_object_const_key_set(&inlay_hint, "resolveSupport", inlay_hint_resolve_support);
+
+    JSONValue diagnostic = json_make_object();
+    dynamic_registration(&diagnostic, text_document->diagnostic.dynamic_registration);
+    json_object_const_key_set(&diagnostic, "relatedDocumentSupport", json_make_boolean(text_document->diagnostic.related_document_support));
+
+    json_object_const_key_set(&result, "synchronization", make_text_document_synchronization_object(&text_document->synchronization));
+    json_object_const_key_set(&result, "completion", make_text_document_completion_object(&text_document->completion));
+    json_object_const_key_set(&result, "hover", hover);
+    json_object_const_key_set(&result, "signatureHelp", make_text_document_signature_object(&text_document->signature_help));
+    json_object_const_key_set(&result, "declaration", declaration);
+    json_object_const_key_set(&result, "definition", definition);
+    json_object_const_key_set(&result, "typeDefinition", type_definition);
+    json_object_const_key_set(&result, "implementation", implementation);
+    json_object_const_key_set(&result, "references", references);
+    json_object_const_key_set(&result, "documentHighlight", document_highlight);
+    json_object_const_key_set(&result, "documentSymbol", make_text_document_symbol_object(&text_document->document_symbol));
+    json_object_const_key_set(&result, "codeAction", make_text_document_code_action_object(&text_document->code_action));
+    json_object_const_key_set(&result, "codeLens", code_lens);
+    json_object_const_key_set(&result, "documentLink", document_link);
+    json_object_const_key_set(&result, "colorProvider", color_provider);
+    json_object_const_key_set(&result, "formatting", formatting);
+    json_object_const_key_set(&result, "rangeFormatting", range_formatting);
+    json_object_const_key_set(&result, "onTypeFormatting", on_type_formatting);
+    json_object_const_key_set(&result, "rename", make_text_document_rename_object(&text_document->rename));
+    json_object_const_key_set(&result, "publishDiagnostics", make_text_document_publish_diagnostics_object(&text_document->publish_diagnostics));
+    json_object_const_key_set(&result, "foldingRange", make_text_document_folding_range_object(&text_document->folding_range));
+    json_object_const_key_set(&result, "selectionRange", selection_range);
+    json_object_const_key_set(&result, "linkedEditingRange", linked_editing_range);
+    json_object_const_key_set(&result, "callHierarchy", call_hierarchy);
+    json_object_const_key_set(&result, "semanticTokens", make_text_document_semantic_tokens_object(&text_document->semantic_tokens));
+    json_object_const_key_set(&result, "moniker", moniker);
+    json_object_const_key_set(&result, "typeHierarchy", type_hierarchy);
+    json_object_const_key_set(&result, "inlineValue", inline_value);
+    json_object_const_key_set(&result, "inlayHint", inlay_hint);
+    json_object_const_key_set(&result, "diagnostic", diagnostic);
+
+    return result;
+}
+
 //
 // Begin Client Capabilities Objects
 //
@@ -2076,112 +2187,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
 
-    JSONValue hover = json_make_object();
-    dynamic_registration(&hover, connect_params.capabilities.text_document.hover.dynamic_registration);
-    json_object_const_key_set(&hover, "contentFormat", markup_kind_array(connect_params.capabilities.text_document.hover.content_format));
-
-    JSONValue declaration = json_make_object();
-    dynamic_registration(&declaration, connect_params.capabilities.text_document.declaration.dynamic_registration);
-    link_support(&declaration, connect_params.capabilities.text_document.declaration.link_support);
-
-    JSONValue definition = json_make_object();
-    dynamic_registration(&definition, connect_params.capabilities.text_document.definition.dynamic_registration);
-    link_support(&definition, connect_params.capabilities.text_document.definition.link_support);
-
-    JSONValue type_definition = json_make_object();
-    dynamic_registration(&type_definition, connect_params.capabilities.text_document.type_definition.dynamic_registration);
-    link_support(&type_definition, connect_params.capabilities.text_document.type_definition.link_support);
-
-    JSONValue implementation = json_make_object();
-    dynamic_registration(&implementation, connect_params.capabilities.text_document.implementation.dynamic_registration);
-    link_support(&implementation, connect_params.capabilities.text_document.implementation.link_support);
-
-    JSONValue references = json_make_object();
-    dynamic_registration(&references, connect_params.capabilities.text_document.references.dynamic_registration);
-
-    JSONValue document_highlight = json_make_object();
-    dynamic_registration(&document_highlight, connect_params.capabilities.text_document.document_highlight.dynamic_registration);
-
-    JSONValue text_document_code_lens = json_make_object();
-    dynamic_registration(&text_document_code_lens, connect_params.capabilities.text_document.code_lens.dynamic_registration);
-
-    JSONValue document_link = json_make_object();
-    dynamic_registration(&document_link, connect_params.capabilities.text_document.document_link.dynamic_registration);
-    json_object_const_key_set(&document_link, "tooltipSupport", json_make_boolean(connect_params.capabilities.text_document.document_link.tooltip_support));
-
-    JSONValue color_provider = json_make_object();
-    dynamic_registration(&color_provider, connect_params.capabilities.text_document.color_provider.dynamic_registration);
-
-    JSONValue formatting = json_make_object();
-    dynamic_registration(&formatting, connect_params.capabilities.text_document.formatting.dynamic_registration);
-
-    JSONValue range_formatting = json_make_object();
-    dynamic_registration(&range_formatting, connect_params.capabilities.text_document.range_formatting.dynamic_registration);
-
-    JSONValue on_type_formatting = json_make_object();
-    dynamic_registration(&on_type_formatting, connect_params.capabilities.text_document.on_type_formatting.dynamic_registration);
-
-    JSONValue selection_range = json_make_object();
-    dynamic_registration(&selection_range, connect_params.capabilities.text_document.selection_range.dynamic_registration);
-
-    JSONValue linked_editing_range = json_make_object();
-    dynamic_registration(&selection_range, connect_params.capabilities.text_document.linked_editing_range.dynamic_registration);
-
-    JSONValue call_hierarchy = json_make_object();
-    dynamic_registration(&call_hierarchy, connect_params.capabilities.text_document.call_hierarchy.dynamic_registration);
-
-    JSONValue moniker = json_make_object();
-    dynamic_registration(&moniker, connect_params.capabilities.text_document.moniker.dynamic_registration);
-
-    JSONValue type_hierarchy = json_make_object();
-    dynamic_registration(&type_hierarchy, connect_params.capabilities.text_document.type_hierarchy.dynamic_registration);
-
-    JSONValue text_document_inline_value = json_make_object();
-    dynamic_registration(&text_document_inline_value, connect_params.capabilities.text_document.inline_value.dynamic_registration);
-
-    JSONValue text_document_inlay_hint = json_make_object();
-    dynamic_registration(&text_document_inlay_hint, connect_params.capabilities.text_document.inlay_hint.dynamic_registration);
-    JSONValue text_document_inlay_hint_resolve_support = json_make_object();
-    json_object_const_key_set(&text_document_inlay_hint_resolve_support, "properties",
-        string_array(connect_params.capabilities.text_document.inlay_hint.properties, connect_params.capabilities.text_document.inlay_hint.properties_count));
-    json_object_const_key_set(&text_document_inlay_hint, "resolveSupport", text_document_inlay_hint_resolve_support);
-
-    JSONValue text_document_diagnostic = json_make_object();
-    dynamic_registration(&text_document_diagnostic, connect_params.capabilities.text_document.diagnostic.dynamic_registration);
-    json_object_const_key_set(&text_document_diagnostic, "relatedDocumentSupport", json_make_boolean(connect_params.capabilities.text_document.diagnostic.related_document_support));
-
-    JSONValue text_document = json_make_object();
-    json_object_const_key_set(&text_document, "synchronization", make_text_document_synchronization_object(&connect_params.capabilities.text_document.synchronization));
-    json_object_const_key_set(&text_document, "completion", make_text_document_completion_object(&connect_params.capabilities.text_document.completion));
-    json_object_const_key_set(&text_document, "hover", hover);
-    json_object_const_key_set(&text_document, "signatureHelp", make_text_document_signature_object(&connect_params.capabilities.text_document.signature_help));
-    json_object_const_key_set(&text_document, "declaration", declaration);
-    json_object_const_key_set(&text_document, "definition", definition);
-    json_object_const_key_set(&text_document, "typeDefinition", type_definition);
-    json_object_const_key_set(&text_document, "implementation", implementation);
-    json_object_const_key_set(&text_document, "references", references);
-    json_object_const_key_set(&text_document, "documentHighlight", document_highlight);
-    json_object_const_key_set(&text_document, "documentSymbol", make_text_document_symbol_object(&connect_params.capabilities.text_document.document_symbol));
-    json_object_const_key_set(&text_document, "codeAction", make_text_document_code_action_object(&connect_params.capabilities.text_document.code_action));
-    json_object_const_key_set(&text_document, "codeLens", text_document_code_lens);
-    json_object_const_key_set(&text_document, "documentLink", document_link);
-    json_object_const_key_set(&text_document, "colorProvider", color_provider);
-    json_object_const_key_set(&text_document, "formatting", formatting);
-    json_object_const_key_set(&text_document, "rangeFormatting", range_formatting);
-    json_object_const_key_set(&text_document, "onTypeFormatting", on_type_formatting);
-    json_object_const_key_set(&text_document, "rename", make_text_document_rename_object(&connect_params.capabilities.text_document.rename));
-    json_object_const_key_set(&text_document, "publishDiagnostics", make_text_document_publish_diagnostics_object(&connect_params.capabilities.text_document.publish_diagnostics));
-    json_object_const_key_set(&text_document, "foldingRange", make_text_document_folding_range_object(&connect_params.capabilities.text_document.folding_range));
-    json_object_const_key_set(&text_document, "selectionRange", selection_range);
-    json_object_const_key_set(&text_document, "linkedEditingRange", linked_editing_range);
-    json_object_const_key_set(&text_document, "callHierarchy", call_hierarchy);
-    json_object_const_key_set(&text_document, "semanticTokens", make_text_document_semantic_tokens_object(&connect_params.capabilities.text_document.semantic_tokens));
-    json_object_const_key_set(&text_document, "moniker", moniker);
-    json_object_const_key_set(&text_document, "typeHierarchy", type_hierarchy);
-    json_object_const_key_set(&text_document, "inlineValue", text_document_inline_value);
-    json_object_const_key_set(&text_document, "inlayHint", text_document_inlay_hint);
-    json_object_const_key_set(&text_document, "diagnostic", text_document_diagnostic);
-
     JSONValue notebook_sync = json_make_object();
     dynamic_registration(&notebook_sync, connect_params.capabilities.notebook_document.synchronization.dynamic_registration);
     json_object_const_key_set(&notebook_sync, "executionSummarySupport", json_make_boolean(connect_params.capabilities.notebook_document.synchronization.execution_summary_support));
@@ -2191,7 +2196,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
 
     JSONValue client_capabilities = json_make_object();
     json_object_const_key_set(&client_capabilities, "workspace", make_workspace_object(&connect_params.capabilities.workspace));
-    json_object_const_key_set(&client_capabilities, "textDocument", text_document);
+    json_object_const_key_set(&client_capabilities, "textDocument", make_text_document_object(&connect_params.capabilities.text_document));
     json_object_const_key_set(&client_capabilities, "notebookDocument", notebook_document);
     json_object_const_key_set(&client_capabilities, "window", make_window_object(&connect_params.capabilities.window));
     json_object_const_key_set(&client_capabilities, "general", make_general_object(&connect_params.capabilities.general));
