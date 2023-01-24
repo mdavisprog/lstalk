@@ -1353,6 +1353,7 @@ typedef struct LSTalk_Context {
     LSTalk_ServerID server_id;
     ClientInfo client_info;
     char* locale;
+    LSTalk_ClientCapabilities client_capabilities;
 } LSTalk_Context;
 
 static void server_close(Server* server) {
@@ -2127,6 +2128,7 @@ LSTalk_Context* lstalk_init() {
     result->client_info.name = string_alloc_copy("lstalk");
     result->client_info.version = string_alloc_copy(buffer);
     result->locale = string_alloc_copy("en");
+    memset(&result->client_capabilities, 0, sizeof(result->client_capabilities));
     return result;
 }
 
@@ -2191,6 +2193,14 @@ void lstalk_set_locale(LSTalk_Context* context, char* locale) {
     context->locale = string_alloc_copy(locale);
 }
 
+LSTalk_ClientCapabilities* lstalk_get_client_capabilities(LSTalk_Context* context) {
+    if (context == NULL) {
+        return NULL;
+    }
+
+    return &context->client_capabilities;
+}
+
 LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_ConnectParams connect_params) {
     if (context == NULL || uri == NULL) {
         return LSTALK_INVALID_SERVER_ID;
@@ -2211,7 +2221,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&params, "clientInfo", client_info(&context->client_info));
     json_object_const_key_set(&params, "locale", json_make_string_const(context->locale));
     json_object_const_key_set(&params, "rootUri", json_make_string(connect_params.root_uri));
-    json_object_const_key_set(&params, "clientCapabilities", make_client_capabilities_object(&connect_params.capabilities));
+    json_object_const_key_set(&params, "clientCapabilities", make_client_capabilities_object(&context->client_capabilities));
     json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params.trace)));
 
     Request request = rpc_make_request(&server.request_id, "initialize", params);

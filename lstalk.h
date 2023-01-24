@@ -2124,11 +2124,6 @@ typedef struct LSTalk_ConnectParams {
     char* root_uri;
 
     /**
-     * The capabilities provided by the client (editor or tool)
-     */
-    LSTalk_ClientCapabilities capabilities;
-
-    /**
      * The initial trace setting. If omitted trace is disabled ('off').
      */
     LSTalk_Trace trace;
@@ -2177,6 +2172,15 @@ void lstalk_set_client_info(struct LSTalk_Context* context, char* name, char* ve
  * @param locale - This is an IETF tag. The string is copied.
  */
 void lstalk_set_locale(struct LSTalk_Context* context, char* locale);
+
+/**
+ * Gets the LSTalk_ClientCapabilities object for the context object.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * 
+ * @return - A pointer to the LSTalk_ClientCapabilities object to set properties on.
+ */
+LSTalk_ClientCapabilities* lstalk_get_client_capabilities(struct LSTalk_Context* context);
 
 /**
  * Attempts to connect to a language server at the given URI. This should be a path on the machine to an

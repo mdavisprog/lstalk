@@ -132,10 +132,8 @@ int main(int argc, char** argv) {
     char command[INPUT_BUFFER_SIZE];
     LSTalk_ServerID server_id = LSTALK_INVALID_SERVER_ID;
     LSTalk_ConnectParams params;
-    memset(&params, 0, sizeof(params));
     params.root_uri = NULL;
     params.trace = LSTALK_TRACE_OFF;
-    params.capabilities.workspace.symbol.resolve_support_count = 0;
 
     int quit = 0;
     while (!quit) {
