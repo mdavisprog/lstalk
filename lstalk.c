@@ -1876,6 +1876,17 @@ static JSONValue make_text_document_code_action_object(LSTalk_CodeActionClientCa
     return result;
 }
 
+static JSONValue make_text_document_rename_object(LSTalk_RenameClientCapabilities* rename) {
+    JSONValue result = json_make_object();
+
+    dynamic_registration(&result, rename->dynamic_registration);
+    json_object_const_key_set(&result, "prepareSupport", json_make_boolean(rename->prepare_support));
+    json_object_const_key_set(&result, "prepareSupportDefaultBehavior", json_make_int(rename->prepare_support_default_behavior));
+    json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(rename->honors_change_annotations));
+
+    return result;
+}
+
 //
 // Begin Client Capabilities Objects
 //
@@ -2057,12 +2068,6 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     JSONValue on_type_formatting = json_make_object();
     dynamic_registration(&on_type_formatting, connect_params.capabilities.text_document.on_type_formatting.dynamic_registration);
 
-    JSONValue rename = json_make_object();
-    dynamic_registration(&rename, connect_params.capabilities.text_document.rename.dynamic_registration);
-    json_object_const_key_set(&rename, "prepareSupport", json_make_boolean(connect_params.capabilities.text_document.rename.prepare_support));
-    json_object_const_key_set(&rename, "prepareSupportDefaultBehavior", json_make_int(connect_params.capabilities.text_document.rename.prepare_support_default_behavior));
-    json_object_const_key_set(&rename, "honorsChangeAnnotations", json_make_boolean(connect_params.capabilities.text_document.rename.honors_change_annotations));
-
     JSONValue publish_diagnostics = json_make_object();
     json_object_const_key_set(&publish_diagnostics, "relatedInformation", json_make_boolean(connect_params.capabilities.text_document.publish_diagnostics.related_information));
     JSONValue publish_diagnostics_tag_support = json_make_object();
@@ -2149,7 +2154,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&text_document, "formatting", formatting);
     json_object_const_key_set(&text_document, "rangeFormatting", range_formatting);
     json_object_const_key_set(&text_document, "onTypeFormatting", on_type_formatting);
-    json_object_const_key_set(&text_document, "rename", rename);
+    json_object_const_key_set(&text_document, "rename", make_text_document_rename_object(&connect_params.capabilities.text_document.rename));
     json_object_const_key_set(&text_document, "publishDiagnostics", publish_diagnostics);
     json_object_const_key_set(&text_document, "foldingRange", folding_range);
     json_object_const_key_set(&text_document, "selectionRange", selection_range);
