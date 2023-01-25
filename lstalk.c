@@ -1434,6 +1434,21 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
             } else {
                 info.capabilities.position_encoding = LSTALK_POSITIONENCODINGKIND_UTF16;
             }
+
+            JSONValue text_document_sync = json_object_get(&capabilities, "textDocumentSync");
+            if (text_document_sync.type == JSON_VALUE_INT) {
+                info.capabilities.text_document_sync.change = text_document_sync.value.int_value;
+            } else if (text_document_sync.type == JSON_VALUE_OBJECT) {
+                JSONValue open_close = json_object_get(&text_document_sync, "openClose");
+                if (open_close.type == JSON_VALUE_BOOLEAN) {
+                    info.capabilities.text_document_sync.open_close = open_close.value.bool_value;
+                }
+
+                JSONValue change = json_object_get(&text_document_sync, "change");
+                if (change.type == JSON_VALUE_INT) {
+                    info.capabilities.text_document_sync.change = change.value.int_value;
+                }
+            }
         }
 
         JSONValue server_info = json_object_get(&result, "serverInfo");
@@ -2319,6 +2334,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     server.id = context->server_id++;
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
+    memset(&server.info, 0, sizeof(server.info));
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));

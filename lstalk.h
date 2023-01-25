@@ -2288,6 +2288,49 @@ typedef struct LSTalk_ClientCapabilities {
 } LSTalk_ClientCapabilities;
 
 /**
+ * Defines how the host (editor) should sync document changes to the language
+ * server.
+ */
+typedef enum {
+    /**
+     * Documents should not be synced at all.
+     */
+    LSTALK_TEXTDOCUMENTSYNCKIND_NONE = 0,
+
+    /**
+     * Documents are synced by always sending the full content
+     * of the document.
+     */
+    LSTALK_TEXTDOCUMENTSYNCKIND_FULL = 1,
+
+    /**
+     * Documents are synced by sending the full content on open.
+     * After that only incremental updates to the document are
+     * sent.
+     */
+    LSTALK_TEXTDOCUMENTSYNCKIND_INCREMENTAL = 2,
+} LSTalk_TextDocumentSyncKind;
+
+/**
+ * Defines how text documents are synced.
+ */
+typedef struct LSTalk_TextDocumentSyncOptions {
+    /**
+     * Open and close notifications are sent to the server. If omitted open
+     * close notifications should not be sent.
+     */
+    int open_close;
+
+    /**
+     * Change notifications are sent to the server. See
+     * TextDocumentSyncKind.None, TextDocumentSyncKind.Full and
+     * TextDocumentSyncKind.Incremental. If omitted it defaults to
+     * TextDocumentSyncKind.None.
+     */
+    LSTalk_TextDocumentSyncKind change;
+} LSTalk_TextDocumentSyncOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2303,6 +2346,14 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.17.0
      */
     int position_encoding;
+
+    /**
+     * Defines how text documents are synced. Is either a detailed structure
+     * defining each notification or for backwards compatibility the
+     * TextDocumentSyncKind number. If omitted it defaults to
+     * `TextDocumentSyncKind.None`.
+     */
+    LSTalk_TextDocumentSyncOptions text_document_sync;
 } LSTalk_ServerCapabilities;
 
 /**
