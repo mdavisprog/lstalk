@@ -191,7 +191,11 @@ int main(int argc, char** argv) {
             if (lstalk_get_connection_status(context, pending_id) == LSTALK_CONNECTION_STATUS_CONNECTED) {
                 server_id = pending_id;
                 pending_id = LSTALK_INVALID_SERVER_ID;
-                printf("Connected to server\n");
+                LSTalk_ServerInfo* server_info = lstalk_get_server_info(context, server_id);
+                if (server_info != NULL) {
+                    printf("Connected to %s\n", server_info->name);
+                    printf("Version: %s\n", server_info->version);
+                }
             }
         }
     }

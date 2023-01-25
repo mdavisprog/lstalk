@@ -1345,6 +1345,7 @@ typedef struct Server {
     LSTalk_ConnectionStatus connection_status;
     Vector requests;
     int request_id;
+    LSTalk_ServerInfo info;
 } Server;
 
 typedef struct ClientInfo {
@@ -1402,6 +1403,33 @@ static void server_close(Server* server) {
 
 static void server_send_request(LSTalk_Context* context, Process* server, Request* request) {
     rpc_send_request(server, request, context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
+}
+
+static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
+    LSTalk_ServerInfo info;
+    memset(&info, 0, sizeof(info));
+
+    if (value == NULL) {
+        return info;
+    }
+
+    JSONValue result = json_object_get(value, "result");
+    if (result.type == JSON_VALUE_OBJECT) {
+        JSONValue server_info = json_object_get(&result, "serverInfo");
+        if (server_info.type == JSON_VALUE_OBJECT) {
+            JSONValue name = json_object_get(&server_info, "name");
+            if (name.type == JSON_VALUE_STRING) {
+                info.name = string_alloc_copy(name.value.string_value);
+            }
+
+            JSONValue version = json_object_get(&server_info, "version");
+            if (version.type == JSON_VALUE_STRING) {
+                info.version = string_alloc_copy(version.value.string_value);
+            }
+        }
+    }
+
+    return info;
 }
 
 static char* trace_to_string(LSTalk_Trace trace) {
@@ -2294,6 +2322,21 @@ LSTalk_ConnectionStatus lstalk_get_connection_status(LSTalk_Context* context, LS
     return result;
 }
 
+LSTalk_ServerInfo* lstalk_get_server_info(LSTalk_Context* context, LSTalk_ServerID id) {
+    if (context == NULL) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < context->servers.length; i++) {
+        Server* server = (Server*)vector_get(&context->servers, i);
+        if (server->id == id) {
+            return &server->info;
+        }
+    }
+
+    return NULL;
+}
+
 int lstalk_close(LSTalk_Context* context, LSTalk_ServerID id) {
     if (context == NULL || id == LSTALK_INVALID_SERVER_ID) {
         return 0;
@@ -2344,6 +2387,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                             char* method = rpc_get_method(request);
                             if (strcmp(method, "initialize") == 0) {
                                 server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
+                                server->info = server_parse_initialized(&value);
                                 Request initalized_request = rpc_make_notification("initialized", json_make_null());
                                 server_send_request(context, server->process, &initalized_request);
                                 rpc_close_request(&initalized_request);

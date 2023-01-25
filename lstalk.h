@@ -69,6 +69,7 @@ typedef struct LSTalk_ConnectParams {
  * Forward declaraction with the defintion defined below the API.
  */
 struct LSTalk_ClientCapabilities;
+struct LSTalk_ServerInfo;
 
 /**
  * Initializes a LSTalk_Context object to be used with all of the API functions.
@@ -154,6 +155,16 @@ LSTalk_ServerID lstalk_connect(struct LSTalk_Context* context, const char* uri, 
 LSTalk_ConnectionStatus lstalk_get_connection_status(struct LSTalk_Context* context, LSTalk_ServerID id);
 
 /**
+ * Retrieve the server information given a LSTalker_ServerID.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param id - A LSTalk_ServerID to check the connection status for.
+ * 
+ * @return - The LSTalk_ServerInfo containing information about the server.
+ */
+struct LSTalk_ServerInfo* lstalk_get_server_info(struct LSTalk_Context* context, LSTalk_ServerID id);
+
+/**
  * Requests to close a connection to a connected language server given the LSTalk_ServerID.
  * 
  * @param context - An initialized LSTalk_Context object.
@@ -176,6 +187,7 @@ int lstalk_process_responses(struct LSTalk_Context* context);
 // The section below contains the definitions of interfaces used in communicating
 // with the language server.
 //
+
 /**
  * The kind of resource operations supported by the client.
  */
@@ -2274,6 +2286,23 @@ typedef struct LSTalk_ClientCapabilities {
      */
     LSTalk_General general;
 } LSTalk_ClientCapabilities;
+
+/**
+ * Information about the server.
+ *
+ * @since 3.15.0
+ */
+typedef struct LSTalk_ServerInfo {
+    /**
+     * The name of the server as defined by the server.
+     */
+    char* name;
+
+    /**
+     * The server's version as defined by the server.
+     */
+    char* version;
+} LSTalk_ServerInfo;
 
 #ifdef LSTALK_TESTS
 void lstalk_tests();
