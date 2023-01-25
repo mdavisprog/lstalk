@@ -2331,6 +2331,72 @@ typedef struct LSTalk_TextDocumentSyncOptions {
 } LSTalk_TextDocumentSyncOptions;
 
 /**
+ * A notebook document filter denotes a notebook document by
+ * different properties.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_NotebookDocumentFilter {
+    /** The type of the enclosing notebook. */
+    char* notebook_type;
+
+    /** A Uri [scheme](#Uri.scheme), like `file` or `untitled`. */
+    char* scheme;
+
+    /** A glob pattern. */
+    char* pattern;
+} LSTalk_NotebookDocumentFilter;
+
+/**
+ * The notebooks to be synced
+ */
+typedef struct LSTalk_NotebookSelector {
+    /**
+     * The notebook to be synced. If a string
+     * value is provided it matches against the
+     * notebook type. '*' matches every notebook.
+     */
+    LSTalk_NotebookDocumentFilter notebook;
+
+    /**
+     * The cells of the matching notebook to be synced.
+     */
+    char** cells;
+    int cells_count;
+} LSTalk_NotebookSelector;
+
+/**
+ * Options specific to a notebook plus its cells
+ * to be synced to the server.
+ *
+ * If a selector provides a notebook document
+ * filter but no cell selector all cells of a
+ * matching notebook document will be synced.
+ *
+ * If a selector provides no notebook document
+ * filter but only a cell selector all notebook
+ * documents that contain at least one matching
+ * cell will be synced.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_NotebookDocumentSyncOptions {
+    LSTalk_StaticRegistrationOptions static_registration;
+
+    /**
+     * The notebooks to be synced
+     */
+    LSTalk_NotebookSelector* notebook_selector;
+    int notebook_selector_count;
+
+    /**
+     * Whether save notification should be forwarded to
+     * the server. Will only be honored if mode === `notebook`.
+     */
+    int save;
+} LSTalk_NotebookDocumentSyncOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2354,6 +2420,13 @@ typedef struct LSTalk_ServerCapabilities {
      * `TextDocumentSyncKind.None`.
      */
     LSTalk_TextDocumentSyncOptions text_document_sync;
+
+    /**
+     * Defines how notebook documents are synced.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_NotebookDocumentSyncOptions notebook_document_sync;
 } LSTalk_ServerCapabilities;
 
 /**

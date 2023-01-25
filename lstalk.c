@@ -1449,6 +1449,65 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                     info.capabilities.text_document_sync.change = change.value.int_value;
                 }
             }
+
+            JSONValue notebook_document_sync = json_object_get(&capabilities, "notebookDocumentSync");
+            if (notebook_document_sync.type == JSON_VALUE_OBJECT) {
+                JSONValue id = json_object_get(&notebook_document_sync, "id");
+                if (id.type == JSON_VALUE_STRING) {
+                    info.capabilities.notebook_document_sync.static_registration.id = string_alloc_copy(id.value.string_value);
+                }
+
+                JSONValue notebook_selector = json_object_get(&notebook_document_sync, "notebookSelector");
+                if (notebook_selector.type == JSON_VALUE_ARRAY) {
+                    info.capabilities.notebook_document_sync.notebook_selector_count = notebook_selector.value.array_value->values.length;
+                    if (info.capabilities.notebook_document_sync.notebook_selector_count > 0) {
+                        LSTalk_NotebookSelector* selectors = (LSTalk_NotebookSelector*)calloc(info.capabilities.notebook_document_sync.notebook_selector_count, sizeof(LSTalk_NotebookSelector));
+                        for (size_t i = 0; i < notebook_selector.value.array_value->values.length; i++) {
+                            JSONValue item = json_array_get(&notebook_selector, i);
+                            if (item.type != JSON_VALUE_OBJECT) {
+                                continue;
+                            }
+                            JSONValue notebook = json_object_get(&item, "notebook");
+                            if (notebook.type == JSON_VALUE_STRING) {
+                                selectors[i].notebook.notebook_type = string_alloc_copy(notebook.value.string_value);
+                            } else if (notebook.type == JSON_VALUE_OBJECT) {
+                                JSONValue notebook_type = json_object_get(&notebook, "notebookType");
+                                if (notebook_type.type == JSON_VALUE_STRING) {
+                                    selectors[i].notebook.notebook_type = string_alloc_copy(notebook_type.value.string_value);
+                                }
+                                JSONValue scheme = json_object_get(&notebook, "scheme");
+                                if (scheme.type == JSON_VALUE_STRING) {
+                                    selectors[i].notebook.scheme = string_alloc_copy(scheme.value.string_value);
+                                }
+                                JSONValue pattern = json_object_get(&notebook, "pattern");
+                                if (pattern.type == JSON_VALUE_STRING) {
+                                    selectors[i].notebook.pattern = string_alloc_copy(pattern.value.string_value);
+                                }
+                            }
+
+                            JSONValue cells = json_object_get(&item, "cells");
+                            if (cells.type == JSON_VALUE_ARRAY) {
+                                if (cells.value.array_value->values.length > 0) {
+                                    size_t cells_size = sizeof(char*) * cells.value.array_value->values.length;
+                                    selectors[i].cells = (char**)malloc(cells_size);
+                                    for (int cell_index = 0; cell_index < cells.value.array_value->values.length; cell_index++) {
+                                        JSONValue cell = json_array_get(&cells, cell_index);
+                                        if (cell.type == JSON_VALUE_STRING) {
+                                            selectors[i].cells[cell_index] = string_alloc_copy(cell.value.string_value);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        info.capabilities.notebook_document_sync.notebook_selector = selectors;
+                    }
+                }
+
+                JSONValue save = json_object_get(&notebook_document_sync, "save");
+                if (save.type == JSON_VALUE_BOOLEAN) {
+                    info.capabilities.notebook_document_sync.save = save.value.bool_value;
+                }
+            }
         }
 
         JSONValue server_info = json_object_get(&result, "serverInfo");
