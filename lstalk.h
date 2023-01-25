@@ -2288,6 +2288,24 @@ typedef struct LSTalk_ClientCapabilities {
 } LSTalk_ClientCapabilities;
 
 /**
+ * The capabilities the language server provides.
+ */
+typedef struct LSTalk_ServerCapabilities {
+    /**
+     * The position encoding the server picked from the encodings offered
+     * by the client via the client capability `general.positionEncodings`.
+     *
+     * If the client didn't provide any position encodings the only valid
+     * value that a server can return is 'utf-16'.
+     *
+     * If omitted it defaults to 'utf-16'.
+     *
+     * @since 3.17.0
+     */
+    int position_encoding;
+} LSTalk_ServerCapabilities;
+
+/**
  * Information about the server.
  *
  * @since 3.15.0
@@ -2302,6 +2320,11 @@ typedef struct LSTalk_ServerInfo {
      * The server's version as defined by the server.
      */
     char* version;
+
+    /**
+     * The capabilities the language server provides.
+     */
+    LSTalk_ServerCapabilities capabilities;
 } LSTalk_ServerInfo;
 
 #ifdef LSTALK_TESTS

@@ -1405,6 +1405,7 @@ static void server_send_request(LSTalk_Context* context, Process* server, Reques
     rpc_send_request(server, request, context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
 }
 
+static LSTalk_PositionEncodingKind parse_position_encoding_kind(char* value);
 static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
     LSTalk_ServerInfo info;
     memset(&info, 0, sizeof(info));
@@ -1415,6 +1416,16 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
 
     JSONValue result = json_object_get(value, "result");
     if (result.type == JSON_VALUE_OBJECT) {
+        JSONValue capabilities = json_object_get(&result, "capabilities");
+        if (capabilities.type == JSON_VALUE_OBJECT) {
+            JSONValue position_encoding = json_object_get(&capabilities, "positionEncoding");
+            if (position_encoding.type == JSON_VALUE_STRING) {
+                info.capabilities.position_encoding = parse_position_encoding_kind(position_encoding.value.string_value);
+            } else {
+                info.capabilities.position_encoding = LSTALK_POSITIONENCODINGKIND_UTF16;
+            }
+        }
+
         JSONValue server_info = json_object_get(&result, "serverInfo");
         if (server_info.type == JSON_VALUE_OBJECT) {
             JSONValue name = json_object_get(&server_info, "name");
@@ -1708,6 +1719,18 @@ static JSONValue position_encoding_kind_array(int value) {
     if (value & LSTALK_POSITIONENCODINGKIND_UTF32) { json_array_push(&result, json_make_string_const("utf-32")); }
 
     return result;
+}
+
+static LSTalk_PositionEncodingKind parse_position_encoding_kind(char* value) {
+    if (value == NULL) {
+        return LSTALK_POSITIONENCODINGKIND_UTF16;
+    }
+
+    if (strcmp(value, "utf-8") == 0) { return LSTALK_POSITIONENCODINGKIND_UTF8; }
+    if (strcmp(value, "utf-16") == 0) { return LSTALK_POSITIONENCODINGKIND_UTF16; }
+    if (strcmp(value, "utf-32") == 0) { return LSTALK_POSITIONENCODINGKIND_UTF32; }
+
+    return LSTALK_POSITIONENCODINGKIND_UTF16;
 }
 
 static void dynamic_registration(JSONValue* root, int value) {
