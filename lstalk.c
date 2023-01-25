@@ -915,6 +915,16 @@ static void json_destroy_encoder(JSONEncoder* encoder) {
     vector_destroy(&encoder->string);
 }
 
+static void json_print(JSONValue* value) {
+    if (value == NULL) {
+        return;
+    }
+
+    JSONEncoder encoder  = json_encode(value);
+    printf("%s\n", encoder.string.data);
+    json_destroy_encoder(&encoder);
+}
+
 //
 // JSON Parsing Functions
 //
