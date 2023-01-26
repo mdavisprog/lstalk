@@ -1553,8 +1553,10 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                             }
 
                             JSONValue cells = json_object_get(&item, "cells");
-                            selectors[i].cells = parse_string_array(&cells);
-                            selectors[i].cells_count = cells.value.array_value->values.length;
+                            if (cells.type == JSON_VALUE_ARRAY) {
+                                selectors[i].cells = parse_string_array(&cells);
+                                selectors[i].cells_count = cells.value.array_value->values.length;
+                            }
                         }
                         info.capabilities.notebook_document_sync.notebook_selector = selectors;
                     }
@@ -1569,12 +1571,16 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
             JSONValue completion_provider = json_object_get(&capabilities, "completionProvider");
             if (completion_provider.type == JSON_VALUE_OBJECT) {
                 JSONValue trigger_characters = json_object_get(&completion_provider, "triggerCharacters");
-                info.capabilities.completion_provider.trigger_characters = parse_string_array(&trigger_characters);
-                info.capabilities.completion_provider.trigger_characters_count = trigger_characters.value.array_value->values.length;
+                if (trigger_characters.type == JSON_VALUE_ARRAY) {
+                    info.capabilities.completion_provider.trigger_characters = parse_string_array(&trigger_characters);
+                    info.capabilities.completion_provider.trigger_characters_count = trigger_characters.value.array_value->values.length;
+                }
 
                 JSONValue all_commit_characters = json_object_get(&completion_provider, "allCommitCharacters");
-                info.capabilities.completion_provider.all_commit_characters = parse_string_array(&all_commit_characters);
-                info.capabilities.completion_provider.all_commit_characters_count = all_commit_characters.value.array_value->values.length;
+                if (all_commit_characters.type == JSON_VALUE_ARRAY) {
+                    info.capabilities.completion_provider.all_commit_characters = parse_string_array(&all_commit_characters);
+                    info.capabilities.completion_provider.all_commit_characters_count = all_commit_characters.value.array_value->values.length;
+                }
 
                 JSONValue resolve_provider = json_object_get(&completion_provider, "resolveProvider");
                 if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
@@ -1582,8 +1588,12 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 }
 
                 JSONValue completion_item = json_object_get(&completion_provider, "completionItem");
-                JSONValue label_data_support = json_object_get(&completion_item, "labelDataSupport");
-                info.capabilities.completion_provider.completion_item_label_details_support = label_data_support.value.bool_value;
+                if (completion_item.type == JSON_VALUE_OBJECT) {
+                    JSONValue label_data_support = json_object_get(&completion_item, "labelDataSupport");
+                    if (label_data_support.type == JSON_VALUE_BOOLEAN) {
+                        info.capabilities.completion_provider.completion_item_label_details_support = label_data_support.value.bool_value;
+                    }
+                }
             }
         }
 
