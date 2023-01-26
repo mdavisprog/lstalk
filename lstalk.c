@@ -1514,6 +1514,26 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                     info.capabilities.notebook_document_sync.save = save.value.bool_value;
                 }
             }
+
+            JSONValue completion_provider = json_object_get(&capabilities, "completionProvider");
+            if (completion_provider.type == JSON_VALUE_OBJECT) {
+                JSONValue trigger_characters = json_object_get(&completion_provider, "triggerCharacters");
+                info.capabilities.completion_provider.trigger_characters = parse_string_array(&trigger_characters);
+                info.capabilities.completion_provider.trigger_characters_count = trigger_characters.value.array_value->values.length;
+
+                JSONValue all_commit_characters = json_object_get(&completion_provider, "allCommitCharacters");
+                info.capabilities.completion_provider.all_commit_characters = parse_string_array(&all_commit_characters);
+                info.capabilities.completion_provider.all_commit_characters_count = all_commit_characters.value.array_value->values.length;
+
+                JSONValue resolve_provider = json_object_get(&completion_provider, "resolveProvider");
+                if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
+                    info.capabilities.completion_provider.resolve_provider = resolve_provider.value.bool_value;
+                }
+
+                JSONValue completion_item = json_object_get(&completion_provider, "completionItem");
+                JSONValue label_data_support = json_object_get(&completion_item, "labelDataSupport");
+                info.capabilities.completion_provider.completion_item_label_details_support = label_data_support.value.bool_value;
+            }
         }
 
         JSONValue server_info = json_object_get(&result, "serverInfo");

@@ -2397,6 +2397,65 @@ typedef struct LSTalk_NotebookDocumentSyncOptions {
 } LSTalk_NotebookDocumentSyncOptions;
 
 /**
+ * Completion options.
+ */
+typedef struct LSTalk_CompletionOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+
+    /**
+	 * The additional characters, beyond the defaults provided by the client (typically
+	 * [a-zA-Z]), that should automatically trigger a completion request. For example
+	 * `.` in JavaScript represents the beginning of an object property or method and is
+	 * thus a good candidate for triggering a completion request.
+	 *
+	 * Most tools trigger a completion request automatically without explicitly
+	 * requesting it using a keyboard shortcut (e.g. Ctrl+Space). Typically they
+	 * do so when the user starts to type an identifier. For example if the user
+	 * types `c` in a JavaScript file code complete will automatically pop up
+	 * present `console` besides others as a completion item. Characters that
+	 * make up identifiers don't need to be listed here.
+	 */
+	char** trigger_characters;
+    int trigger_characters_count;
+
+    /**
+	 * The list of all possible characters that commit a completion. This field
+	 * can be used if clients don't support individual commit characters per
+	 * completion item. See client capability
+	 * `completion.completionItem.commitCharactersSupport`.
+	 *
+	 * If a server provides both `allCommitCharacters` and commit characters on
+	 * an individual completion item the ones on the completion item win.
+	 *
+	 * @since 3.2.0
+	 */
+	char** all_commit_characters;
+    int all_commit_characters_count;
+
+    /**
+	 * The server provides support to resolve additional
+	 * information for a completion item.
+	 */
+	int resolve_provider;
+
+    /**
+	 * The server supports the following `CompletionItem` specific
+	 * capabilities.
+	 *
+	 * @since 3.17.0
+	 *
+	 * completionItem:
+     * 
+     * The server has support for completion item label
+     * details (see also `CompletionItemLabelDetails`) when receiving
+     * a completion item in a resolve call.
+     *
+     * @since 3.17.0
+     */
+    int completion_item_label_details_support;
+} LSTalk_CompletionOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2427,6 +2486,11 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.17.0
      */
     LSTalk_NotebookDocumentSyncOptions notebook_document_sync;
+
+    /**
+	 * The server provides completion support.
+	 */
+	LSTalk_CompletionOptions completion_provider;
 } LSTalk_ServerCapabilities;
 
 /**
