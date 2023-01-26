@@ -1638,6 +1638,13 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                     }
                 }
             }
+
+            JSONValue hover_provider = json_object_get(&capabilities, "hoverProvider");
+            if (hover_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.hover_provider.is_supported = hover_provider.value.bool_value;
+            } else if (hover_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.hover_provider.work_done_progress = parse_work_done_progress(&hover_provider);
+            }
         }
 
         JSONValue server_info = json_object_get(&result, "serverInfo");

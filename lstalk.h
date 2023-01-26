@@ -2471,6 +2471,18 @@ typedef struct LSTalk_CompletionOptions {
 } LSTalk_CompletionOptions;
 
 /**
+ * Hover options.
+ */
+typedef struct LSTalk_HoverOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+
+    /**
+     * LSTalk specific value. Determines whether the server provides hover support.
+     */
+    int is_supported;
+} LSTalk_HoverOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2506,6 +2518,11 @@ typedef struct LSTalk_ServerCapabilities {
 	 * The server provides completion support.
 	 */
 	LSTalk_CompletionOptions completion_provider;
+
+    /**
+	 * The server provides hover support.
+	 */
+	LSTalk_HoverOptions hover_provider;
 } LSTalk_ServerCapabilities;
 
 /**
