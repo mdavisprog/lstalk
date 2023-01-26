@@ -2288,6 +2288,17 @@ typedef struct LSTalk_ClientCapabilities {
 } LSTalk_ClientCapabilities;
 
 /**
+ * Static registration options to be returned in the initialize request.
+ */
+typedef struct LSTalk_StaticRegistrationOptions {
+    /**
+	 * The id used to register the request. The id can be used to deregister
+	 * the request again. See also Registration#id.
+	 */
+	char* id;
+} LSTalk_StaticRegistrationOptions;
+
+/**
  * Defines how the host (editor) should sync document changes to the language
  * server.
  */
