@@ -2296,10 +2296,10 @@ typedef struct LSTalk_WorkDoneProgressOptions {
  */
 typedef struct LSTalk_StaticRegistrationOptions {
     /**
-	 * The id used to register the request. The id can be used to deregister
-	 * the request again. See also Registration#id.
-	 */
-	char* id;
+     * The id used to register the request. The id can be used to deregister
+     * the request again. See also Registration#id.
+     */
+    char* id;
 } LSTalk_StaticRegistrationOptions;
 
 /**
@@ -2418,48 +2418,48 @@ typedef struct LSTalk_CompletionOptions {
     LSTalk_WorkDoneProgressOptions work_done_progress;
 
     /**
-	 * The additional characters, beyond the defaults provided by the client (typically
-	 * [a-zA-Z]), that should automatically trigger a completion request. For example
-	 * `.` in JavaScript represents the beginning of an object property or method and is
-	 * thus a good candidate for triggering a completion request.
-	 *
-	 * Most tools trigger a completion request automatically without explicitly
-	 * requesting it using a keyboard shortcut (e.g. Ctrl+Space). Typically they
-	 * do so when the user starts to type an identifier. For example if the user
-	 * types `c` in a JavaScript file code complete will automatically pop up
-	 * present `console` besides others as a completion item. Characters that
-	 * make up identifiers don't need to be listed here.
-	 */
-	char** trigger_characters;
+     * The additional characters, beyond the defaults provided by the client (typically
+     * [a-zA-Z]), that should automatically trigger a completion request. For example
+     * `.` in JavaScript represents the beginning of an object property or method and is
+     * thus a good candidate for triggering a completion request.
+     *
+     * Most tools trigger a completion request automatically without explicitly
+     * requesting it using a keyboard shortcut (e.g. Ctrl+Space). Typically they
+     * do so when the user starts to type an identifier. For example if the user
+     * types `c` in a JavaScript file code complete will automatically pop up
+     * present `console` besides others as a completion item. Characters that
+     * make up identifiers don't need to be listed here.
+     */
+    char** trigger_characters;
     int trigger_characters_count;
 
     /**
-	 * The list of all possible characters that commit a completion. This field
-	 * can be used if clients don't support individual commit characters per
-	 * completion item. See client capability
-	 * `completion.completionItem.commitCharactersSupport`.
-	 *
-	 * If a server provides both `allCommitCharacters` and commit characters on
-	 * an individual completion item the ones on the completion item win.
-	 *
-	 * @since 3.2.0
-	 */
-	char** all_commit_characters;
+     * The list of all possible characters that commit a completion. This field
+     * can be used if clients don't support individual commit characters per
+     * completion item. See client capability
+     * `completion.completionItem.commitCharactersSupport`.
+     *
+     * If a server provides both `allCommitCharacters` and commit characters on
+     * an individual completion item the ones on the completion item win.
+     *
+     * @since 3.2.0
+     */
+    char** all_commit_characters;
     int all_commit_characters_count;
 
     /**
-	 * The server provides support to resolve additional
-	 * information for a completion item.
-	 */
-	int resolve_provider;
+     * The server provides support to resolve additional
+     * information for a completion item.
+     */
+    int resolve_provider;
 
     /**
-	 * The server supports the following `CompletionItem` specific
-	 * capabilities.
-	 *
-	 * @since 3.17.0
-	 *
-	 * completionItem:
+     * The server supports the following `CompletionItem` specific
+     * capabilities.
+     *
+     * @since 3.17.0
+     *
+     * completionItem:
      * 
      * The server has support for completion item label
      * details (see also `CompletionItemLabelDetails`) when receiving
@@ -2489,22 +2489,22 @@ typedef struct LSTalk_SignatureHelpOptions {
     LSTalk_WorkDoneProgressOptions work_done_progress;
 
     /**
-	 * The characters that trigger signature help
-	 * automatically.
-	 */
-	char** trigger_characters;
+     * The characters that trigger signature help
+     * automatically.
+     */
+    char** trigger_characters;
     int trigger_characters_count;
 
     /**
-	 * List of characters that re-trigger signature help.
-	 *
-	 * These trigger characters are only active when signature help is already
-	 * showing. All trigger characters are also counted as re-trigger
-	 * characters.
-	 *
-	 * @since 3.15.0
-	 */
-	char** retrigger_characters;
+     * List of characters that re-trigger signature help.
+     *
+     * These trigger characters are only active when signature help is already
+     * showing. All trigger characters are also counted as re-trigger
+     * characters.
+     *
+     * @since 3.15.0
+     */
+    char** retrigger_characters;
     int retrigger_characters_count;
 } LSTalk_SignatureHelpOptions;
 
@@ -2541,19 +2541,19 @@ typedef struct LSTalk_ServerCapabilities {
     LSTalk_NotebookDocumentSyncOptions notebook_document_sync;
 
     /**
-	 * The server provides completion support.
-	 */
-	LSTalk_CompletionOptions completion_provider;
+     * The server provides completion support.
+     */
+    LSTalk_CompletionOptions completion_provider;
 
     /**
-	 * The server provides hover support.
-	 */
-	LSTalk_HoverOptions hover_provider;
+     * The server provides hover support.
+     */
+    LSTalk_HoverOptions hover_provider;
 
     /**
-	 * The server provides signature help support.
-	 */
-	LSTalk_SignatureHelpOptions signature_help_provider;
+     * The server provides signature help support.
+     */
+    LSTalk_SignatureHelpOptions signature_help_provider;
 } LSTalk_ServerCapabilities;
 
 /**
