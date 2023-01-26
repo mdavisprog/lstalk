@@ -1415,6 +1415,22 @@ static void server_send_request(LSTalk_Context* context, Process* server, Reques
     rpc_send_request(server, request, context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
 }
 
+static char** parse_string_array(JSONValue* value) {
+    if (value == NULL || value->type != JSON_VALUE_ARRAY || value->value.array_value->values.length == 0) {
+        return NULL;
+    }
+
+    char** result = (char**)calloc(value->value.array_value->values.length, sizeof(char*));
+    for (size_t i = 0; i < value->value.array_value->values.length; i++) {
+        JSONValue item = json_array_get(value, i);
+        if (item.type == JSON_VALUE_STRING) {
+            result[i] = string_alloc_copy(item.value.string_value);
+        }
+    }
+
+    return result;
+}
+
 static LSTalk_PositionEncodingKind parse_position_encoding_kind(char* value);
 static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
     LSTalk_ServerInfo info;
@@ -1486,18 +1502,8 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                             }
 
                             JSONValue cells = json_object_get(&item, "cells");
-                            if (cells.type == JSON_VALUE_ARRAY) {
-                                if (cells.value.array_value->values.length > 0) {
-                                    size_t cells_size = sizeof(char*) * cells.value.array_value->values.length;
-                                    selectors[i].cells = (char**)malloc(cells_size);
-                                    for (int cell_index = 0; cell_index < cells.value.array_value->values.length; cell_index++) {
-                                        JSONValue cell = json_array_get(&cells, cell_index);
-                                        if (cell.type == JSON_VALUE_STRING) {
-                                            selectors[i].cells[cell_index] = string_alloc_copy(cell.value.string_value);
-                                        }
-                                    }
-                                }
-                            }
+                            selectors[i].cells = parse_string_array(&cells);
+                            selectors[i].cells_count = cells.value.array_value->values.length;
                         }
                         info.capabilities.notebook_document_sync.notebook_selector = selectors;
                     }
