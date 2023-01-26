@@ -1411,6 +1411,14 @@ typedef struct LSTalk_Context {
     int debug_flags;
 } LSTalk_Context;
 
+static void server_free_static_registration(LSTalk_StaticRegistrationOptions* static_registration) {
+    if (static_registration == NULL || static_registration->id == NULL) {
+        return;
+    }
+
+    free(static_registration->id);
+}
+
 static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
     for (int i = 0; i < capabilities->notebook_document_sync.notebook_selector_count; i++) {
         LSTalk_NotebookSelector* selector = &capabilities->notebook_document_sync.notebook_selector[i];
@@ -1429,6 +1437,8 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
 
         string_free_array(selector->cells, selector->cells_count);
     }
+
+    server_free_static_registration(&capabilities->notebook_document_sync.static_registration);
 
     if (capabilities->notebook_document_sync.notebook_selector != NULL) {
         free(capabilities->notebook_document_sync.notebook_selector);
@@ -1482,6 +1492,23 @@ static char** parse_string_array(JSONValue* value) {
     return result;
 }
 
+static LSTalk_StaticRegistrationOptions parse_static_registration(JSONValue* value) {
+    LSTalk_StaticRegistrationOptions result;
+    result.id = NULL;
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue id = json_object_get(value, "id");
+    if (id.type != JSON_VALUE_STRING) {
+        return result;
+    }
+
+    result.id = string_alloc_copy(id.value.string_value);
+    return result;
+}
+
 static LSTalk_PositionEncodingKind parse_position_encoding_kind(char* value);
 static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
     LSTalk_ServerInfo info;
@@ -1519,10 +1546,7 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
 
             JSONValue notebook_document_sync = json_object_get(&capabilities, "notebookDocumentSync");
             if (notebook_document_sync.type == JSON_VALUE_OBJECT) {
-                JSONValue id = json_object_get(&notebook_document_sync, "id");
-                if (id.type == JSON_VALUE_STRING) {
-                    info.capabilities.notebook_document_sync.static_registration.id = string_alloc_copy(id.value.string_value);
-                }
+                info.capabilities.notebook_document_sync.static_registration = parse_static_registration(&notebook_document_sync);
 
                 JSONValue notebook_selector = json_object_get(&notebook_document_sync, "notebookSelector");
                 if (notebook_selector.type == JSON_VALUE_ARRAY) {
