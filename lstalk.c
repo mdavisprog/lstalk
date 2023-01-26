@@ -1446,6 +1446,8 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
 
     string_free_array(capabilities->completion_provider.trigger_characters, capabilities->completion_provider.trigger_characters_count);
     string_free_array(capabilities->completion_provider.all_commit_characters, capabilities->completion_provider.all_commit_characters_count);
+    string_free_array(capabilities->signature_help_provider.trigger_characters, capabilities->signature_help_provider.trigger_characters_count);
+    string_free_array(capabilities->signature_help_provider.retrigger_characters, capabilities->signature_help_provider.retrigger_characters_count);
 }
 
 static void server_close(Server* server) {
