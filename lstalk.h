@@ -2287,6 +2287,10 @@ typedef struct LSTalk_ClientCapabilities {
     LSTalk_General general;
 } LSTalk_ClientCapabilities;
 
+typedef struct LSTalk_WorkDoneProgressOptions {
+    int work_done_progress;
+} LSTalk_WorkDoneProgressOptions;
+
 /**
  * Static registration options to be returned in the initialize request.
  */
