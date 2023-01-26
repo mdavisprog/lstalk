@@ -2483,6 +2483,32 @@ typedef struct LSTalk_HoverOptions {
 } LSTalk_HoverOptions;
 
 /**
+ * The server provides signature help support.
+ */
+typedef struct LSTalk_SignatureHelpOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+
+    /**
+	 * The characters that trigger signature help
+	 * automatically.
+	 */
+	char** trigger_characters;
+    int trigger_characters_count;
+
+    /**
+	 * List of characters that re-trigger signature help.
+	 *
+	 * These trigger characters are only active when signature help is already
+	 * showing. All trigger characters are also counted as re-trigger
+	 * characters.
+	 *
+	 * @since 3.15.0
+	 */
+	char** retrigger_characters;
+    int retrigger_characters_count;
+} LSTalk_SignatureHelpOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2523,6 +2549,11 @@ typedef struct LSTalk_ServerCapabilities {
 	 * The server provides hover support.
 	 */
 	LSTalk_HoverOptions hover_provider;
+
+    /**
+	 * The server provides signature help support.
+	 */
+	LSTalk_SignatureHelpOptions signature_help_provider;
 } LSTalk_ServerCapabilities;
 
 /**
