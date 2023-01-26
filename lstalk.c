@@ -1476,19 +1476,25 @@ static void server_send_request(LSTalk_Context* context, Process* server, Reques
     rpc_send_request(server, request, context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
 }
 
-static char** parse_string_array(JSONValue* value) {
-    if (value == NULL || value->type != JSON_VALUE_ARRAY || value->value.array_value->values.length == 0) {
+static char** parse_string_array(JSONValue* value, char* key, int* count) {
+    if (value == NULL || value->type != JSON_VALUE_OBJECT || count == NULL) {
         return NULL;
     }
 
-    char** result = (char**)calloc(value->value.array_value->values.length, sizeof(char*));
-    for (size_t i = 0; i < value->value.array_value->values.length; i++) {
+    JSONValue array = json_object_get(value, key);
+    if (array.type != JSON_VALUE_ARRAY) {
+        return NULL;
+    }
+
+    char** result = (char**)calloc(array.value.array_value->values.length, sizeof(char*));
+    for (size_t i = 0; i < array.value.array_value->values.length; i++) {
         JSONValue item = json_array_get(value, i);
         if (item.type == JSON_VALUE_STRING) {
             result[i] = string_alloc_copy(item.value.string_value);
         }
     }
 
+    *count = array.value.array_value->values.length;
     return result;
 }
 
@@ -1593,11 +1599,7 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                                 }
                             }
 
-                            JSONValue cells = json_object_get(&item, "cells");
-                            if (cells.type == JSON_VALUE_ARRAY) {
-                                selectors[i].cells = parse_string_array(&cells);
-                                selectors[i].cells_count = cells.value.array_value->values.length;
-                            }
+                            selectors[i].cells = parse_string_array(&item, "cells", &selectors[i].cells_count);
                         }
                         info.capabilities.notebook_document_sync.notebook_selector = selectors;
                     }
@@ -1613,17 +1615,11 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
             if (completion_provider.type == JSON_VALUE_OBJECT) {
                 info.capabilities.completion_provider.work_done_progress = parse_work_done_progress(&completion_provider);
 
-                JSONValue trigger_characters = json_object_get(&completion_provider, "triggerCharacters");
-                if (trigger_characters.type == JSON_VALUE_ARRAY) {
-                    info.capabilities.completion_provider.trigger_characters = parse_string_array(&trigger_characters);
-                    info.capabilities.completion_provider.trigger_characters_count = trigger_characters.value.array_value->values.length;
-                }
+                info.capabilities.completion_provider.trigger_characters = 
+                    parse_string_array(&completion_provider, "triggerCharacters", &info.capabilities.completion_provider.trigger_characters_count);
 
-                JSONValue all_commit_characters = json_object_get(&completion_provider, "allCommitCharacters");
-                if (all_commit_characters.type == JSON_VALUE_ARRAY) {
-                    info.capabilities.completion_provider.all_commit_characters = parse_string_array(&all_commit_characters);
-                    info.capabilities.completion_provider.all_commit_characters_count = all_commit_characters.value.array_value->values.length;
-                }
+                info.capabilities.completion_provider.all_commit_characters =
+                    parse_string_array(&completion_provider, "allCommitCharacters", &info.capabilities.completion_provider.all_commit_characters_count);
 
                 JSONValue resolve_provider = json_object_get(&completion_provider, "resolveProvider");
                 if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
