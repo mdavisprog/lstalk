@@ -187,6 +187,20 @@ static char* string_alloc_copy(const char* source) {
     return result;
 }
 
+static void string_free_array(char** array, size_t count) {
+    if (array == NULL) {
+        return;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        if (array[i] != NULL) {
+            free(array[i]);
+        }
+    }
+
+    free(array);
+}
+
 //
 // Process Management
 //
@@ -1397,6 +1411,33 @@ typedef struct LSTalk_Context {
     int debug_flags;
 } LSTalk_Context;
 
+static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
+    for (int i = 0; i < capabilities->notebook_document_sync.notebook_selector_count; i++) {
+        LSTalk_NotebookSelector* selector = &capabilities->notebook_document_sync.notebook_selector[i];
+
+        if (selector->notebook.notebook_type != NULL) {
+            free(selector->notebook.notebook_type);
+        }
+
+        if (selector->notebook.scheme != NULL) {
+            free(selector->notebook.scheme);
+        }
+
+        if (selector->notebook.pattern != NULL) {
+            free(selector->notebook.pattern);
+        }
+
+        string_free_array(selector->cells, selector->cells_count);
+    }
+
+    if (capabilities->notebook_document_sync.notebook_selector != NULL) {
+        free(capabilities->notebook_document_sync.notebook_selector);
+    }
+
+    string_free_array(capabilities->completion_provider.trigger_characters, capabilities->completion_provider.trigger_characters_count);
+    string_free_array(capabilities->completion_provider.all_commit_characters, capabilities->completion_provider.all_commit_characters_count);
+}
+
 static void server_close(Server* server) {
     if (server == NULL) {
         return;
@@ -1409,6 +1450,16 @@ static void server_close(Server* server) {
         rpc_close_request(request);
     }
     vector_destroy(&server->requests);
+
+    if (server->info.name != NULL) {
+        free(server->info.name);
+    }
+
+    if (server->info.version != NULL) {
+        free(server->info.version);
+    }
+
+    server_free_capabilities(&server->info.capabilities);
 }
 
 static void server_send_request(LSTalk_Context* context, Process* server, Request* request) {
