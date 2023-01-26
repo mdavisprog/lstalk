@@ -1492,6 +1492,23 @@ static char** parse_string_array(JSONValue* value) {
     return result;
 }
 
+static LSTalk_WorkDoneProgressOptions parse_work_done_progress(JSONValue* value) {
+    LSTalk_WorkDoneProgressOptions result;
+    result.work_done_progress = 0;
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue work_done_progress = json_object_get(value, "workDoneProgress");
+    if (work_done_progress.type != JSON_VALUE_BOOLEAN) {
+        return result;
+    }
+
+    result.work_done_progress = work_done_progress.value.bool_value;
+    return result;
+}
+
 static LSTalk_StaticRegistrationOptions parse_static_registration(JSONValue* value) {
     LSTalk_StaticRegistrationOptions result;
     result.id = NULL;
@@ -1594,6 +1611,8 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
 
             JSONValue completion_provider = json_object_get(&capabilities, "completionProvider");
             if (completion_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.completion_provider.work_done_progress = parse_work_done_progress(&completion_provider);
+
                 JSONValue trigger_characters = json_object_get(&completion_provider, "triggerCharacters");
                 if (trigger_characters.type == JSON_VALUE_ARRAY) {
                     info.capabilities.completion_provider.trigger_characters = parse_string_array(&trigger_characters);
