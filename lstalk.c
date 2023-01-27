@@ -1504,6 +1504,9 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
 
     server_free_static_registration(&capabilities->selection_range_provider.static_registration);
     server_free_text_document_registration(&capabilities->selection_range_provider.text_document_registration);
+
+    server_free_static_registration(&capabilities->linked_editing_range_provider.static_registration);
+    server_free_text_document_registration(&capabilities->linked_editing_range_provider.text_document_registration);
 }
 
 static void server_close(Server* server) {
@@ -1926,6 +1929,16 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 info.capabilities.selection_range_provider.work_done_progress = parse_work_done_progress(&selection_range_provider);
                 info.capabilities.selection_range_provider.text_document_registration = parse_text_document_registration(&selection_range_provider);
                 info.capabilities.selection_range_provider.static_registration = parse_static_registration(&selection_range_provider);
+            }
+
+            JSONValue linked_editing_range_provider = json_object_get(&capabilities, "linkedEditingRangeProvider");
+            if (linked_editing_range_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.linked_editing_range_provider.is_supported = 1;
+            } else if (linked_editing_range_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.linked_editing_range_provider.is_supported = 1;
+                info.capabilities.linked_editing_range_provider.work_done_progress = parse_work_done_progress(&linked_editing_range_provider);
+                info.capabilities.linked_editing_range_provider.text_document_registration = parse_text_document_registration(&linked_editing_range_provider);
+                info.capabilities.linked_editing_range_provider.static_registration = parse_static_registration(&linked_editing_range_provider);
             }
         }
 

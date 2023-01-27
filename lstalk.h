@@ -2775,6 +2775,18 @@ typedef struct LSTalk_SelectionRangeRegistrationOptions {
 } LSTalk_SelectionRangeRegistrationOptions;
 
 /**
+ * The server provides linked editing range support.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_LinkedEditingRangeRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+    int is_supported;
+} LSTalk_LinkedEditingRangeRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2925,6 +2937,13 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.15.0
      */
     LSTalk_SelectionRangeRegistrationOptions selection_range_provider;
+
+    /**
+     * The server provides linked editing range support.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_LinkedEditingRangeRegistrationOptions linked_editing_range_provider;
 } LSTalk_ServerCapabilities;
 
 /**
