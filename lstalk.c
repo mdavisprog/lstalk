@@ -1480,6 +1480,9 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
 
     server_free_static_registration(&capabilities->type_definition_provider.static_registration);
     server_free_text_document_registration(&capabilities->type_definition_provider.text_document_registration);
+
+    server_free_static_registration(&capabilities->implementation_provider.static_registration);
+    server_free_text_document_registration(&capabilities->implementation_provider.text_document_registration);
 }
 
 static void server_close(Server* server) {
@@ -1749,6 +1752,16 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 info.capabilities.type_definition_provider.work_done_progress = parse_work_done_progress(&type_definition_provider);
                 info.capabilities.type_definition_provider.text_document_registration = parse_text_document_registration(&type_definition_provider);
                 info.capabilities.type_definition_provider.static_registration = parse_static_registration(&type_definition_provider);
+            }
+
+            JSONValue implementation_provider = json_object_get(&capabilities, "implementationProvider");
+            if (implementation_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.implementation_provider.is_supported = 1;
+            } else if (implementation_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.implementation_provider.is_supported = 1;
+                info.capabilities.implementation_provider.work_done_progress = parse_work_done_progress(&implementation_provider);
+                info.capabilities.implementation_provider.text_document_registration = parse_text_document_registration(&implementation_provider);
+                info.capabilities.implementation_provider.static_registration = parse_static_registration(&implementation_provider);
             }
         }
 
