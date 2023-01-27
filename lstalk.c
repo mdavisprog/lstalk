@@ -1510,6 +1510,9 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
 
     server_free_static_registration(&capabilities->call_hierarchy_provider.static_registration);
     server_free_text_document_registration(&capabilities->call_hierarchy_provider.text_document_registration);
+
+    server_free_static_registration(&capabilities->semantic_tokens_provider.static_registration);
+    server_free_text_document_registration(&capabilities->semantic_tokens_provider.text_document_registration);
 }
 
 static void server_close(Server* server) {
@@ -1952,6 +1955,13 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 info.capabilities.call_hierarchy_provider.work_done_progress = parse_work_done_progress(&call_hierarchy_provider);
                 info.capabilities.call_hierarchy_provider.text_document_registration = parse_text_document_registration(&call_hierarchy_provider);
                 info.capabilities.call_hierarchy_provider.static_registration = parse_static_registration(&call_hierarchy_provider);
+            }
+
+            JSONValue semantic_tokens_provider = json_object_get(&capabilities, "semanticTokensProvider");
+            if (semantic_tokens_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.semantic_tokens_provider.work_done_progress = parse_work_done_progress(&semantic_tokens_provider);
+                info.capabilities.semantic_tokens_provider.text_document_registration = parse_text_document_registration(&semantic_tokens_provider);
+                info.capabilities.semantic_tokens_provider.static_registration = parse_static_registration(&semantic_tokens_provider);
             }
         }
 

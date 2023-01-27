@@ -2799,6 +2799,17 @@ typedef struct LSTalk_CallHierarchyRegistrationOptions {
 } LSTalk_CallHierarchyRegistrationOptions;
 
 /**
+ * The server provides semantic tokens support.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_SemanticTokensRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+} LSTalk_SemanticTokensRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2963,6 +2974,13 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.16.0
      */
     LSTalk_CallHierarchyRegistrationOptions call_hierarchy_provider;
+
+    /**
+     * The server provides semantic tokens support.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_SemanticTokensRegistrationOptions semantic_tokens_provider;
 } LSTalk_ServerCapabilities;
 
 /**
