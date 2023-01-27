@@ -2605,6 +2605,14 @@ typedef struct LSTalk_ReferenceOptions {
 } LSTalk_ReferenceOptions;
 
 /**
+ * The server provides document highlight support.
+ */
+typedef struct LSTalk_DocumentHighlightOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+} LSTalk_DocumentHighlightOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2680,6 +2688,11 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides find references support.
      */
     LSTalk_ReferenceOptions references_provider;
+
+    /**
+     * The server provides document highlight support.
+     */
+    LSTalk_DocumentHighlightOptions document_highlight_provider;
 } LSTalk_ServerCapabilities;
 
 /**
