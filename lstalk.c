@@ -1515,6 +1515,9 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
     server_free_text_document_registration(&capabilities->semantic_tokens_provider.text_document_registration);
 
     server_free_text_document_registration(&capabilities->moniker_provider.text_document_registration);
+
+    server_free_static_registration(&capabilities->type_hierarchy_provider.static_registration);
+    server_free_text_document_registration(&capabilities->type_hierarchy_provider.text_document_registration);
 }
 
 static void server_close(Server* server) {
@@ -1973,6 +1976,16 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 info.capabilities.moniker_provider.is_supported = 1;
                 info.capabilities.moniker_provider.work_done_progress = parse_work_done_progress(&moniker_provider);
                 info.capabilities.moniker_provider.text_document_registration = parse_text_document_registration(&moniker_provider);
+            }
+
+            JSONValue type_hierarchy_provider = json_object_get(&capabilities, "typeHierarchyProvider");
+            if (type_hierarchy_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.type_hierarchy_provider.is_supported = 1;
+            } else if (type_hierarchy_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.type_hierarchy_provider.is_supported = 1;
+                info.capabilities.type_hierarchy_provider.work_done_progress = parse_work_done_progress(&type_hierarchy_provider);
+                info.capabilities.type_definition_provider.text_document_registration = parse_text_document_registration(&type_hierarchy_provider);
+                info.capabilities.type_definition_provider.static_registration = parse_static_registration(&type_hierarchy_provider);
             }
         }
 

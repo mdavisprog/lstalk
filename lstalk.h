@@ -2821,6 +2821,18 @@ typedef struct LSTalk_MonikerRegistrationOptions {
 } LSTalk_MonikerRegistrationOptions;
 
 /**
+ * The server provides type hierarchy support.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_TypeHierarchyRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+    int is_supported;
+} LSTalk_TypeHierarchyRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2999,6 +3011,13 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.16.0
      */
     LSTalk_MonikerRegistrationOptions moniker_provider;
+
+    /**
+     * The server provides type hierarchy support.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_TypeHierarchyRegistrationOptions type_hierarchy_provider;
 } LSTalk_ServerCapabilities;
 
 /**
