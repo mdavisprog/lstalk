@@ -2691,6 +2691,14 @@ typedef struct LSTalk_DocumentColorRegistrationOptions {
 } LSTalk_DocumentColorRegistrationOptions;
 
 /**
+ * The server provides document formatting.
+ */
+typedef struct LSTalk_DocumentFormattingOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+} LSTalk_DocumentFormattingOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2800,6 +2808,11 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.6.0
      */
     LSTalk_DocumentColorRegistrationOptions color_provider;
+
+    /**
+     * The server provides document formatting.
+     */
+    LSTalk_DocumentFormattingOptions document_formatting_provider;
 } LSTalk_ServerCapabilities;
 
 /**

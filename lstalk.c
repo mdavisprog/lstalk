@@ -1846,6 +1846,14 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 info.capabilities.color_provider.text_document_registration = parse_text_document_registration(&color_provider);
                 info.capabilities.color_provider.static_registration = parse_static_registration(&color_provider);
             }
+
+            JSONValue document_formatting_provider = json_object_get(&capabilities, "documentFormattingProvider");
+            if (document_formatting_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.document_formatting_provider.is_supported = 1;
+            } else if (document_formatting_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.document_formatting_provider.is_supported = 1;
+                info.capabilities.document_formatting_provider.work_done_progress = parse_work_done_progress(&document_formatting_provider);
+            }
         }
 
         JSONValue server_info = json_object_get(&result, "serverInfo");
