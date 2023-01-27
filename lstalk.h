@@ -2573,6 +2573,18 @@ typedef struct LSTalk_DefinitionOptions {
 } LSTalk_DefinitionOptions;
 
 /**
+ * The server provides goto type definition support.
+ *
+ * @since 3.6.0
+ */
+typedef struct LSTalk_TypeDefinitionRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+    int is_supported;
+} LSTalk_TypeDefinitionRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2629,6 +2641,13 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides goto definition support.
      */
     LSTalk_DefinitionOptions definition_provider;
+
+    /**
+     * The server provides goto type definition support.
+     *
+     * @since 3.6.0
+     */
+    LSTalk_TypeDefinitionRegistrationOptions type_definition_provider;
 } LSTalk_ServerCapabilities;
 
 /**

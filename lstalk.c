@@ -1419,6 +1419,32 @@ static void server_free_static_registration(LSTalk_StaticRegistrationOptions* st
     free(static_registration->id);
 }
 
+static void server_free_text_document_registration(LSTalk_TextDocumentRegistrationOptions* text_document_registration) {
+    if (text_document_registration == NULL) {
+        return;
+    }
+
+    if (text_document_registration->document_selector != NULL) {
+        for (int i = 0; i < text_document_registration->document_selector_count; i++) {
+            LSTalk_DocumentFilter* filter = &text_document_registration->document_selector[i];
+
+            if (filter->language != NULL) {
+                free(filter->language);
+            }
+
+            if (filter->scheme != NULL) {
+                free(filter->scheme);
+            }
+
+            if (filter->pattern != NULL) {
+                free(filter->pattern);
+            }
+        }
+
+        free(text_document_registration->document_selector);
+    }
+}
+
 static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
     for (int i = 0; i < capabilities->notebook_document_sync.notebook_selector_count; i++) {
         LSTalk_NotebookSelector* selector = &capabilities->notebook_document_sync.notebook_selector[i];
@@ -1450,25 +1476,10 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
     string_free_array(capabilities->signature_help_provider.retrigger_characters, capabilities->signature_help_provider.retrigger_characters_count);
 
     server_free_static_registration(&capabilities->declaration_provider.static_registration);
-    if (capabilities->declaration_provider.text_document_registration.document_selector != NULL) {
-        for (int i = 0; i < capabilities->declaration_provider.text_document_registration.document_selector_count; i++) {
-            LSTalk_DocumentFilter* filter = &capabilities->declaration_provider.text_document_registration.document_selector[i];
+    server_free_text_document_registration(&capabilities->declaration_provider.text_document_registration);
 
-            if (filter->language != NULL) {
-                free(filter->language);
-            }
-
-            if (filter->scheme != NULL) {
-                free(filter->scheme);
-            }
-
-            if (filter->pattern != NULL) {
-                free(filter->pattern);
-            }
-        }
-
-        free(capabilities->declaration_provider.text_document_registration.document_selector);
-    }
+    server_free_static_registration(&capabilities->type_definition_provider.static_registration);
+    server_free_text_document_registration(&capabilities->type_definition_provider.text_document_registration);
 }
 
 static void server_close(Server* server) {
@@ -1728,6 +1739,16 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
             } else if (definition_provider.type == JSON_VALUE_OBJECT) {
                 info.capabilities.definition_provider.is_supported = 1;
                 info.capabilities.definition_provider.work_done_progress = parse_work_done_progress(&definition_provider);
+            }
+
+            JSONValue type_definition_provider = json_object_get(&capabilities, "typeDefinitionProvider");
+            if (type_definition_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.type_definition_provider.is_supported = 1;
+            } else if (type_definition_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.type_definition_provider.is_supported = 1;
+                info.capabilities.type_definition_provider.work_done_progress = parse_work_done_progress(&type_definition_provider);
+                info.capabilities.type_definition_provider.text_document_registration = parse_text_document_registration(&type_definition_provider);
+                info.capabilities.type_definition_provider.static_registration = parse_static_registration(&type_definition_provider);
             }
         }
 
