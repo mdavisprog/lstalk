@@ -2707,6 +2707,22 @@ typedef struct LSTalk_DocumentRangeFormattingOptions {
 } LSTalk_DocumentRangeFormattingOptions;
 
 /**
+ * The server provides document formatting on typing.
+ */
+typedef struct LSTalk_DocumentOnTypeFormattingOptions {
+    /**
+     * A character on which formatting should be triggered, like `{`.
+     */
+    char* first_trigger_character;
+
+    /**
+     * More trigger characters.
+     */
+    char** more_trigger_character;
+    int more_trigger_character_count;
+} LSTalk_DocumentOnTypeFormattingOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2826,6 +2842,11 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides document range formatting.
      */
     LSTalk_DocumentRangeFormattingOptions document_range_rormatting_provider;
+
+    /**
+     * The server provides document formatting on typing.
+     */
+    LSTalk_DocumentOnTypeFormattingOptions document_on_type_formatting_provider;
 } LSTalk_ServerCapabilities;
 
 /**

@@ -1490,6 +1490,12 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
 
     server_free_static_registration(&capabilities->color_provider.static_registration);
     server_free_text_document_registration(&capabilities->color_provider.text_document_registration);
+
+    if (capabilities->document_on_type_formatting_provider.first_trigger_character != NULL) {
+        free(capabilities->document_on_type_formatting_provider.first_trigger_character);
+    }
+
+    string_free_array(capabilities->document_on_type_formatting_provider.more_trigger_character, capabilities->document_on_type_formatting_provider.more_trigger_character_count);
 }
 
 static void server_close(Server* server) {
@@ -1861,6 +1867,17 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
             } else if (document_range_formatting_provider.type == JSON_VALUE_OBJECT) {
                 info.capabilities.document_range_rormatting_provider.is_supported = 1;
                 info.capabilities.document_range_rormatting_provider.work_done_progress = parse_work_done_progress(&document_range_formatting_provider);
+            }
+
+            JSONValue document_on_type_formatting_provider = json_object_get(&capabilities, "documentOnTypeFormattingProvider");
+            if (document_on_type_formatting_provider.type == JSON_VALUE_OBJECT) {
+                JSONValue first_trigger_character = json_object_get(&document_on_type_formatting_provider, "firstTriggerCharacter");
+                if (first_trigger_character.type == JSON_VALUE_STRING) {
+                    info.capabilities.document_on_type_formatting_provider.first_trigger_character = string_alloc_copy(first_trigger_character.value.string_value);
+                }
+
+                info.capabilities.document_on_type_formatting_provider.more_trigger_character =
+                    parse_string_array(&document_on_type_formatting_provider, "moreTriggerCharacters", &info.capabilities.document_on_type_formatting_provider.more_trigger_character_count);
             }
         }
 
