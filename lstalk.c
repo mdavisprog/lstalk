@@ -1496,6 +1496,9 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
     }
 
     string_free_array(capabilities->document_on_type_formatting_provider.more_trigger_character, capabilities->document_on_type_formatting_provider.more_trigger_character_count);
+
+    server_free_static_registration(&capabilities->folding_range_provider.static_registration);
+    server_free_text_document_registration(&capabilities->folding_range_provider.text_document_registration);
 }
 
 static void server_close(Server* server) {
@@ -1891,6 +1894,16 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 if (prepare_provider.type == JSON_VALUE_BOOLEAN) {
                     info.capabilities.rename_provider.prepare_provider = prepare_provider.value.bool_value;
                 }
+            }
+
+            JSONValue folding_range_provider = json_object_get(&capabilities, "foldingRangeProvider");
+            if (folding_range_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.folding_range_provider.is_supported = 1;
+            } else if (folding_range_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.folding_range_provider.is_supported = 1;
+                info.capabilities.folding_range_provider.work_done_progress = parse_work_done_progress(&folding_range_provider);
+                info.capabilities.folding_range_provider.text_document_registration = parse_text_document_registration(&folding_range_provider);
+                info.capabilities.folding_range_provider.static_registration = parse_static_registration(&folding_range_provider);
             }
         }
 

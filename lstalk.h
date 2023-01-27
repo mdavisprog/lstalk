@@ -2738,6 +2738,18 @@ typedef struct LSTalk_RenameOptions {
 } LSTalk_RenameOptions;
 
 /**
+ * The server provides folding provider support.
+ *
+ * @since 3.10.0
+ */
+typedef struct LSTalk_FoldingRangeRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+    int is_supported;
+} LSTalk_FoldingRangeRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2869,6 +2881,13 @@ typedef struct LSTalk_ServerCapabilities {
      * `prepareSupport` in its initial `initialize` request.
      */
     LSTalk_RenameOptions rename_provider;
+
+    /**
+     * The server provides folding provider support.
+     *
+     * @since 3.10.0
+     */
+    LSTalk_FoldingRangeRegistrationOptions folding_range_provider;
 } LSTalk_ServerCapabilities;
 
 /**
