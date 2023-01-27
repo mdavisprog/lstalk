@@ -2810,6 +2810,17 @@ typedef struct LSTalk_SemanticTokensRegistrationOptions {
 } LSTalk_SemanticTokensRegistrationOptions;
 
 /**
+ * Whether server provides moniker support.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_MonikerRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    int is_supported;
+} LSTalk_MonikerRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2981,6 +2992,13 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.16.0
      */
     LSTalk_SemanticTokensRegistrationOptions semantic_tokens_provider;
+
+    /**
+     * Whether server provides moniker support.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_MonikerRegistrationOptions moniker_provider;
 } LSTalk_ServerCapabilities;
 
 /**
