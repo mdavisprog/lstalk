@@ -2667,6 +2667,18 @@ typedef struct LSTalk_CodeLensOptions {
 } LSTalk_CodeLensOptions;
 
 /**
+ * The server provides document link support.
+ */
+typedef struct LSTalk_DocumentLinkOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+
+    /**
+     * Document links have a resolve provider as well.
+     */
+    int resolve_provider;
+} LSTalk_DocumentLinkOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2764,6 +2776,11 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides code lens.
      */
     LSTalk_CodeLensOptions code_lens_provider;
+
+    /**
+     * The server provides document link support.
+     */
+    LSTalk_DocumentLinkOptions document_link_provider;
 } LSTalk_ServerCapabilities;
 
 /**
