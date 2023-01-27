@@ -2723,6 +2723,21 @@ typedef struct LSTalk_DocumentOnTypeFormattingOptions {
 } LSTalk_DocumentOnTypeFormattingOptions;
 
 /**
+ * The server provides rename support. RenameOptions may only be
+ * specified if the client states that it supports
+ * `prepareSupport` in its initial `initialize` request.
+ */
+typedef struct LSTalk_RenameOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+
+    /**
+     * Renames should be checked and tested before being executed.
+     */
+    int prepare_provider;
+} LSTalk_RenameOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2847,6 +2862,13 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides document formatting on typing.
      */
     LSTalk_DocumentOnTypeFormattingOptions document_on_type_formatting_provider;
+
+    /**
+     * The server provides rename support. RenameOptions may only be
+     * specified if the client states that it supports
+     * `prepareSupport` in its initial `initialize` request.
+     */
+    LSTalk_RenameOptions rename_provider;
 } LSTalk_ServerCapabilities;
 
 /**
