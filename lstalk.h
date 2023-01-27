@@ -2699,6 +2699,14 @@ typedef struct LSTalk_DocumentFormattingOptions {
 } LSTalk_DocumentFormattingOptions;
 
 /**
+ * The server provides document range formatting.
+ */
+typedef struct LSTalk_DocumentRangeFormattingOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+} LSTalk_DocumentRangeFormattingOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2813,6 +2821,11 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides document formatting.
      */
     LSTalk_DocumentFormattingOptions document_formatting_provider;
+
+    /**
+     * The server provides document range formatting.
+     */
+    LSTalk_DocumentRangeFormattingOptions document_range_rormatting_provider;
 } LSTalk_ServerCapabilities;
 
 /**
