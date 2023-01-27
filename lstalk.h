@@ -2655,6 +2655,18 @@ typedef struct LSTalk_CodeActionOptions {
 } LSTalk_CodeActionOptions;
 
 /**
+ * The server provides code lens.
+ */
+typedef struct LSTalk_CodeLensOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+
+    /**
+     * Code lens has a resolve provider as well.
+     */
+    int resolve_provider;
+} LSTalk_CodeLensOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2747,6 +2759,11 @@ typedef struct LSTalk_ServerCapabilities {
      * property `textDocument.codeAction.codeActionLiteralSupport`.
      */
     LSTalk_CodeActionOptions code_action_provider;
+
+    /**
+     * The server provides code lens.
+     */
+    LSTalk_CodeLensOptions code_lens_provider;
 } LSTalk_ServerCapabilities;
 
 /**

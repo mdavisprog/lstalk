@@ -1813,6 +1813,16 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                     info.capabilities.code_action_provider.resolve_provider = resolve_provider.value.bool_value;
                 }
             }
+
+            JSONValue code_lens_provider = json_object_get(&capabilities, "codeLensProvider");
+            if (code_lens_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.code_lens_provider.work_done_progress = parse_work_done_progress(&code_lens_provider);
+
+                JSONValue resolve_provider = json_object_get(&code_lens_provider, "resolveProvider");
+                if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
+                    info.capabilities.code_lens_provider.resolve_provider = resolve_provider.value.bool_value;
+                }
+            }
         }
 
         JSONValue server_info = json_object_get(&result, "serverInfo");
