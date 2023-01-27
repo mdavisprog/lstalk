@@ -2597,6 +2597,14 @@ typedef struct LSTalk_ImplementationRegistrationOptions {
 } LSTalk_ImplementationRegistrationOptions;
 
 /**
+ * The server provides find references support.
+ */
+typedef struct LSTalk_ReferenceOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+} LSTalk_ReferenceOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2667,6 +2675,11 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.6.0
      */
     LSTalk_ImplementationRegistrationOptions implementation_provider;
+
+    /**
+     * The server provides find references support.
+     */
+    LSTalk_ReferenceOptions references_provider;
 } LSTalk_ServerCapabilities;
 
 /**

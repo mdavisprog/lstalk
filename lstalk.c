@@ -1763,6 +1763,14 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 info.capabilities.implementation_provider.text_document_registration = parse_text_document_registration(&implementation_provider);
                 info.capabilities.implementation_provider.static_registration = parse_static_registration(&implementation_provider);
             }
+
+            JSONValue references_provider = json_object_get(&capabilities, "referencesProvider");
+            if (references_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.references_provider.is_supported = 1;
+            } else if (references_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.references_provider.is_supported = 1;
+                info.capabilities.references_provider.work_done_progress = parse_work_done_progress(&references_provider);
+            }
         }
 
         JSONValue server_info = json_object_get(&result, "serverInfo");
