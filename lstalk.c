@@ -1612,6 +1612,7 @@ static LSTalk_TextDocumentRegistrationOptions parse_text_document_registration(J
 }
 
 static LSTalk_PositionEncodingKind parse_position_encoding_kind(char* value);
+static int parse_code_action_kind(JSONValue* value);
 static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
     LSTalk_ServerInfo info;
     memset(&info, 0, sizeof(info));
@@ -1794,6 +1795,22 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 JSONValue label = json_object_get(&document_symbol_provider, "label");
                 if (label.type == JSON_VALUE_STRING) {
                     info.capabilities.document_symbol_provider.label = string_alloc_copy(label.value.string_value);
+                }
+            }
+
+            JSONValue code_action_provider = json_object_get(&capabilities, "codeActionProvider");
+            if (code_action_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.code_action_provider.is_supported = 1;
+            } else if (code_action_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.code_action_provider.is_supported = 1;
+                info.capabilities.code_action_provider.work_done_progress = parse_work_done_progress(&code_action_provider);
+
+                JSONValue code_action_kinds = json_object_get(&code_action_provider, "codeActionKinds");
+                info.capabilities.code_action_provider.code_action_kinds = parse_code_action_kind(&code_action_kinds);
+
+                JSONValue resolve_provider = json_object_get(&code_action_provider, "resolveProvider");
+                if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
+                    info.capabilities.code_action_provider.resolve_provider = resolve_provider.value.bool_value;
                 }
             }
         }
@@ -2047,6 +2064,41 @@ static JSONValue code_action_kind_array(int value) {
     if (value & LSTALK_CODEACTIONKIND_SOURCE) { json_array_push(&result, json_make_string_const("source")); }
     if (value & LSTALK_CODEACTIONKIND_SOURCEORGANIZEIMPORTS) { json_array_push(&result, json_make_string_const("source.organizeImports")); }
     if (value & LSTALK_CODEACTIONKIND_SOURCEFIXALL) { json_array_push(&result, json_make_string_const("source.fixAll")); }
+
+    return result;
+}
+
+static int parse_code_action_kind(JSONValue* value) {
+    if (value == NULL || value->type != JSON_VALUE_ARRAY) {
+        return 0;
+    }
+
+    int result = 0;
+    for (size_t i = 0; i < value->value.array_value->values.length; i++) {
+        JSONValue item = json_array_get(value, i);
+
+        if (item.type == JSON_VALUE_STRING) {
+            if (strcmp(item.value.string_value, "") == 0) {
+                result |= LSTALK_CODEACTIONKIND_EMPTY;
+            } else if (strcmp(item.value.string_value, "quickfix") == 0) {
+                result |= LSTALK_CODEACTIONKIND_QUICKFIX;
+            } else if (strcmp(item.value.string_value, "refactor") == 0) {
+                result |= LSTALK_CODEACTIONKIND_REFACTOR;
+            } else if (strcmp(item.value.string_value, "refactor.extract") == 0) {
+                result |= LSTALK_CODEACTIONKIND_REFACTOREXTRACT;
+            } else if (strcmp(item.value.string_value, "refactor.inline") == 0) {
+                result |= LSTALK_CODEACTIONKIND_REFACTORINLINE;
+            } else if (strcmp(item.value.string_value, "refactor.rewrite") == 0) {
+                result |= LSTALK_CODEACTIONKIND_REFACTORREWRITE;
+            } else if (strcmp(item.value.string_value, "source") == 0) {
+                result |= LSTALK_CODEACTIONKIND_SOURCE;
+            } else if (strcmp(item.value.string_value, "source.organizeImports") == 0) {
+                result |= LSTALK_CODEACTIONKIND_SOURCEORGANIZEIMPORTS;
+            } else if (strcmp(item.value.string_value, "source.fixAll") == 0) {
+                result |= LSTALK_CODEACTIONKIND_SOURCEFIXALL;
+            }
+        }
+    }
 
     return result;
 }

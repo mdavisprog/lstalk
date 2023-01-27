@@ -2629,6 +2629,32 @@ typedef struct LSTalk_DocumentSymbolOptions {
 } LSTalk_DocumentSymbolOptions;
 
 /**
+ * The server provides code actions. The `CodeActionOptions` return type is
+ * only valid if the client signals code action literal support via the
+ * property `textDocument.codeAction.codeActionLiteralSupport`.
+ */
+typedef struct LSTalk_CodeActionOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+
+    /**
+     * CodeActionKinds that this server may return.
+     *
+     * The list of kinds may be generic, such as `CodeActionKind.Refactor`,
+     * or the server may list out every specific kind they provide.
+     */
+    int code_action_kinds;
+
+    /**
+     * The server provides support to resolve additional
+     * information for a code action.
+     *
+     * @since 3.16.0
+     */
+    int resolve_provider;
+} LSTalk_CodeActionOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2714,6 +2740,13 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides document symbol support.
      */
     LSTalk_DocumentSymbolOptions document_symbol_provider;
+
+    /**
+     * The server provides code actions. The `CodeActionOptions` return type is
+     * only valid if the client signals code action literal support via the
+     * property `textDocument.codeAction.codeActionLiteralSupport`.
+     */
+    LSTalk_CodeActionOptions code_action_provider;
 } LSTalk_ServerCapabilities;
 
 /**
