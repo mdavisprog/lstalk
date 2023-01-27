@@ -1487,6 +1487,9 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
     if (capabilities->document_symbol_provider.label != NULL) {
         free(capabilities->document_symbol_provider.label);
     }
+
+    server_free_static_registration(&capabilities->color_provider.static_registration);
+    server_free_text_document_registration(&capabilities->color_provider.text_document_registration);
 }
 
 static void server_close(Server* server) {
@@ -1832,6 +1835,16 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
                     info.capabilities.document_link_provider.resolve_provider = resolve_provider.value.bool_value;
                 }
+            }
+
+            JSONValue color_provider = json_object_get(&capabilities, "colorProvider");
+            if (color_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.color_provider.is_supported = 1;
+            } else if (color_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.color_provider.is_supported = 1;
+                info.capabilities.color_provider.work_done_progress = parse_work_done_progress(&color_provider);
+                info.capabilities.color_provider.text_document_registration = parse_text_document_registration(&color_provider);
+                info.capabilities.color_provider.static_registration = parse_static_registration(&color_provider);
             }
         }
 

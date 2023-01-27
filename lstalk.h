@@ -2679,6 +2679,18 @@ typedef struct LSTalk_DocumentLinkOptions {
 } LSTalk_DocumentLinkOptions;
 
 /**
+ * The server provides color provider support.
+ *
+ * @since 3.6.0
+ */
+typedef struct LSTalk_DocumentColorRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+    int is_supported;
+} LSTalk_DocumentColorRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2781,6 +2793,13 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides document link support.
      */
     LSTalk_DocumentLinkOptions document_link_provider;
+
+    /**
+     * The server provides color provider support.
+     *
+     * @since 3.6.0
+     */
+    LSTalk_DocumentColorRegistrationOptions color_provider;
 } LSTalk_ServerCapabilities;
 
 /**
