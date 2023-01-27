@@ -2763,6 +2763,18 @@ typedef struct LSTalk_ExecuteCommandOptions {
 } LSTalk_ExecuteCommandOptions;
 
 /**
+ * The server provides selection range support.
+ *
+ * @since 3.15.0
+ */
+typedef struct LSTalk_SelectionRangeRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+    int is_supported;
+} LSTalk_SelectionRangeRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2906,6 +2918,13 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides execute command support.
      */
     LSTalk_ExecuteCommandOptions execute_command_provider;
+
+    /**
+     * The server provides selection range support.
+     *
+     * @since 3.15.0
+     */
+    LSTalk_SelectionRangeRegistrationOptions selection_range_provider;
 } LSTalk_ServerCapabilities;
 
 /**
