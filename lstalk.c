@@ -1483,6 +1483,10 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
 
     server_free_static_registration(&capabilities->implementation_provider.static_registration);
     server_free_text_document_registration(&capabilities->implementation_provider.text_document_registration);
+
+    if (capabilities->document_symbol_provider.label != NULL) {
+        free(capabilities->document_symbol_provider.label);
+    }
 }
 
 static void server_close(Server* server) {
@@ -1778,6 +1782,19 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
             } else if (document_highlight_provider.type == JSON_VALUE_OBJECT) {
                 info.capabilities.document_highlight_provider.is_supported = 1;
                 info.capabilities.document_highlight_provider.work_done_progress = parse_work_done_progress(&document_highlight_provider);
+            }
+
+            JSONValue document_symbol_provider = json_object_get(&capabilities, "documentSymbolProvider");
+            if (document_symbol_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.document_symbol_provider.is_supported = 1;
+            } else if (document_highlight_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.document_symbol_provider.is_supported = 1;
+                info.capabilities.document_symbol_provider.work_done_progress = parse_work_done_progress(&document_symbol_provider);
+                
+                JSONValue label = json_object_get(&document_symbol_provider, "label");
+                if (label.type == JSON_VALUE_STRING) {
+                    info.capabilities.document_symbol_provider.label = string_alloc_copy(label.value.string_value);
+                }
             }
         }
 

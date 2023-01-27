@@ -2613,6 +2613,22 @@ typedef struct LSTalk_DocumentHighlightOptions {
 } LSTalk_DocumentHighlightOptions;
 
 /**
+ * The server provides document symbol support.
+ */
+typedef struct LSTalk_DocumentSymbolOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+
+    /**
+     * A human-readable string that is shown when multiple outlines trees
+     * are shown for the same document.
+     *
+     * @since 3.16.0
+     */
+    char* label;
+} LSTalk_DocumentSymbolOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2693,6 +2709,11 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides document highlight support.
      */
     LSTalk_DocumentHighlightOptions document_highlight_provider;
+
+    /**
+     * The server provides document symbol support.
+     */
+    LSTalk_DocumentSymbolOptions document_symbol_provider;
 } LSTalk_ServerCapabilities;
 
 /**
