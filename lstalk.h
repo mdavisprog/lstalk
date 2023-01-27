@@ -2750,6 +2750,19 @@ typedef struct LSTalk_FoldingRangeRegistrationOptions {
 } LSTalk_FoldingRangeRegistrationOptions;
 
 /**
+ * The server provides execute command support.
+ */
+typedef struct LSTalk_ExecuteCommandOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+
+    /**
+     * The commands to be executed on the server
+     */
+    char** commands;
+    int commands_count;
+} LSTalk_ExecuteCommandOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2888,6 +2901,11 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.10.0
      */
     LSTalk_FoldingRangeRegistrationOptions folding_range_provider;
+
+    /**
+     * The server provides execute command support.
+     */
+    LSTalk_ExecuteCommandOptions execute_command_provider;
 } LSTalk_ServerCapabilities;
 
 /**

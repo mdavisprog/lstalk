@@ -1499,6 +1499,8 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
 
     server_free_static_registration(&capabilities->folding_range_provider.static_registration);
     server_free_text_document_registration(&capabilities->folding_range_provider.text_document_registration);
+
+    string_free_array(capabilities->execute_command_provider.commands, capabilities->execute_command_provider.commands_count);
 }
 
 static void server_close(Server* server) {
@@ -1904,6 +1906,13 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 info.capabilities.folding_range_provider.work_done_progress = parse_work_done_progress(&folding_range_provider);
                 info.capabilities.folding_range_provider.text_document_registration = parse_text_document_registration(&folding_range_provider);
                 info.capabilities.folding_range_provider.static_registration = parse_static_registration(&folding_range_provider);
+            }
+
+            JSONValue execute_command_provider = json_object_get(&capabilities, "executeCommandProvider");
+            if (execute_command_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.execute_command_provider.work_done_progress = parse_work_done_progress(&execute_command_provider);
+                info.capabilities.execute_command_provider.commands =
+                    parse_string_array(&execute_command_provider, "commands", &info.capabilities.execute_command_provider.commands_count);
             }
         }
 
