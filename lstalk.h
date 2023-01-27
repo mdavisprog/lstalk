@@ -2509,6 +2509,62 @@ typedef struct LSTalk_SignatureHelpOptions {
 } LSTalk_SignatureHelpOptions;
 
 /**
+ * A document filter denotes a document through properties like language, scheme or pattern.
+ */
+typedef struct LSTalk_DocumentFilter {
+    /**
+     * A language id, like `typescript`.
+     */
+    char* language;
+
+    /**
+     * A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
+     */
+    char* scheme;
+
+    /**
+     * A glob pattern, like `*.{ts,js}`.
+     *
+     * Glob patterns can have the following syntax:
+     * - `*` to match one or more characters in a path segment
+     * - `?` to match on one character in a path segment
+     * - `**` to match any number of path segments, including none
+     * - `{}` to group sub patterns into an OR expression. (e.g. `**​/*.{ts,js}`
+     *   matches all TypeScript and JavaScript files)
+     * - `[]` to declare a range of characters to match in a path segment
+     *   (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
+     * - `[!...]` to negate a range of characters to match in a path segment
+     *   (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but
+     *   not `example.0`)
+     */
+    char* pattern;
+} LSTalk_DocumentFilter;
+
+/**
+ * General text document registration options.
+ */
+typedef struct LSTalk_TextDocumentRegistrationOptions {
+    /**
+     * A document selector to identify the scope of the registration. If set to
+     * null the document selector provided on the client side will be used.
+     */
+    LSTalk_DocumentFilter* document_selector;
+    int document_selector_count;
+} LSTalk_TextDocumentRegistrationOptions;
+
+/**
+ * The server provides go to declaration support.
+ *
+ * @since 3.14.0
+ */
+typedef struct LSTalk_DeclarationRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+    int is_supported;
+} LSTalk_DeclarationRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -2554,6 +2610,12 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides signature help support.
      */
     LSTalk_SignatureHelpOptions signature_help_provider;
+    /**
+     * The server provides go to declaration support.
+     *
+     * @since 3.14.0
+     */
+    LSTalk_DeclarationRegistrationOptions declaration_provider;
 } LSTalk_ServerCapabilities;
 
 /**

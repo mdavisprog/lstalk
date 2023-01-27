@@ -1448,6 +1448,27 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
     string_free_array(capabilities->completion_provider.all_commit_characters, capabilities->completion_provider.all_commit_characters_count);
     string_free_array(capabilities->signature_help_provider.trigger_characters, capabilities->signature_help_provider.trigger_characters_count);
     string_free_array(capabilities->signature_help_provider.retrigger_characters, capabilities->signature_help_provider.retrigger_characters_count);
+
+    server_free_static_registration(&capabilities->declaration_provider.static_registration);
+    if (capabilities->declaration_provider.text_document_registration.document_selector != NULL) {
+        for (int i = 0; i < capabilities->declaration_provider.text_document_registration.document_selector_count; i++) {
+            LSTalk_DocumentFilter* filter = &capabilities->declaration_provider.text_document_registration.document_selector[i];
+
+            if (filter->language != NULL) {
+                free(filter->language);
+            }
+
+            if (filter->scheme != NULL) {
+                free(filter->scheme);
+            }
+
+            if (filter->pattern != NULL) {
+                free(filter->pattern);
+            }
+        }
+
+        free(capabilities->declaration_provider.text_document_registration.document_selector);
+    }
 }
 
 static void server_close(Server* server) {
@@ -1531,6 +1552,44 @@ static LSTalk_StaticRegistrationOptions parse_static_registration(JSONValue* val
     }
 
     result.id = string_alloc_copy(id.value.string_value);
+    return result;
+}
+
+static LSTalk_TextDocumentRegistrationOptions parse_text_document_registration(JSONValue* value) {
+    LSTalk_TextDocumentRegistrationOptions result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue document_selector = json_object_get(value, "documentSelector");
+    if (document_selector.type != JSON_VALUE_ARRAY) {
+        return result;
+    }
+
+    result.document_selector_count = document_selector.value.array_value->values.length;
+    result.document_selector = (LSTalk_DocumentFilter*)calloc(document_selector.value.array_value->values.length, sizeof(LSTalk_DocumentFilter));
+    for (size_t i = 0; i < document_selector.value.array_value->values.length; i++) {
+        JSONValue item = json_array_get(&document_selector, i);
+        LSTalk_DocumentFilter* filter = &result.document_selector[i];
+
+        JSONValue language = json_object_get(&item, "language");
+        if (language.type == JSON_VALUE_STRING) {
+            filter->language = string_alloc_copy(language.value.string_value);
+        }
+
+        JSONValue scheme = json_object_get(&item, "scheme");
+        if (scheme.type == JSON_VALUE_STRING) {
+            filter->scheme = string_alloc_copy(scheme.value.string_value);
+        }
+
+        JSONValue pattern = json_object_get(&item, "pattern");
+        if (pattern.type == JSON_VALUE_STRING) {
+            filter->pattern = string_alloc_copy(pattern.value.string_value);
+        }
+    }
+
     return result;
 }
 
@@ -1651,6 +1710,16 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                     parse_string_array(&signature_help_provider, "triggerCharacters", &info.capabilities.signature_help_provider.trigger_characters_count);
                 info.capabilities.signature_help_provider.retrigger_characters =
                     parse_string_array(&signature_help_provider, "retriggerCharacters", &info.capabilities.signature_help_provider.retrigger_characters_count);
+            }
+
+            JSONValue declaration_provider = json_object_get(&capabilities, "declarationProvider");
+            if (declaration_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.declaration_provider.is_supported = declaration_provider.value.bool_value;
+            } else if (declaration_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.declaration_provider.is_supported = 1;
+                info.capabilities.declaration_provider.work_done_progress = parse_work_done_progress(&declaration_provider);
+                info.capabilities.declaration_provider.static_registration = parse_static_registration(&declaration_provider);
+                info.capabilities.declaration_provider.text_document_registration = parse_text_document_registration(&declaration_provider);
             }
         }
 
