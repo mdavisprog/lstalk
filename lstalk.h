@@ -2903,6 +2903,180 @@ typedef struct LSTalk_WorkspaceSymbolOptions {
 } LSTalk_WorkspaceSymbolOptions;
 
 /**
+ * The server supports workspace folder.
+ *
+ * @since 3.6.0
+ */
+typedef struct LSTalk_WorkspaceFoldersServerCapabilities {
+    /**
+     * The server has support for workspace folders
+     */
+    int supported;
+
+    /**
+     * Whether the server wants to receive workspace folder
+     * change notifications.
+     *
+     * If a string is provided, the string is treated as an ID
+     * under which the notification is registered on the client
+     * side. The ID can be used to unregister for these events
+     * using the `client/unregisterCapability` request.
+     */
+    char* change_notifications;
+    int change_notifications_boolean;
+} LSTalk_WorkspaceFoldersServerCapabilities;
+
+/**
+ * A pattern kind describing if a glob pattern matches a file a folder or
+ * both.
+ *
+ * @since 3.16.0
+ */
+typedef enum {
+    /**
+     * The pattern matches a file only.
+     */
+    LSTALK_FILEOPERATIONPATTERNKIND_FILE = 1 << 0,
+
+    /**
+     * The pattern matches a folder only.
+     */
+    LSTALK_FILEOPERATIONPATTERNKIND_FOLDER = 1 << 1,
+} LSTalk_FileOperationPatternKind;
+
+/**
+ * Matching options for the file operation pattern.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_FileOperationPatternOptions {
+    /**
+     * The pattern should be matched ignoring casing.
+     */
+    int ignore_case;
+} LSTalk_FileOperationPatternOptions;
+
+/**
+ * The options to register for file operations.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_FileOperationPattern {
+    /**
+     * The glob pattern to match. Glob patterns can have the following syntax:
+     * - `*` to match one or more characters in a path segment
+     * - `?` to match on one character in a path segment
+     * - `**` to match any number of path segments, including none
+     * - `{}` to group sub patterns into an OR expression. (e.g. `**​/*.{ts,js}`
+     *   matches all TypeScript and JavaScript files)
+     * - `[]` to declare a range of characters to match in a path segment
+     *   (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
+     * - `[!...]` to negate a range of characters to match in a path segment
+     *   (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but
+     *   not `example.0`)
+     */
+    char* glob;
+
+    /**
+     * Whether to match files or folders with this pattern.
+     *
+     * Matches both if undefined.
+     */
+    int matches;
+
+    /**
+     * Additional options used during matching.
+     */
+    LSTalk_FileOperationPatternOptions options;
+} LSTalk_FileOperationPattern;
+
+/**
+ * A filter to describe in which file operation requests or notifications
+ * the server is interested in.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_FileOperationFilter {
+    /**
+     * A Uri like `file` or `untitled`.
+     */
+    char* scheme;
+
+    /**
+     * The actual file operation pattern.
+     */
+    LSTalk_FileOperationPattern pattern;
+} LSTalk_FileOperationFilter;
+
+/**
+ * The options to register for file operations.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_FileOperationRegistrationOptions {
+    /**
+     * The actual filters.
+     */
+    LSTalk_FileOperationFilter* filters;
+    int filters_count;
+} LSTalk_FileOperationRegistrationOptions;
+
+typedef struct LSTalk_FileOperationsServer {
+    /**
+     * The server is interested in receiving didCreateFiles
+     * notifications.
+     */
+    LSTalk_FileOperationRegistrationOptions did_create;
+
+    /**
+     * The server is interested in receiving willCreateFiles requests.
+     */
+    LSTalk_FileOperationRegistrationOptions will_create;
+
+    /**
+     * The server is interested in receiving didRenameFiles
+     * notifications.
+     */
+    LSTalk_FileOperationRegistrationOptions did_rename;
+
+    /**
+     * The server is interested in receiving willRenameFiles requests.
+     */
+    LSTalk_FileOperationRegistrationOptions will_rename;
+
+    /**
+     * The server is interested in receiving didDeleteFiles file
+     * notifications.
+     */
+    LSTalk_FileOperationRegistrationOptions did_delete;
+
+    /**
+     * The server is interested in receiving willDeleteFiles file
+     * requests.
+     */
+    LSTalk_FileOperationRegistrationOptions will_delete;
+} LSTalk_FileOperationsServer;
+
+/**
+ * Workspace specific server capabilities
+ */
+typedef struct LSTalk_WorkspaceServer {
+    /**
+     * The server supports workspace folder.
+     *
+     * @since 3.6.0
+     */
+    LSTalk_WorkspaceFoldersServerCapabilities workspace_folders;
+
+    /**
+     * The server is interested in file notifications/requests.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_FileOperationsServer file_operations;
+} LSTalk_WorkspaceServer;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -3114,6 +3288,11 @@ typedef struct LSTalk_ServerCapabilities {
      * The server provides workspace symbol support.
      */
     LSTalk_WorkspaceSymbolOptions workspace_symbol_provider;
+
+    /**
+     * Workspace specific server capabilities
+     */
+    LSTalk_WorkspaceServer workspace;
 } LSTalk_ServerCapabilities;
 
 /**

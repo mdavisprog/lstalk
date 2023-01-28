@@ -1445,6 +1445,27 @@ static void server_free_text_document_registration(LSTalk_TextDocumentRegistrati
     }
 }
 
+static void server_free_file_operation_registration(LSTalk_FileOperationRegistrationOptions* file_operation_registration) {
+    if (file_operation_registration == NULL) {
+        return;
+    }
+
+    if (file_operation_registration->filters != NULL) {
+        for (int i = 0; i < file_operation_registration->filters_count; i++) {
+            LSTalk_FileOperationFilter* filter = &file_operation_registration->filters[i];
+            if (filter->scheme != NULL) {
+                free(filter->scheme);
+            }
+
+            if (filter->pattern.glob != NULL) {
+                free(filter->pattern.glob);
+            }
+        }
+
+        free(file_operation_registration->filters);
+    }
+}
+
 static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
     for (int i = 0; i < capabilities->notebook_document_sync.notebook_selector_count; i++) {
         LSTalk_NotebookSelector* selector = &capabilities->notebook_document_sync.notebook_selector[i];
@@ -1531,6 +1552,13 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
 
     server_free_static_registration(&capabilities->diagnostic_provider.static_registration);
     server_free_text_document_registration(&capabilities->diagnostic_provider.text_document_registration);
+
+    server_free_file_operation_registration(&capabilities->workspace.file_operations.did_create);
+    server_free_file_operation_registration(&capabilities->workspace.file_operations.will_create);
+    server_free_file_operation_registration(&capabilities->workspace.file_operations.did_rename);
+    server_free_file_operation_registration(&capabilities->workspace.file_operations.will_rename);
+    server_free_file_operation_registration(&capabilities->workspace.file_operations.did_delete);
+    server_free_file_operation_registration(&capabilities->workspace.file_operations.will_delete);
 }
 
 static void server_close(Server* server) {
@@ -1649,6 +1677,67 @@ static LSTalk_TextDocumentRegistrationOptions parse_text_document_registration(J
         JSONValue pattern = json_object_get(&item, "pattern");
         if (pattern.type == JSON_VALUE_STRING) {
             filter->pattern = string_alloc_copy(pattern.value.string_value);
+        }
+    }
+
+    return result;
+}
+
+static LSTalk_FileOperationRegistrationOptions parse_file_operation_registration(JSONValue* value, char* key) {
+    LSTalk_FileOperationRegistrationOptions result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue operation = json_object_get(value, key);
+    if (operation.type == JSON_VALUE_OBJECT) {
+        JSONValue filters = json_object_get(&operation, "filters");
+        if (filters.type == JSON_VALUE_ARRAY) {
+            result.filters_count = filters.value.array_value->values.length;
+            result.filters = (LSTalk_FileOperationFilter*)calloc(filters.value.array_value->values.length, sizeof(LSTalk_FileOperationFilter));
+            for (size_t i = 0; i < filters.value.array_value->values.length; i++) {
+                JSONValue item = json_array_get(&filters, i);
+                LSTalk_FileOperationFilter* filter = &result.filters[i];
+
+                JSONValue scheme = json_object_get(&item, "scheme");
+                if (scheme.type == JSON_VALUE_STRING) {
+                    filter->scheme = string_alloc_copy(scheme.value.string_value);
+                }
+
+                JSONValue pattern = json_object_get(&item, "pattern");
+                if (pattern.type == JSON_VALUE_OBJECT) {
+                    JSONValue glob = json_object_get(&pattern, "glob");
+                    if (glob.type == JSON_VALUE_STRING) {
+                        filter->pattern.glob = string_alloc_copy(glob.value.string_value);
+                    }
+
+                    JSONValue matches = json_object_get(&pattern, "matches");
+                    if (matches.type == JSON_VALUE_ARRAY) {
+                        for (size_t i = 0; i < matches.value.array_value->values.length; i++) {
+                            JSONValue match_item = json_array_get(&matches, i);
+                            if (match_item.type == JSON_VALUE_STRING) {
+                                if (strcmp(match_item.value.string_value, "file") == 0) {
+                                    filter->pattern.matches |= LSTALK_FILEOPERATIONPATTERNKIND_FILE;
+                                } else if (strcmp(match_item.value.string_value, "folder") == 0) {
+                                    filter->pattern.matches |= LSTALK_FILEOPERATIONPATTERNKIND_FOLDER;
+                                }
+                            }
+                        }
+                    } else {
+                        filter->pattern.matches = (LSTALK_FILEOPERATIONPATTERNKIND_FILE | LSTALK_FILEOPERATIONPATTERNKIND_FOLDER);
+                    }
+
+                    JSONValue options = json_object_get(&pattern, "options");
+                    if (options.type == JSON_VALUE_OBJECT) {
+                        JSONValue ignore_case = json_object_get(&options, "ignoreCase");
+                        if (ignore_case.type == JSON_VALUE_BOOLEAN) {
+                            filter->pattern.options.ignore_case = ignore_case.value.bool_value;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -2053,6 +2142,36 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 JSONValue resolve_provider = json_object_get(&workspace_symbol_provider, "resolveProvider");
                 if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
                     info.capabilities.workspace_symbol_provider.resolve_provider = resolve_provider.value.bool_value;
+                }
+            }
+
+            JSONValue workspace = json_object_get(&capabilities, "workspace");
+            if (workspace.type == JSON_VALUE_OBJECT) {
+                JSONValue workspace_folders = json_object_get(&workspace, "workspaceFolders");
+                if (workspace_folders.type == JSON_VALUE_OBJECT) {
+                    JSONValue supported = json_object_get(&workspace_folders, "supported");
+                    if (supported.type == JSON_VALUE_BOOLEAN) {
+                        info.capabilities.workspace.workspace_folders.supported = supported.value.bool_value;
+                    }
+
+                    JSONValue change_notifications = json_object_get(&workspace_folders, "changeNotifications");
+                    if (change_notifications.type == JSON_VALUE_BOOLEAN) {
+                        info.capabilities.workspace.workspace_folders.change_notifications_boolean = 1;
+                        info.capabilities.workspace.workspace_folders.change_notifications = NULL;
+                    } else if (change_notifications.type == JSON_VALUE_STRING) {
+                        info.capabilities.workspace.workspace_folders.change_notifications_boolean = 1;
+                        info.capabilities.workspace.workspace_folders.change_notifications = string_alloc_copy(change_notifications.value.string_value);
+                    }
+                }
+
+                JSONValue file_operations = json_object_get(&workspace, "fileOperations");
+                if (file_operations.type == JSON_VALUE_OBJECT) {
+                    info.capabilities.workspace.file_operations.did_create = parse_file_operation_registration(&file_operations, "didCreate");
+                    info.capabilities.workspace.file_operations.will_create = parse_file_operation_registration(&file_operations, "will_create");
+                    info.capabilities.workspace.file_operations.did_rename = parse_file_operation_registration(&file_operations, "didRename");
+                    info.capabilities.workspace.file_operations.will_rename = parse_file_operation_registration(&file_operations, "willRename");
+                    info.capabilities.workspace.file_operations.did_delete = parse_file_operation_registration(&file_operations, "didDelete");
+                    info.capabilities.workspace.file_operations.will_delete = parse_file_operation_registration(&file_operations, "willDelete");
                 }
             }
         }
