@@ -2845,6 +2845,18 @@ typedef struct LSTalk_InlineValueRegistrationOptions {
 } LSTalk_InlineValueRegistrationOptions;
 
 /**
+ * Inlay hint options used during static or dynamic registration.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_InlayHintRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+    int is_supported;
+} LSTalk_InlayHintRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -3037,6 +3049,13 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.17.0
      */
     LSTalk_InlineValueRegistrationOptions inline_value_provider;
+
+    /**
+     * The server provides inlay hints.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_InlayHintRegistrationOptions inlay_hint_provider;
 } LSTalk_ServerCapabilities;
 
 /**
