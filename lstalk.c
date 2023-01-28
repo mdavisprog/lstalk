@@ -2042,6 +2042,19 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                     info.capabilities.diagnostic_provider.workspace_diagnostics = workspace_diagnostics.value.bool_value;
                 }
             }
+
+            JSONValue workspace_symbol_provider = json_object_get(&capabilities, "workspaceSymbolProvider");
+            if (workspace_symbol_provider.type == JSON_VALUE_BOOLEAN) {
+                info.capabilities.workspace_symbol_provider.is_supported = 1;
+            } else if (workspace_symbol_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.workspace_symbol_provider.is_supported = 1;
+                info.capabilities.workspace_symbol_provider.work_done_progress = parse_work_done_progress(&workspace_symbol_provider);
+
+                JSONValue resolve_provider = json_object_get(&workspace_symbol_provider, "resolveProvider");
+                if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
+                    info.capabilities.workspace_symbol_provider.resolve_provider = resolve_provider.value.bool_value;
+                }
+            }
         }
 
         JSONValue server_info = json_object_get(&result, "serverInfo");

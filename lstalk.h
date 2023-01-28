@@ -2887,6 +2887,22 @@ typedef struct LSTalk_DiagnosticRegistrationOptions {
 } LSTalk_DiagnosticRegistrationOptions;
 
 /**
+ * The server provides workspace symbol support.
+ */
+typedef struct LSTalk_WorkspaceSymbolOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+
+    /**
+     * The server provides support to resolve additional
+     * information for a workspace symbol.
+     *
+     * @since 3.17.0
+     */
+    int resolve_provider;
+} LSTalk_WorkspaceSymbolOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -3093,6 +3109,11 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.17.0
      */
     LSTalk_DiagnosticRegistrationOptions diagnostic_provider;
+
+    /**
+     * The server provides workspace symbol support.
+     */
+    LSTalk_WorkspaceSymbolOptions workspace_symbol_provider;
 } LSTalk_ServerCapabilities;
 
 /**
