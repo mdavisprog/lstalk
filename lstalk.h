@@ -2857,6 +2857,36 @@ typedef struct LSTalk_InlayHintRegistrationOptions {
 } LSTalk_InlayHintRegistrationOptions;
 
 /**
+ * Diagnostic registration options.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_DiagnosticRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+
+    /**
+     * An optional identifier under which the diagnostics are
+     * managed by the client.
+     */
+    char* identifier;
+
+    /**
+     * Whether the language has inter file dependencies meaning that
+     * editing code in one file can result in a different diagnostic
+     * set in another file. Inter file dependencies are common for
+     * most programming languages and typically uncommon for linters.
+     */
+    int inter_file_dependencies;
+
+    /**
+     * The server provides support for workspace diagnostics as well.
+     */
+    int workspace_diagnostics;
+} LSTalk_DiagnosticRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -3056,6 +3086,13 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.17.0
      */
     LSTalk_InlayHintRegistrationOptions inlay_hint_provider;
+
+    /**
+     * The server has support for pull model diagnostics.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_DiagnosticRegistrationOptions diagnostic_provider;
 } LSTalk_ServerCapabilities;
 
 /**

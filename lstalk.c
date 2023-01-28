@@ -1524,6 +1524,13 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
 
     server_free_static_registration(&capabilities->inlay_hint_provider.static_registration);
     server_free_text_document_registration(&capabilities->inlay_hint_provider.text_document_registration);
+
+    if (capabilities->diagnostic_provider.identifier != NULL) {
+        free(capabilities->diagnostic_provider.identifier);
+    }
+
+    server_free_static_registration(&capabilities->diagnostic_provider.static_registration);
+    server_free_text_document_registration(&capabilities->diagnostic_provider.text_document_registration);
 }
 
 static void server_close(Server* server) {
@@ -2012,6 +2019,28 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 info.capabilities.inlay_hint_provider.work_done_progress = parse_work_done_progress(&inlay_hint_provider);
                 info.capabilities.inlay_hint_provider.text_document_registration = parse_text_document_registration(&inlay_hint_provider);
                 info.capabilities.inlay_hint_provider.static_registration = parse_static_registration(&inlay_hint_provider);
+            }
+
+            JSONValue diagnostic_provider = json_object_get(&capabilities, "diagnosticProvider");
+            if (diagnostic_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.diagnostic_provider.work_done_progress = parse_work_done_progress(&diagnostic_provider);
+                info.capabilities.diagnostic_provider.text_document_registration = parse_text_document_registration(&diagnostic_provider);
+                info.capabilities.diagnostic_provider.static_registration = parse_static_registration(&diagnostic_provider);
+
+                JSONValue identifier = json_object_get(&diagnostic_provider, "identifier");
+                if (identifier.type == JSON_VALUE_STRING) {
+                    info.capabilities.diagnostic_provider.identifier = string_alloc_copy(identifier.value.string_value);
+                }
+
+                JSONValue inter_file_dependencies = json_object_get(&diagnostic_provider, "interFileDependencies");
+                if (inter_file_dependencies.type == JSON_VALUE_BOOLEAN) {
+                    info.capabilities.diagnostic_provider.inter_file_dependencies = inter_file_dependencies.value.bool_value;
+                }
+
+                JSONValue workspace_diagnostics = json_object_get(&diagnostic_provider, "workspaceDiagnostics");
+                if (workspace_diagnostics.type == JSON_VALUE_BOOLEAN) {
+                    info.capabilities.diagnostic_provider.workspace_diagnostics = workspace_diagnostics.value.bool_value;
+                }
             }
         }
 
