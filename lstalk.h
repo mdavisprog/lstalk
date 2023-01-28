@@ -2833,6 +2833,18 @@ typedef struct LSTalk_TypeHierarchyRegistrationOptions {
 } LSTalk_TypeHierarchyRegistrationOptions;
 
 /**
+ * The server provides inline values.
+ *
+ * @since 3.17.0
+ */
+typedef struct LSTalk_InlineValueRegistrationOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_TextDocumentRegistrationOptions text_document_registration;
+    LSTalk_StaticRegistrationOptions static_registration;
+    int is_supported;
+} LSTalk_InlineValueRegistrationOptions;
+
+/**
  * The capabilities the language server provides.
  */
 typedef struct LSTalk_ServerCapabilities {
@@ -3018,6 +3030,13 @@ typedef struct LSTalk_ServerCapabilities {
      * @since 3.17.0
      */
     LSTalk_TypeHierarchyRegistrationOptions type_hierarchy_provider;
+
+    /**
+     * The server provides inline values.
+     *
+     * @since 3.17.0
+     */
+    LSTalk_InlineValueRegistrationOptions inline_value_provider;
 } LSTalk_ServerCapabilities;
 
 /**
