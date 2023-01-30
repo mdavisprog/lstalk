@@ -141,6 +141,36 @@ int is_command(char* buffer, const char* command) {
     return strcmp(buffer, command) == 0;
 }
 
+typedef struct Argument {
+    char data[255];
+} Argument;
+
+int parse_args(char* command, Argument* arguments) {
+    if (arguments == NULL) {
+        return 0;
+    }
+
+    char* ptr = command;
+    char* end = NULL;
+
+    int index = 0;
+    while (ptr != NULL) {
+        end = strchr(ptr, ' ');
+        if (end != NULL) {
+            size_t count = end - ptr;
+            strncpy(arguments[index].data, ptr, count);
+            arguments[index].data[count] = '\0';
+            ptr = end + 1;
+        } else {
+            strcpy(arguments[index].data, ptr);
+            ptr = NULL;
+        }
+        index++;
+    }
+
+    return index;
+}
+
 int main(int argc, char** argv) {
     struct LSTalk_Context* context = lstalk_init();
     if (context == NULL) {
@@ -163,22 +193,32 @@ int main(int argc, char** argv) {
     params.trace = LSTALK_TRACE_OFF;
     int debug_flags = LSTALK_DEBUGFLAGS_NONE;
 
+    Argument args[20];
+
     int quit = 0;
     while (!quit) {
         if (read_input(command, sizeof(command))) {
-            if (is_command(command, "quit")) {
+            int arg_count = parse_args(command, args);
+            if (arg_count == 0) {
+                continue;
+            }
+
+            char* cmd = args[0].data;
+            if (is_command(cmd, "quit")) {
                 quit = 1;
-            } else if (is_command(command, "close")) {
+            } else if (is_command(cmd, "close")) {
                 if (lstalk_close(context, server_id)) {
                     printf("Disconnected from server\n");
                 }
                 server_id = LSTALK_INVALID_SERVER_ID;
-            } else if (is_command(command, "show_requests")) {
+            } else if (is_command(cmd, "show_requests")) {
                 debug_flags |= LSTALK_DEBUGFLAGS_PRINT_REQUESTS;
                 lstalk_set_debug_flags(context, debug_flags);
-            } else if (is_command(command, "show_responses")) {
+                printf("showing requests...\n");
+            } else if (is_command(cmd, "show_responses")) {
                 debug_flags |= LSTALK_DEBUGFLAGS_PRINT_RESPONSES;
                 lstalk_set_debug_flags(context, debug_flags);
+                printf("showing responses...\n");
             } else {
                 pending_id = lstalk_connect(context, command, params);
             }
