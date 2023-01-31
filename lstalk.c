@@ -1411,6 +1411,21 @@ typedef struct LSTalk_Context {
     int debug_flags;
 } LSTalk_Context;
 
+static Server* context_get_server(LSTalk_Context* context, LSTalk_ServerID id) {
+    if (context == NULL || id == LSTALK_INVALID_SERVER_ID) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < context->servers.length; i++) {
+        Server* server = (Server*)vector_get(&context->servers, i);
+        if (server->id == id) {
+            return server;
+        }
+    }
+
+    return NULL;
+}
+
 static void server_free_static_registration(LSTalk_StaticRegistrationOptions* static_registration) {
     if (static_registration == NULL || static_registration->id == NULL) {
         return;
@@ -3113,56 +3128,33 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
 }
 
 LSTalk_ConnectionStatus lstalk_get_connection_status(LSTalk_Context* context, LSTalk_ServerID id) {
-    LSTalk_ConnectionStatus result = LSTALK_CONNECTION_STATUS_NOT_CONNECTED;
-
-    if (context == NULL) {
-        return result;
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
+        return LSTALK_CONNECTION_STATUS_NOT_CONNECTED;
     }
 
-    for (size_t i = 0; i < context->servers.length; i++) {
-        Server* server = (Server*)vector_get(&context->servers, i);
-
-        if (server->id == id) {
-            result = server->connection_status;
-            break;
-        }
-    }
-
-    return result;
+    return server->connection_status;
 }
 
 LSTalk_ServerInfo* lstalk_get_server_info(LSTalk_Context* context, LSTalk_ServerID id) {
-    if (context == NULL) {
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
         return NULL;
     }
 
-    for (size_t i = 0; i < context->servers.length; i++) {
-        Server* server = (Server*)vector_get(&context->servers, i);
-        if (server->id == id) {
-            return &server->info;
-        }
-    }
-
-    return NULL;
+    return &server->info;
 }
 
 int lstalk_close(LSTalk_Context* context, LSTalk_ServerID id) {
-    if (context == NULL || id == LSTALK_INVALID_SERVER_ID) {
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
         return 0;
     }
 
-    for (size_t i = 0; i < context->servers.length; i++) {
-        Server* server = (Server*)vector_get(&context->servers, i);
-
-        if (server->id == id) {
-            Request request = rpc_make_request(&server->request_id, "shutdown", json_make_null());
-            server_send_request(context, server->process, &request);
-            vector_push(&server->requests, &request);
-            return 1;
-        }
-    }
-
-    return 0;
+    Request request = rpc_make_request(&server->request_id, "shutdown", json_make_null());
+    server_send_request(context, server->process, &request);
+    vector_push(&server->requests, &request);
+    return 1;
 }
 
 int lstalk_process_responses(LSTalk_Context* context) {
