@@ -183,6 +183,24 @@ int lstalk_close(struct LSTalk_Context* context, LSTalk_ServerID id);
  */
 int lstalk_process_responses(struct LSTalk_Context* context);
 
+/**
+ * A notification that should be used by the client to modify the trace setting of the server.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param trace - A LSTalk_Trace value to set the new setting.
+ * @param id - The LSTalk_ServerID connection to set the trace setting on.
+ */
+void lstalk_set_trace(struct LSTalk_Context* context, LSTalk_Trace trace, LSTalk_ServerID id);
+
+/**
+ * Calls lstalk_set_trace by converting the string into an LSTalk_Trace value.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param trace - A string representation of a LSTalk_Trace value.
+ * @param id - The LSTalk_ServerID connection to set the trace setting on.
+ */
+void lstalk_set_trace_from_string(struct LSTalk_Context* context, char* trace, LSTalk_ServerID id);
+
 //
 // The section below contains the definitions of interfaces used in communicating
 // with the language server.

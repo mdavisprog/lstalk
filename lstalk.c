@@ -2219,6 +2219,16 @@ static char* trace_to_string(LSTalk_Trace trace) {
     return "off";
 }
 
+static LSTalk_Trace string_to_trace(char* trace) {
+    if (strcmp(trace, "messages") == 0) {
+        return LSTALK_TRACE_MESSAGES;
+    } else if (strcmp(trace, "verbose") == 0) {
+        return LSTALK_TRACE_VERBOSE;
+    }
+
+    return LSTALK_TRACE_OFF;
+}
+
 static JSONValue resource_operation_kind_array(int value) {
     JSONValue result = json_make_array();
 
@@ -3218,6 +3228,23 @@ int lstalk_process_responses(LSTalk_Context* context) {
     }
 
     return 1;
+}
+
+void lstalk_set_trace(LSTalk_Context* context, LSTalk_Trace trace, LSTalk_ServerID id) {
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
+        return;
+    }
+
+    JSONValue params = json_make_object();
+    json_object_set(&params, json_make_string_const("value"), json_make_string(trace_to_string(trace)));
+    Request request = rpc_make_notification("$/setTrace", params);
+    server_send_request(context, server->process, &request);
+    rpc_close_request(&request);
+}
+
+void lstalk_set_trace_from_string(LSTalk_Context* context, char* trace, LSTalk_ServerID id) {
+    lstalk_set_trace(context, string_to_trace(trace), id);
 }
 
 #ifdef LSTALK_TESTS

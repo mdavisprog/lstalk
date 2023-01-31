@@ -219,6 +219,12 @@ int main(int argc, char** argv) {
                 debug_flags |= LSTALK_DEBUGFLAGS_PRINT_RESPONSES;
                 lstalk_set_debug_flags(context, debug_flags);
                 printf("showing responses...\n");
+            } else if (is_command(cmd, "set_trace")) {
+                if (arg_count == 2) {
+                    lstalk_set_trace_from_string(context, args[1].data, server_id);
+                } else {
+                    printf("usage: set_trace [LSTALK_TRACE]");
+                }
             } else {
                 pending_id = lstalk_connect(context, command, params);
             }
