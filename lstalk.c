@@ -3230,10 +3230,10 @@ int lstalk_process_responses(LSTalk_Context* context) {
     return 1;
 }
 
-void lstalk_set_trace(LSTalk_Context* context, LSTalk_Trace trace, LSTalk_ServerID id) {
+int lstalk_set_trace(LSTalk_Context* context, LSTalk_Trace trace, LSTalk_ServerID id) {
     Server* server = context_get_server(context, id);
     if (server == NULL) {
-        return;
+        return 0;
     }
 
     JSONValue params = json_make_object();
@@ -3241,10 +3241,11 @@ void lstalk_set_trace(LSTalk_Context* context, LSTalk_Trace trace, LSTalk_Server
     Request request = rpc_make_notification("$/setTrace", params);
     server_send_request(context, server->process, &request);
     rpc_close_request(&request);
+    return 1;
 }
 
-void lstalk_set_trace_from_string(LSTalk_Context* context, char* trace, LSTalk_ServerID id) {
-    lstalk_set_trace(context, string_to_trace(trace), id);
+int lstalk_set_trace_from_string(LSTalk_Context* context, char* trace, LSTalk_ServerID id) {
+    return lstalk_set_trace(context, string_to_trace(trace), id);
 }
 
 #ifdef LSTALK_TESTS
