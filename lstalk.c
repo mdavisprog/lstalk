@@ -1600,8 +1600,8 @@ static void server_close(Server* server) {
     server_free_capabilities(&server->info.capabilities);
 }
 
-static void server_send_request(LSTalk_Context* context, Process* server, Request* request) {
-    rpc_send_request(server, request, context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
+static void server_send_request(LSTalk_Context* context, Server* server, Request* request) {
+    rpc_send_request(server->process, request, context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
 }
 
 static char** parse_string_array(JSONValue* value, char* key, int* count) {
@@ -3130,7 +3130,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params.trace)));
 
     Request request = rpc_make_request(&server.request_id, "initialize", params);
-    server_send_request(context, server.process, &request);
+    server_send_request(context, &server, &request);
     server.connection_status = LSTALK_CONNECTION_STATUS_CONNECTING;
     vector_push(&server.requests, &request);
     vector_push(&context->servers, &server);
@@ -3162,7 +3162,7 @@ int lstalk_close(LSTalk_Context* context, LSTalk_ServerID id) {
     }
 
     Request request = rpc_make_request(&server->request_id, "shutdown", json_make_null());
-    server_send_request(context, server->process, &request);
+    server_send_request(context, server, &request);
     vector_push(&server->requests, &request);
     return 1;
 }
@@ -3200,11 +3200,11 @@ int lstalk_process_responses(LSTalk_Context* context) {
                                 server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
                                 server->info = server_parse_initialized(&value);
                                 Request initalized_request = rpc_make_notification("initialized", json_make_null());
-                                server_send_request(context, server->process, &initalized_request);
+                                server_send_request(context, server, &initalized_request);
                                 rpc_close_request(&initalized_request);
                             } else if (strcmp(method, "shutdown") == 0) {
                                 Request exit_notification = rpc_make_notification("exit", json_make_null());
-                                server_send_request(context, server->process, &exit_notification);
+                                server_send_request(context, server, &exit_notification);
                                 rpc_close_request(&exit_notification);
                                 server_close(server);
                                 vector_remove(&context->servers, i);
@@ -3239,7 +3239,7 @@ int lstalk_set_trace(LSTalk_Context* context, LSTalk_Trace trace, LSTalk_ServerI
     JSONValue params = json_make_object();
     json_object_set(&params, json_make_string_const("value"), json_make_string(trace_to_string(trace)));
     Request request = rpc_make_notification("$/setTrace", params);
-    server_send_request(context, server->process, &request);
+    server_send_request(context, server, &request);
     rpc_close_request(&request);
     return 1;
 }
