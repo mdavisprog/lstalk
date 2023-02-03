@@ -212,12 +212,24 @@ int lstalk_set_trace_from_string(struct LSTalk_Context* context, char* trace, LS
  * escaped to fit the JSON rpc format.
  * 
  * @param context - An initialized LSTalk_Context object.
- * @param path - The path to the file that is opened on the client.
+ * @param path - The absolute path to the file that is opened on the client.
  * @param id - The LSTalk_ServerID connection to open the document on.
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
 int lstalk_text_document_did_open(struct LSTalk_Context* context, char* path, LSTalk_ServerID id);
+
+/**
+ * The document close notification is sent from the client to the server
+ * when the document got closed in the client.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param path - The absolute path to the file that is opened on the client.
+ * @param id - The LSTalk_ServerID connection to open the document on.
+ * 
+ * @return - Non-zero if the request was sent. 0 if it failed.
+ */
+int lstalk_text_document_did_close(struct LSTalk_Context* context, char* path, LSTalk_ServerID id);
 
 //
 // The section below contains the definitions of interfaces used in communicating

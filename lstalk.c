@@ -3446,6 +3446,27 @@ int lstalk_text_document_did_open(LSTalk_Context* context, char* path, LSTalk_Se
     return 1;
 }
 
+int lstalk_text_document_did_close(LSTalk_Context* context, char* path, LSTalk_ServerID id) {
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
+        return 0;
+    }
+
+    char* uri = file_uri(path);
+    JSONValue text_document_identifier = json_make_object();
+    json_object_const_key_set(&text_document_identifier, "uri", json_make_string(uri));
+    free(uri);
+
+    JSONValue params = json_make_object();
+    json_object_const_key_set(&params, "textDocument", text_document_identifier);
+
+    Request request = rpc_make_notification("textDocument/didClose", params);
+    server_send_request(context, server, &request);
+    rpc_close_request(&request);
+
+    return 1;
+}
+
 #ifdef LSTALK_TESTS
 
 //
