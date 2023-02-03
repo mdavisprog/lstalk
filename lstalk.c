@@ -667,6 +667,61 @@ static const char* json_type_to_string(JSON_VALUE_TYPE type) {
     return "NULL";
 }
 
+static char* json_escape_string(char* source) {
+    if (source == NULL) {
+        return NULL;
+    }
+
+    Vector array = vector_create(sizeof(char));
+
+    char* start = source;
+    char* ptr = start;
+    size_t length = 0;
+    while (start != NULL) {
+        char ch = *ptr;
+        char escaped = 0;
+        switch (ch) {
+            case '"': escaped = '"'; break;
+            case '\\': escaped = '\\'; break;
+            case '/': escaped = '/'; break;
+            case '\b': escaped = 'b'; break;
+            case '\f': escaped = 'f'; break;
+            case '\n': escaped = 'n'; break;
+            case '\r': escaped = 'r'; break;
+            case '\t': escaped = 't'; break;
+            default: break;
+        }
+        if (ch != 0) {
+            if (escaped != 0) {
+                size_t count = ptr - start;
+                length += count + 2;
+                vector_append(&array, start, count);
+                char escape = '\\';
+                vector_push(&array, &escape);
+                vector_push(&array, &escaped);
+                start = ptr + 1;
+            }
+        // TODO: Handle unicode escape characters.
+        } else if (ch == '\0') {
+            size_t count = ptr - start;
+            length += count;
+            vector_append(&array, start, count);
+            start = NULL;
+        }
+        ptr++;
+    }
+
+    char* result = NULL;
+    if (array.length > 0) {
+        result = (char*)malloc(sizeof(char) * length + 1);
+        strncpy(result, array.data, length);
+        result[length] = '\0';
+    }
+
+    vector_destroy(&array);
+    return result;
+}
+
 struct JSONObject;
 struct JSONArray;
 
