@@ -949,8 +949,8 @@ static JSONValue json_make_array() {
     return result;
 }
 
-static JSONValue json_object_get(JSONValue* object, char* key) {
-    JSONValue result = json_make_null();
+static JSONValue* json_object_get_ptr(JSONValue* object, char* key) {
+    JSONValue* result = NULL;
 
     if (object == NULL || object->type != JSON_VALUE_OBJECT) {
         return result;
@@ -961,12 +961,21 @@ static JSONValue json_object_get(JSONValue* object, char* key) {
         JSONPair* pair = (JSONPair*)vector_get(&obj->pairs, i);
 
         if (strcmp(pair->key.value.string_value, key) == 0) {
-            result = pair->value;
+            result = &pair->value;
             break;
         }
     }
 
     return result;
+}
+
+static JSONValue json_object_get(JSONValue* object, char* key) {
+    JSONValue* ptr = json_object_get_ptr(object, key);
+    if (ptr == NULL) {
+        return json_make_null();
+    }
+
+    return *ptr;
 }
 
 static void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
