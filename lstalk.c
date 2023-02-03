@@ -1484,6 +1484,29 @@ static void rpc_close_request(Request* request) {
 //
 // This is the beginning of the exposed API functions for the library.
 
+typedef struct TextDocumentItem {
+    /**
+     * The text document's URI.
+     */
+    char* uri;
+
+    /**
+     * The text document's language identifier.
+     */
+    char* language_id;
+
+    /**
+     * The version number of this document (it will increase after each
+     * change, including undo/redo).
+     */
+    int version;
+
+    /**
+     * The content of the opened text document.
+     */
+    char* text;
+} TextDocumentItem;
+
 typedef struct Server {
     LSTalk_ServerID id;
     Process* process;
@@ -1491,6 +1514,7 @@ typedef struct Server {
     Vector requests;
     int request_id;
     LSTalk_ServerInfo info;
+    Vector text_documents;
 } Server;
 
 typedef struct ClientInfo {
@@ -1719,6 +1743,23 @@ static void server_close(Server* server) {
     }
 
     server_free_capabilities(&server->info.capabilities);
+
+    for (size_t i = 0; i < server->text_documents.length; i++) {
+        TextDocumentItem* item = (TextDocumentItem*)vector_get(&server->text_documents, i);
+
+        if (item->uri != NULL) {
+            free(item->uri);
+        }
+
+        if (item->language_id != NULL) {
+            free(item->language_id);
+        }
+
+        if (item->text != NULL) {
+            free(item->text);
+        }
+    }
+    vector_destroy(&server->text_documents);
 }
 
 static void server_send_request(LSTalk_Context* context, Server* server, Request* request) {
@@ -3241,6 +3282,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     server.request_id = 1;
     server.requests = vector_create(sizeof(Request));
     memset(&server.info, 0, sizeof(server.info));
+    server.text_documents = vector_create(sizeof(TextDocumentItem));
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
@@ -3367,6 +3409,41 @@ int lstalk_set_trace(LSTalk_Context* context, LSTalk_Trace trace, LSTalk_ServerI
 
 int lstalk_set_trace_from_string(LSTalk_Context* context, char* trace, LSTalk_ServerID id) {
     return lstalk_set_trace(context, string_to_trace(trace), id);
+}
+
+int lstalk_text_document_did_open(LSTalk_Context* context, char* path, LSTalk_ServerID id) {
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
+        return 0;
+    }
+
+    char* contents = file_get_contents(path);
+    if (contents == NULL) {
+        return 0;
+    }
+
+    TextDocumentItem item;
+    item.uri = file_uri(path);
+    item.language_id = file_extension(path);
+    item.version = 1;
+    item.text = json_escape_string(contents);
+    free(contents);
+
+    JSONValue text_document = json_make_object();
+    json_object_const_key_set(&text_document, "uri", json_make_string_const(item.uri));
+    json_object_const_key_set(&text_document, "languageId", json_make_string_const(item.language_id));
+    json_object_const_key_set(&text_document, "version", json_make_int(item.version));
+    json_object_const_key_set(&text_document, "text", json_make_string_const(item.text));
+
+    JSONValue params = json_make_object();
+    json_object_const_key_set(&params, "textDocument", text_document);
+
+    Request request = rpc_make_notification("textDocument/didOpen", params);
+    server_send_request(context, server, &request);
+    rpc_close_request(&request);
+
+    vector_push(&server->text_documents, &item);
+    return 1;
 }
 
 #ifdef LSTALK_TESTS

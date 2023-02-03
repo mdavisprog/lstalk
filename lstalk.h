@@ -205,6 +205,20 @@ int lstalk_set_trace(struct LSTalk_Context* context, LSTalk_Trace trace, LSTalk_
  */
 int lstalk_set_trace_from_string(struct LSTalk_Context* context, char* trace, LSTalk_ServerID id);
 
+/**
+ * The document open notification is sent from the client to the server to
+ * signal newly opened text documents. The library will attempt to open the
+ * file to send the contents to the server. The contents will be properly
+ * escaped to fit the JSON rpc format.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param path - The path to the file that is opened on the client.
+ * @param id - The LSTalk_ServerID connection to open the document on.
+ * 
+ * @return - Non-zero if the request was sent. 0 if it failed.
+ */
+int lstalk_text_document_did_open(struct LSTalk_Context* context, char* path, LSTalk_ServerID id);
+
 //
 // The section below contains the definitions of interfaces used in communicating
 // with the language server.
