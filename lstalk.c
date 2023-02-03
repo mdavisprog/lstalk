@@ -202,6 +202,72 @@ static void string_free_array(char** array, size_t count) {
 }
 
 //
+// File functions
+//
+// This section contains utility functions when operating on files.
+
+char* file_get_contents(char* path) {
+    if (path == NULL) {
+        return NULL;
+    }
+
+    FILE* file = fopen(path, "rb");
+    if (file == NULL) {
+        return NULL;
+    }
+
+    fseek(file, 0L, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0L, SEEK_SET);
+
+    if (size == 0) {
+        fclose(file);
+        return NULL;
+    }
+
+    char* result = (char*)malloc(sizeof(char) * size + 1);
+    size_t read = fread(result, sizeof(char), size, file);
+    result[size] = '\0';
+    fclose(file);
+
+    return result;
+}
+
+char* file_uri(char* path) {
+    if (path == NULL) {
+        return NULL;
+    }
+
+    char* scheme = "file:///";
+    size_t scheme_length = strlen(scheme);
+    size_t path_length = strlen(path);
+    Vector result = vector_create(sizeof(char));
+    vector_resize(&result, scheme_length + path_length + 1);
+    vector_append(&result, scheme, scheme_length);
+    vector_append(&result, path, path_length);
+    result.data[scheme_length + path_length] = 0;
+    return result.data;
+}
+
+char* file_extension(char* path) {
+    if (path == NULL) {
+        return NULL;
+    }
+
+    char* result = NULL;
+    char* ptr = path;
+    while (ptr != NULL) {
+        char* start = ptr;
+        ptr = strchr(ptr + 1, '.');
+        if (ptr == NULL) {
+            result = string_alloc_copy(start + 1);
+        }
+    }
+
+    return result;
+}
+
+//
 // Process Management
 //
 // This section will manage the creation/destruction of a process. All platform implementations should be
