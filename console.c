@@ -223,7 +223,19 @@ int main(int argc, char** argv) {
                 if (arg_count == 2) {
                     lstalk_set_trace_from_string(context, args[1].data, server_id);
                 } else {
-                    printf("usage: set_trace [LSTALK_TRACE]");
+                    printf("usage: set_trace [LSTALK_TRACE]\n");
+                }
+            } else if (is_command(cmd, "did_open")) {
+                if (arg_count == 2) {
+                    lstalk_text_document_did_open(context, args[1].data, server_id);
+                } else {
+                    printf("usage: did_open [PATH]\n");
+                }
+            } else if (is_command(cmd, "did_close")) {
+                if (arg_count == 2) {
+                    lstalk_text_document_did_close(context, args[1].data, server_id);
+                } else {
+                    printf("usage: did_close [PATH]\n");
                 }
             } else {
                 pending_id = lstalk_connect(context, command, params);
