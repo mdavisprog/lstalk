@@ -949,6 +949,17 @@ static JSONValue json_make_array() {
     return result;
 }
 
+static char* json_move_string(JSONValue* value) {
+    if (value == NULL) {
+        return NULL;
+    }
+
+    char* result = value->value.string_value;
+    value->type = JSON_VALUE_STRING_CONST;
+
+    return result;
+}
+
 static JSONValue* json_object_get_ptr(JSONValue* object, char* key) {
     JSONValue* result = NULL;
 
@@ -3817,6 +3828,17 @@ static int test_json_encode_array_of_objects() {
     return result;
 }
 
+static int test_json_move_string() {
+    JSONValue value = json_make_string("Hello World");
+    int length = strlen(value.value.string_value);
+    int result = strncmp(value.value.string_value, "Hello World", length) == 0;
+    char* moved = json_move_string(&value);
+    json_destroy_value(&value);
+    result &= strncmp(moved, "Hello World", length) == 0;
+    free(moved);
+    return result;
+}
+
 static TestResults tests_json() {
     TestResults result;
     Vector tests = vector_create(sizeof(TestCase));
@@ -3844,6 +3866,7 @@ static TestResults tests_json() {
     REGISTER_TEST(&tests, test_json_encode_array);
     REGISTER_TEST(&tests, test_json_encode_sub_object);
     REGISTER_TEST(&tests, test_json_encode_array_of_objects);
+    REGISTER_TEST(&tests, test_json_move_string);
 
     result.fail = tests_run(&tests);
     result.pass = tests.length - result.fail;
