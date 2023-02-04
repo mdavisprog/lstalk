@@ -1862,6 +1862,7 @@ static void server_close(Server* server) {
             default: break;
         }
     }
+    vector_destroy(&server->notifications);
 }
 
 static void server_send_request(LSTalk_Context* context, Server* server, Request* request) {
