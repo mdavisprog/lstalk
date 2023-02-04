@@ -11,6 +11,14 @@ add_library(
     lstalk.c
 )
 
+if(NOT WIN32)
+    target_link_libraries(
+        lstalk
+        PRIVATE
+        m
+    )
+endif()
+
 add_executable(
     lstalk_console
     console.c
@@ -36,6 +44,7 @@ target_compile_definitions(
     PUBLIC
     LSTALK_TESTS
 )
+endif()
 
 add_executable(
     lstalk_tests
@@ -55,4 +64,4 @@ target_link_libraries(
     lstalk_tests
     lstalk
 )
-endif()
+
