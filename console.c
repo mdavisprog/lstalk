@@ -256,6 +256,13 @@ int main(int argc, char** argv) {
                 }
             }
         }
+
+        if (server_id != LSTALK_INVALID_SERVER_ID) {
+            LSTalk_ServerNotification notification;
+            if (lstalk_poll_notification(context, server_id, &notification)) {
+                printf("Received notification: %d\n", notification.type);
+            }
+        }
     }
 
     lstalk_shutdown(context);
