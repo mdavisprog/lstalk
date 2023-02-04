@@ -1810,6 +1810,21 @@ static void server_free_publish_diagnostics(LSTalk_PublishDiagnostics* publish_d
     }
 }
 
+static void server_free_notification(LSTalk_ServerNotification* notification) {
+    if (notification == NULL) {
+        return;
+    }
+
+    switch (notification->type) {
+        case LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS: {
+            server_free_publish_diagnostics(&notification->data.publish_diagnostics);
+            break;
+        }
+        case LSTALK_NOTIFICATION_NONE:
+        default: break;
+    }
+}
+
 static void server_close(Server* server) {
     if (server == NULL) {
         return;
@@ -1852,15 +1867,7 @@ static void server_close(Server* server) {
 
     for (size_t i = 0; i < server->notifications.length; i++) {
         LSTalk_ServerNotification* notification = (LSTalk_ServerNotification*)vector_get(&server->notifications, i);
-
-        switch (notification->type) {
-            case LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS: {
-                server_free_publish_diagnostics(&notification->data.publish_diagnostics);
-                break;
-            }
-            case LSTALK_NOTIFICATION_NONE:
-            default: break;
-        }
+        server_free_notification(notification);
     }
     vector_destroy(&server->notifications);
 }
