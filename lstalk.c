@@ -3684,6 +3684,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                     if (method.type == JSON_VALUE_STRING && strcmp(method.value.string_value, "textDocument/publishDiagnostics") == 0) {
                         LSTalk_ServerNotification notification;
                         notification.type = LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS;
+                        notification.polled = 0;
                         JSONValue params = json_object_get(&method, "params");
                         notification.data.publish_diagnostics = server_parse_publish_diagnostics(&params);
                         vector_push(&server->notifications, &notification);
@@ -3694,9 +3695,40 @@ int lstalk_process_responses(LSTalk_Context* context) {
             }
             free(response);
         }
+
+        for (size_t i = 0; i < server->notifications.length; i++) {
+            LSTalk_ServerNotification* notification = (LSTalk_ServerNotification*)vector_get(&server->notifications, i);
+            if (notification->polled) {
+                server_free_notification(notification);
+                vector_remove(&server->notifications, i);
+                i--;
+            }
+        }
     }
 
     return 1;
+}
+
+int lstalk_poll_notification(LSTalk_Context* context, LSTalk_ServerID id, LSTalk_ServerNotification* notification) {
+    if (notification == NULL) {
+        return 0;
+    }
+
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
+        return 0;
+    }
+
+    for (size_t i = 0; i < server->notifications.length; i++) {
+        LSTalk_ServerNotification* item = (LSTalk_ServerNotification*)vector_get(&server->notifications, i);
+        if (!item->polled) {
+            *notification = *item;
+            item->polled = 1;
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 int lstalk_set_trace(LSTalk_Context* context, LSTalk_Trace trace, LSTalk_ServerID id) {

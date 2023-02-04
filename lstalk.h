@@ -70,6 +70,7 @@ typedef struct LSTalk_ConnectParams {
  */
 struct LSTalk_ClientCapabilities;
 struct LSTalk_ServerInfo;
+struct LSTalk_ServerNotification;
 
 /**
  * Initializes a LSTalk_Context object to be used with all of the API functions.
@@ -182,6 +183,17 @@ int lstalk_close(struct LSTalk_Context* context, LSTalk_ServerID id);
  * @return - A non-zero value if response were processed. 0 if nothing was processed.
  */
 int lstalk_process_responses(struct LSTalk_Context* context);
+
+/**
+ * Polls for any notifications received from the given server.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param id - The server connection to poll.
+ * @param notification - Next notification received from the server.
+ * 
+ * @return - A non-zero value if a notification was polled. 0 if no notification was polled.
+ */
+int lstalk_poll_notification(struct LSTalk_Context* context, LSTalk_ServerID id, struct LSTalk_ServerNotification* notification);
 
 /**
  * A notification that should be used by the client to modify the trace setting of the server.
@@ -3567,6 +3579,7 @@ typedef struct LSTalk_ServerNotification {
     } data;
 
     LSTalk_NotificationType type;
+    int polled;
 } LSTalk_ServerNotification;
 
 #ifdef LSTALK_TESTS
