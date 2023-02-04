@@ -1040,8 +1040,8 @@ static void json_array_push(JSONValue* array, JSONValue value) {
     vector_push(&arr->values, (void*)&value);
 }
 
-static JSONValue json_array_get(JSONValue* array, size_t index) {
-    JSONValue result = json_make_null();
+static JSONValue* json_array_get_ptr(JSONValue* array, size_t index) {
+    JSONValue* result = NULL;
 
     if (array == NULL || array->type != JSON_VALUE_ARRAY) {
         return result;
@@ -1053,9 +1053,26 @@ static JSONValue json_array_get(JSONValue* array, size_t index) {
         return result;
     }
 
-    result = *(JSONValue*)vector_get(&arr->values, index);
+    result = (JSONValue*)vector_get(&arr->values, index);
 
     return result;
+}
+
+static JSONValue json_array_get(JSONValue* array, size_t index) {
+    JSONValue* result = json_array_get_ptr(array, index);
+    if (result == NULL) {
+        return json_make_null();
+    }
+
+    return *result;
+}
+
+static size_t json_array_length(JSONValue* array) {
+    if (array == NULL) {
+        return 0;
+    }
+
+    return array->value.array_value->values.length;
 }
 
 static JSONEncoder json_encode(JSONValue* value) {
