@@ -3365,6 +3365,210 @@ typedef struct LSTalk_ServerInfo {
     LSTalk_ServerCapabilities capabilities;
 } LSTalk_ServerInfo;
 
+/**
+ * Position in a text document expressed as zero-based line and zero-based
+ * character offset. A position is between two characters like an ‘insert’
+ * cursor in an editor. Special values like for example -1 to denote the end
+ * of a line are not supported.
+ */
+typedef struct LSTalk_Position {
+    /**
+     * Line position in a document (zero-based).
+     */
+    unsigned int line;
+
+    /**
+     * Character offset on a line in a document (zero-based). The meaning of this
+     * offset is determined by the negotiated `PositionEncodingKind`.
+     *
+     * If the character value is greater than the line length it defaults back
+     * to the line length.
+     */
+    unsigned int character;
+} LSTalk_Position;
+
+/**
+ * A range in a text document expressed as (zero-based) start and end positions.
+ * A range is comparable to a selection in an editor. Therefore the end position
+ * is exclusive. If you want to specify a range that contains a line including the
+ * line ending character(s) then use an end position denoting the start of the
+ * next line.
+ */
+typedef struct LSTalk_Range {
+    /**
+     * The range's start position.
+     */
+    LSTalk_Position start;
+
+    /**
+     * The range's end position.
+     */
+    LSTalk_Position end;
+} LSTalk_Range;
+
+/**
+ * Represents a location inside a resource, such as a line inside a text file.
+ */
+typedef struct LSTalk_Location {
+    char* uri;
+    LSTalk_Range range;
+} LSTalk_Location;
+
+/**
+ * A diagnostic's severity.
+ */
+typedef enum {
+    /**
+     * Reports an error.
+     */
+    LSTALK_DIAGNOSTICSEVERITY_ERROR = 1,
+
+    /**
+     * Reports a warning.
+     */
+    LSTALK_DIAGNOSTICSEVERITY_WARNING = 2,
+
+    /**
+     * Reports an information.
+     */
+    LSTALK_DIAGNOSTICSEVERITY_INFORMATION = 3,
+
+    /**
+     * Reports a hint.
+     */
+    LSTALK_DIAGNOSTICSEVERITY_HINT = 4,
+} LSTalk_DiagnosticSeverity;
+
+/**
+ * Structure to capture a description for an error code.
+ *
+ * @since 3.16.0
+ */
+typedef struct LSTalk_CodeDescription {
+    /**
+     * An URI to open with more information about the diagnostic error.
+     */
+    char* href;
+} LSTalk_CodeDescription;
+
+/**
+ * Represents a related message and source code location for a diagnostic.
+ * This should be used to point to code locations that cause or are related to
+ * a diagnostics, e.g when duplicating a symbol in a scope.
+ */
+typedef struct LSTalk_DiagnosticRelatedInformation {
+    /**
+     * The location of this related diagnostic information.
+     */
+    LSTalk_Location location;
+
+    /**
+     * The message of this related diagnostic information.
+     */
+    char* message;
+} LSTalk_DiagnosticRelatedInformation;
+
+/**
+ * Represents a diagnostic, such as a compiler error or warning. Diagnostic
+ * objects are only valid in the scope of a resource.
+ */
+typedef struct LSTalk_Diagnostic {
+    /**
+     * The range at which the message applies.
+     */
+    LSTalk_Range range;
+
+    /**
+     * The diagnostic's severity. Can be omitted. If omitted it is up to the
+     * client to interpret diagnostics as error, warning, info or hint.
+     */
+    LSTalk_DiagnosticSeverity severity;
+
+    /**
+     * The diagnostic's code, which might appear in the user interface.
+     */
+    char* code;
+
+    /**
+     * An optional property to describe the error code.
+     *
+     * @since 3.16.0
+     */
+    LSTalk_CodeDescription code_description;
+
+    /**
+     * A human-readable string describing the source of this
+     * diagnostic, e.g. 'typescript' or 'super lint'.
+     */
+    char* source;
+
+    /**
+     * The diagnostic's message.
+     */
+    char* message;
+
+    /**
+     * Additional metadata about the diagnostic.
+     * 
+     * This will contain flags from LSTalk_DiagnosticTag.
+     *
+     * @since 3.15.0
+     */
+    int tags;
+
+    /**
+     * An array of related diagnostic information, e.g. when symbol-names within
+     * a scope collide all definitions can be marked via this property.
+     */
+    LSTalk_DiagnosticRelatedInformation* related_information;
+    int related_information_count;
+} LSTalk_Diagnostic;
+
+/**
+ * Diagnostics notification are sent from the server to the client to signal
+ * results of validation runs.
+ */
+typedef struct LSTalk_PublishDiagnostics {
+    /**
+     * The URI for which diagnostic information is reported.
+     */
+    char* uri;
+
+    /**
+     * Optional the version number of the document the diagnostics are published
+     * for.
+     *
+     * @since 3.15.0
+     */
+    int version;
+
+    /**
+     * An array of diagnostic information items.
+     */
+    LSTalk_Diagnostic* diagnostics;
+    int diagnostics_count;
+} LSTalk_PublishDiagnostics;
+
+/**
+ * Different types of notifications/responses from the server.
+ */
+typedef enum {
+    LSTALK_NOTIFICATION_NONE,
+    LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS,
+} LSTalk_NotificationType;
+
+/**
+ * A notification from the server. The struct will contain
+ * a type and the data associated with the type.
+ */
+typedef struct LSTalk_ServerNotification {
+    union {
+        LSTalk_PublishDiagnostics publish_diagnostics;
+    } data;
+
+    LSTalk_NotificationType type;
+} LSTalk_ServerNotification;
+
 #ifdef LSTALK_TESTS
 void lstalk_tests();
 #endif
