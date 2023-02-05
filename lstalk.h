@@ -2858,13 +2858,51 @@ typedef struct LSTalk_CallHierarchyRegistrationOptions {
     int is_supported;
 } LSTalk_CallHierarchyRegistrationOptions;
 
+typedef struct LSTalk_SemanticTokensLegend {
+    /**
+	 * The token types a server uses.
+	 */
+	char** token_types;
+    int token_types_count;
+
+    /**
+	 * The token modifiers a server uses.
+	 */
+	char** token_modifiers;
+    int token_modifiers_count;
+} LSTalk_SemanticTokensLegend;
+
+typedef struct LSTalk_SemanticTokensOptions {
+    LSTalk_WorkDoneProgressOptions work_done_progress;
+
+    /**
+	 * The legend used by the server
+	 */
+	LSTalk_SemanticTokensLegend legend;
+
+    /**
+	 * Server supports providing semantic tokens for a specific range
+	 * of a document.
+	 */
+    int range;
+
+    /**
+	 * Server supports providing semantic tokens for a full document.
+	 *
+	 * full:
+     * 
+     * The server supports deltas for full documents.
+     */
+    int full_delta;
+} LSTalk_SemanticTokensOptions;
+
 /**
  * The server provides semantic tokens support.
  *
  * @since 3.16.0
  */
 typedef struct LSTalk_SemanticTokensRegistrationOptions {
-    LSTalk_WorkDoneProgressOptions work_done_progress;
+    LSTalk_SemanticTokensOptions semantic_tokens;
     LSTalk_TextDocumentRegistrationOptions text_document_registration;
     LSTalk_StaticRegistrationOptions static_registration;
 } LSTalk_SemanticTokensRegistrationOptions;

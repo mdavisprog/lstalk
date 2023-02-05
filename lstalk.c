@@ -2352,10 +2352,31 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
             }
 
             JSONValue semantic_tokens_provider = json_object_get(&capabilities, "semanticTokensProvider");
-            if (semantic_tokens_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.semantic_tokens_provider.work_done_progress = parse_work_done_progress(&semantic_tokens_provider);
+            if (semantic_tokens_provider.type == JSON_VALUE_OBJECT) {
+                info.capabilities.semantic_tokens_provider.semantic_tokens.work_done_progress = parse_work_done_progress(&semantic_tokens_provider);
                 info.capabilities.semantic_tokens_provider.text_document_registration = parse_text_document_registration(&semantic_tokens_provider);
                 info.capabilities.semantic_tokens_provider.static_registration = parse_static_registration(&semantic_tokens_provider);
+
+                JSONValue* legend = json_object_get_ptr(&semantic_tokens_provider, "legend");
+                if (legend != NULL && legend->type == JSON_VALUE_OBJECT) {
+                    info.capabilities.semantic_tokens_provider.semantic_tokens.legend.token_types =
+                        parse_string_array(legend, "tokenTypes", &info.capabilities.semantic_tokens_provider.semantic_tokens.legend.token_types_count);
+                    info.capabilities.semantic_tokens_provider.semantic_tokens.legend.token_modifiers =
+                        parse_string_array(legend, "tokenModifiers", &info.capabilities.semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count);
+                }
+
+                JSONValue range = json_object_get(&semantic_tokens_provider, "range");
+                if (range.type == JSON_VALUE_BOOLEAN) {
+                    info.capabilities.semantic_tokens_provider.semantic_tokens.range = range.value.bool_value;
+                }
+
+                JSONValue full = json_object_get(&semantic_tokens_provider, "full");
+                if (full.type == JSON_VALUE_OBJECT) {
+                    JSONValue delta = json_object_get(&full, "delta");
+                    if (delta.type == JSON_VALUE_BOOLEAN) {
+                        info.capabilities.semantic_tokens_provider.semantic_tokens.full_delta = delta.value.bool_value;
+                    }
+                }
             }
 
             JSONValue moniker_provider = json_object_get(&capabilities, "monikerProvider");
