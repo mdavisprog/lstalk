@@ -199,23 +199,23 @@ int lstalk_poll_notification(struct LSTalk_Context* context, LSTalk_ServerID id,
  * A notification that should be used by the client to modify the trace setting of the server.
  * 
  * @param context - An initialized LSTalk_Context object.
- * @param trace - A LSTalk_Trace value to set the new setting.
  * @param id - The LSTalk_ServerID connection to set the trace setting on.
+ * @param trace - A LSTalk_Trace value to set the new setting.
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
-int lstalk_set_trace(struct LSTalk_Context* context, LSTalk_Trace trace, LSTalk_ServerID id);
+int lstalk_set_trace(struct LSTalk_Context* context, LSTalk_ServerID id, LSTalk_Trace trace);
 
 /**
  * Calls lstalk_set_trace by converting the string into an LSTalk_Trace value.
  * 
  * @param context - An initialized LSTalk_Context object.
- * @param trace - A string representation of a LSTalk_Trace value.
  * @param id - The LSTalk_ServerID connection to set the trace setting on.
+ * @param trace - A string representation of a LSTalk_Trace value.
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
-int lstalk_set_trace_from_string(struct LSTalk_Context* context, char* trace, LSTalk_ServerID id);
+int lstalk_set_trace_from_string(struct LSTalk_Context* context, LSTalk_ServerID id, char* trace);
 
 /**
  * The document open notification is sent from the client to the server to
@@ -224,24 +224,24 @@ int lstalk_set_trace_from_string(struct LSTalk_Context* context, char* trace, LS
  * escaped to fit the JSON rpc format.
  * 
  * @param context - An initialized LSTalk_Context object.
- * @param path - The absolute path to the file that is opened on the client.
  * @param id - The LSTalk_ServerID connection to open the document on.
+ * @param path - The absolute path to the file that is opened on the client.
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
-int lstalk_text_document_did_open(struct LSTalk_Context* context, char* path, LSTalk_ServerID id);
+int lstalk_text_document_did_open(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
 
 /**
  * The document close notification is sent from the client to the server
  * when the document got closed in the client.
  * 
  * @param context - An initialized LSTalk_Context object.
- * @param path - The absolute path to the file that is opened on the client.
  * @param id - The LSTalk_ServerID connection to open the document on.
+ * @param path - The absolute path to the file that is opened on the client.
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
-int lstalk_text_document_did_close(struct LSTalk_Context* context, char* path, LSTalk_ServerID id);
+int lstalk_text_document_did_close(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
 
 //
 // The section below contains the definitions of interfaces used in communicating

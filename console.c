@@ -221,19 +221,19 @@ int main(int argc, char** argv) {
                 printf("showing responses...\n");
             } else if (is_command(cmd, "set_trace")) {
                 if (arg_count == 2) {
-                    lstalk_set_trace_from_string(context, args[1].data, server_id);
+                    lstalk_set_trace_from_string(context, server_id, args[1].data);
                 } else {
                     printf("usage: set_trace [LSTALK_TRACE]\n");
                 }
             } else if (is_command(cmd, "did_open")) {
                 if (arg_count == 2) {
-                    lstalk_text_document_did_open(context, args[1].data, server_id);
+                    lstalk_text_document_did_open(context, server_id, args[1].data);
                 } else {
                     printf("usage: did_open [PATH]\n");
                 }
             } else if (is_command(cmd, "did_close")) {
                 if (arg_count == 2) {
-                    lstalk_text_document_did_close(context, args[1].data, server_id);
+                    lstalk_text_document_did_close(context, server_id, args[1].data);
                 } else {
                     printf("usage: did_close [PATH]\n");
                 }

@@ -3752,7 +3752,7 @@ int lstalk_poll_notification(LSTalk_Context* context, LSTalk_ServerID id, LSTalk
     return 0;
 }
 
-int lstalk_set_trace(LSTalk_Context* context, LSTalk_Trace trace, LSTalk_ServerID id) {
+int lstalk_set_trace(LSTalk_Context* context, LSTalk_ServerID id, LSTalk_Trace trace) {
     Server* server = context_get_server(context, id);
     if (server == NULL) {
         return 0;
@@ -3766,11 +3766,11 @@ int lstalk_set_trace(LSTalk_Context* context, LSTalk_Trace trace, LSTalk_ServerI
     return 1;
 }
 
-int lstalk_set_trace_from_string(LSTalk_Context* context, char* trace, LSTalk_ServerID id) {
-    return lstalk_set_trace(context, string_to_trace(trace), id);
+int lstalk_set_trace_from_string(LSTalk_Context* context, LSTalk_ServerID id, char* trace) {
+    return lstalk_set_trace(context, id, string_to_trace(trace));
 }
 
-int lstalk_text_document_did_open(LSTalk_Context* context, char* path, LSTalk_ServerID id) {
+int lstalk_text_document_did_open(LSTalk_Context* context, LSTalk_ServerID id, char* path) {
     Server* server = context_get_server(context, id);
     if (server == NULL) {
         return 0;
@@ -3805,7 +3805,7 @@ int lstalk_text_document_did_open(LSTalk_Context* context, char* path, LSTalk_Se
     return 1;
 }
 
-int lstalk_text_document_did_close(LSTalk_Context* context, char* path, LSTalk_ServerID id) {
+int lstalk_text_document_did_close(LSTalk_Context* context, LSTalk_ServerID id, char* path) {
     Server* server = context_get_server(context, id);
     if (server == NULL) {
         return 0;
