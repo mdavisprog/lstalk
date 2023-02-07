@@ -1876,6 +1876,12 @@ static void server_send_request(LSTalk_Context* context, Server* server, Request
     rpc_send_request(server->process, request, context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
 }
 
+static void server_make_and_send_notification(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
+    Request request = rpc_make_notification(method, params);
+    server_send_request(context, server, &request);
+    rpc_close_request(&request);
+}
+
 static char** parse_string_array(JSONValue* value, char* key, int* count) {
     if (value == NULL || value->type != JSON_VALUE_OBJECT || count == NULL) {
         return NULL;
@@ -3681,13 +3687,9 @@ int lstalk_process_responses(LSTalk_Context* context) {
                             if (strcmp(method, "initialize") == 0) {
                                 server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
                                 server->info = server_parse_initialized(&value);
-                                Request initalized_request = rpc_make_notification("initialized", json_make_null());
-                                server_send_request(context, server, &initalized_request);
-                                rpc_close_request(&initalized_request);
+                                server_make_and_send_notification(context, server, "initialized", json_make_null());
                             } else if (strcmp(method, "shutdown") == 0) {
-                                Request exit_notification = rpc_make_notification("exit", json_make_null());
-                                server_send_request(context, server, &exit_notification);
-                                rpc_close_request(&exit_notification);
+                                server_make_and_send_notification(context, server, "exit", json_make_null());
                                 server_close(server);
                                 vector_remove(&context->servers, i);
                                 i--;
@@ -3760,9 +3762,7 @@ int lstalk_set_trace(LSTalk_Context* context, LSTalk_ServerID id, LSTalk_Trace t
 
     JSONValue params = json_make_object();
     json_object_set(&params, json_make_string_const("value"), json_make_string(trace_to_string(trace)));
-    Request request = rpc_make_notification("$/setTrace", params);
-    server_send_request(context, server, &request);
-    rpc_close_request(&request);
+    server_make_and_send_notification(context, server, "$/setTrace", params);
     return 1;
 }
 
@@ -3797,10 +3797,7 @@ int lstalk_text_document_did_open(LSTalk_Context* context, LSTalk_ServerID id, c
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "textDocument", text_document);
 
-    Request request = rpc_make_notification("textDocument/didOpen", params);
-    server_send_request(context, server, &request);
-    rpc_close_request(&request);
-
+    server_make_and_send_notification(context, server, "textDocument/didOpen", params);
     vector_push(&server->text_documents, &item);
     return 1;
 }
@@ -3819,10 +3816,7 @@ int lstalk_text_document_did_close(LSTalk_Context* context, LSTalk_ServerID id, 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "textDocument", text_document_identifier);
 
-    Request request = rpc_make_notification("textDocument/didClose", params);
-    server_send_request(context, server, &request);
-    rpc_close_request(&request);
-
+    server_make_and_send_notification(context, server, "textDocument/didClose", params);
     return 1;
 }
 
