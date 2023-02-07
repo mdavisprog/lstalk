@@ -185,7 +185,10 @@ int lstalk_close(struct LSTalk_Context* context, LSTalk_ServerID id);
 int lstalk_process_responses(struct LSTalk_Context* context);
 
 /**
- * Polls for any notifications received from the given server.
+ * Polls for any notifications received from the given server. The context will hol any
+ * memory allocated for the notification. Once the notification has been polled, the
+ * memory will be freed on the next lstalk_process_responses call. The caller will
+ * need to create their own copy of any data they wish to hold onto.
  * 
  * @param context - An initialized LSTalk_Context object.
  * @param id - The server connection to poll.
@@ -2860,15 +2863,15 @@ typedef struct LSTalk_CallHierarchyRegistrationOptions {
 
 typedef struct LSTalk_SemanticTokensLegend {
     /**
-	 * The token types a server uses.
-	 */
-	char** token_types;
+     * The token types a server uses.
+     */
+    char** token_types;
     int token_types_count;
 
     /**
-	 * The token modifiers a server uses.
-	 */
-	char** token_modifiers;
+     * The token modifiers a server uses.
+     */
+    char** token_modifiers;
     int token_modifiers_count;
 } LSTalk_SemanticTokensLegend;
 
@@ -2876,20 +2879,20 @@ typedef struct LSTalk_SemanticTokensOptions {
     LSTalk_WorkDoneProgressOptions work_done_progress;
 
     /**
-	 * The legend used by the server
-	 */
-	LSTalk_SemanticTokensLegend legend;
+     * The legend used by the server
+     */
+    LSTalk_SemanticTokensLegend legend;
 
     /**
-	 * Server supports providing semantic tokens for a specific range
-	 * of a document.
-	 */
+     * Server supports providing semantic tokens for a specific range
+     * of a document.
+     */
     int range;
 
     /**
-	 * Server supports providing semantic tokens for a full document.
-	 *
-	 * full:
+     * Server supports providing semantic tokens for a full document.
+     *
+     * full:
      * 
      * The server supports deltas for full documents.
      */
