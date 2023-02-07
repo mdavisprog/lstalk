@@ -927,6 +927,13 @@ static JSONValue json_make_string(char* value) {
     return result;
 }
 
+static JSONValue json_make_owned_string(char* value) {
+    JSONValue result;
+    result.type = JSON_VALUE_STRING;
+    result.value.string_value = value;
+    return result;
+}
+
 static JSONValue json_make_string_const(char* value) {
     JSONValue result;
     result.type = JSON_VALUE_STRING_CONST;
@@ -3810,8 +3817,7 @@ int lstalk_text_document_did_close(LSTalk_Context* context, LSTalk_ServerID id, 
 
     char* uri = file_uri(path);
     JSONValue text_document_identifier = json_make_object();
-    json_object_const_key_set(&text_document_identifier, "uri", json_make_string(uri));
-    free(uri);
+    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(uri));
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "textDocument", text_document_identifier);
