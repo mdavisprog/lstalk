@@ -1889,6 +1889,12 @@ static void server_make_and_send_notification(LSTalk_Context* context, Server* s
     rpc_close_request(&request);
 }
 
+static void server_make_and_send_request(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
+    Request request = rpc_make_request(&server->request_id, method, params);
+    server_send_request(context, server, &request);
+    vector_push(&server->requests, &request);
+}
+
 static char** parse_string_array(JSONValue* value, char* key, int* count) {
     if (value == NULL || value->type != JSON_VALUE_OBJECT || count == NULL) {
         return NULL;
@@ -3623,10 +3629,8 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&params, "clientCapabilities", make_client_capabilities_object(&context->client_capabilities));
     json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params.trace)));
 
-    Request request = rpc_make_request(&server.request_id, "initialize", params);
-    server_send_request(context, &server, &request);
+    server_make_and_send_request(context, &server, "initialize", params);
     server.connection_status = LSTALK_CONNECTION_STATUS_CONNECTING;
-    vector_push(&server.requests, &request);
     vector_push(&context->servers, &server);
     return server.id;
 }
@@ -3655,9 +3659,7 @@ int lstalk_close(LSTalk_Context* context, LSTalk_ServerID id) {
         return 0;
     }
 
-    Request request = rpc_make_request(&server->request_id, "shutdown", json_make_null());
-    server_send_request(context, server, &request);
-    vector_push(&server->requests, &request);
+    server_make_and_send_request(context, server, "shutdown", json_make_null());
     return 1;
 }
 
