@@ -3770,7 +3770,7 @@ int lstalk_set_trace(LSTalk_Context* context, LSTalk_ServerID id, LSTalk_Trace t
     }
 
     JSONValue params = json_make_object();
-    json_object_set(&params, json_make_string_const("value"), json_make_string(trace_to_string(trace)));
+    json_object_set(&params, json_make_string_const("value"), json_make_string_const(trace_to_string(trace)));
     server_make_and_send_notification(context, server, "$/setTrace", params);
     return 1;
 }
