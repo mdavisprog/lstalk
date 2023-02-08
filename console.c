@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
     LSTalk_ServerID pending_id = LSTALK_INVALID_SERVER_ID;
     LSTalk_ConnectParams params;
     params.root_uri = NULL;
-    params.trace = LSTALK_TRACE_OFF;
+    params.trace = LSTALK_TRACE_VERBOSE;
     int debug_flags = LSTALK_DEBUGFLAGS_NONE;
 
     Argument args[20];
@@ -247,6 +247,12 @@ int main(int argc, char** argv) {
                 } else {
                     printf("usage: open [LANGUAGE_SERVER]\n");
                 }
+            } else if (is_command(cmd, "doc_symbols")) {
+                if (arg_count == 2) {
+                    lstalk_text_document_document_symbol(context, server_id, args[1].data);
+                } else {
+                    printf("usage: doc_symbols [PATH]\n");
+                }
             } else {
                 printf("Unrecognized command: %s\n", command);
             }
@@ -270,7 +276,17 @@ int main(int argc, char** argv) {
         if (server_id != LSTALK_INVALID_SERVER_ID) {
             LSTalk_ServerNotification notification;
             if (lstalk_poll_notification(context, server_id, &notification)) {
-                printf("Received notification: %d\n", notification.type);
+                switch (notification.type) {
+                    case LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS: {
+                        printf("Document symbols: %d\n", notification.data.document_symbols.symbols_count);
+                        for (int i = 0; i < notification.data.document_symbols.symbols_count; i++) {
+                            printf("   %s\n", notification.data.document_symbols.symbols[i].name);
+                        }
+                    } break;
+                    default: {
+                        printf("Received notification: %d\n", notification.type);
+                    } break;
+                }
             }
         }
     }
