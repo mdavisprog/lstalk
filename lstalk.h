@@ -246,6 +246,17 @@ int lstalk_text_document_did_open(struct LSTalk_Context* context, LSTalk_ServerI
  */
 int lstalk_text_document_did_close(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
 
+/**
+ * Retrieves all symbols for a given document.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param id - The LSTalk_ServerID connection to open the document on.
+ * @param path - The absolute path to the file that is opened on the client.
+ * 
+ * @return - Non-zero if the request was sent. 0 if it failed.
+ */
+int lstalk_text_document_document_symbol(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
+
 //
 // The section below contains the definitions of interfaces used in communicating
 // with the language server.
@@ -309,6 +320,7 @@ typedef enum {
  * A symbol kind.
  */
 typedef enum {
+    LSTALK_SYMBOLKIND_NONE = 0,
     LSTALK_SYMBOLKIND_FILE = 1 << 0,
     LSTALK_SYMBOLKIND_MODULE = 1 << 1,
     LSTALK_SYMBOLKIND_NAMESPACE = 1 << 2,
@@ -3603,10 +3615,71 @@ typedef struct LSTalk_PublishDiagnostics {
 } LSTalk_PublishDiagnostics;
 
 /**
+ * Represents programming constructs like variables, classes, interfaces etc.
+ * that appear in a document. Document symbols can be hierarchical and they
+ * have two ranges: one that encloses its definition and one that points to its
+ * most interesting range, e.g. the range of an identifier.
+ */
+typedef struct LSTalk_DocumentSymbol {
+    /**
+     * The name of this symbol. Will be displayed in the user interface and
+     * therefore must not be an empty string or a string only consisting of
+     * white spaces.
+     */
+    char* name;
+    
+    /**
+     * More detail for this symbol, e.g the signature of a function.
+     */
+    char* detail;
+
+    /**
+     * The kind of this symbol.
+     */
+    LSTalk_SymbolKind kind;
+
+    /**
+     * Tags for this document symbol. 
+     *
+     * @since 3.16.0
+     */
+    int tags;
+
+    /**
+     * The range enclosing this symbol not including leading/trailing whitespace
+     * but everything else like comments. This information is typically used to
+     * determine if the clients cursor is inside the symbol to reveal in the
+     * symbol in the UI.
+     */
+    LSTalk_Range range;
+
+    /**
+     * The range that should be selected and revealed when this symbol is being
+     * picked, e.g. the name of a function. Must be contained by the `range`.
+     */
+    LSTalk_Range selection_range;
+
+    /**
+     * Children of this symbol, e.g. properties of a class.
+     */
+    struct LSTalk_DocumentSymbol* children;
+    int children_count;
+} LSTalk_DocumentSymbol;
+
+/**
+ * Response received from a document_symbol request.
+ */
+typedef struct LSTalk_DocumentSymbolNotification {
+    LSTalk_DocumentSymbol* symbols;
+    int symbols_count;
+} LSTalk_DocumentSymbolNotification;
+
+/**
  * Different types of notifications/responses from the server.
  */
 typedef enum {
     LSTALK_NOTIFICATION_NONE,
+    LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS,
     LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS,
 } LSTalk_NotificationType;
 
@@ -3616,6 +3689,7 @@ typedef enum {
  */
 typedef struct LSTalk_ServerNotification {
     union {
+        LSTalk_DocumentSymbolNotification document_symbols;
         LSTalk_PublishDiagnostics publish_diagnostics;
     } data;
 

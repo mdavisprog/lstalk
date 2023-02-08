@@ -2808,6 +2808,45 @@ static JSONValue symbol_kind_array(long long value) {
     return result;
 }
 
+static LSTalk_SymbolKind parse_symbol_kind(JSONValue* value) {
+    if (value == NULL || value->type != JSON_VALUE_INT) {
+        return LSTALK_SYMBOLKIND_NONE;
+    }
+
+    int kind = value->value.int_value;
+    switch (kind) {
+        case SYMBOLKIND_File: return LSTALK_SYMBOLKIND_FILE;
+        case SYMBOLKIND_Module: return LSTALK_SYMBOLKIND_MODULE;
+        case SYMBOLKIND_Namespace: return LSTALK_SYMBOLKIND_NAMESPACE;
+        case SYMBOLKIND_Package: return LSTALK_SYMBOLKIND_PACKAGE;
+        case SYMBOLKIND_Class: return LSTALK_SYMBOLKIND_CLASS;
+        case SYMBOLKIND_Method: return LSTALK_SYMBOLKIND_METHOD;
+        case SYMBOLKIND_Property: return LSTALK_SYMBOLKIND_PROPERTY;
+        case SYMBOLKIND_Field: return LSTALK_SYMBOLKIND_FIELD;
+        case SYMBOLKIND_Constructor: return LSTALK_SYMBOLKIND_CONSTRUCTOR;
+        case SYMBOLKIND_Enum: return LSTALK_SYMBOLKIND_ENUM;
+        case SYMBOLKIND_Interface: return LSTALK_SYMBOLKIND_INTERFACE;
+        case SYMBOLKIND_Function: return LSTALK_SYMBOLKIND_FUNCTION;
+        case SYMBOLKIND_Variable: return LSTALK_SYMBOLKIND_VARIABLE;
+        case SYMBOLKIND_Constant: return LSTALK_SYMBOLKIND_CONSTANT;
+        case SYMBOLKIND_String: return LSTALK_SYMBOLKIND_STRING;
+        case SYMBOLKIND_Number: return LSTALK_SYMBOLKIND_NUMBER;
+        case SYMBOLKIND_Boolean: return LSTALK_SYMBOLKIND_BOOLEAN;
+        case SYMBOLKIND_Array: return LSTALK_SYMBOLKIND_ARRAY;
+        case SYMBOLKIND_Object: return LSTALK_SYMBOLKIND_OBJECT;
+        case SYMBOLKIND_Key: return LSTALK_SYMBOLKIND_KEY;
+        case SYMBOLKIND_Null: return LSTALK_SYMBOLKIND_NULL;
+        case SYMBOLKIND_EnumMember: return LSTALK_SYMBOLKIND_ENUMMEMBER;
+        case SYMBOLKIND_Struct: return LSTALK_SYMBOLKIND_STRUCT;
+        case SYMBOLKIND_Event: return LSTALK_SYMBOLKIND_EVENT;
+        case SYMBOLKIND_Operator: return LSTALK_SYMBOLKIND_OPERATOR;
+        case SYMBOLKIND_TypeParameter: return LSTALK_SYMBOLKIND_TYPEPARAMETER;
+        default: break;
+    }
+
+    return LSTALK_SYMBOLKIND_NONE;
+}
+
 typedef enum {
     SYMBOLTAG_Deprecated = 1,
 } SymbolTag;
@@ -2816,6 +2855,26 @@ static JSONValue symbol_tag_array(int value) {
     JSONValue result = json_make_array();
 
     if (value & LSTALK_SYMBOLTAG_DEPRECATED) { json_array_push(&result, json_make_int(SYMBOLTAG_Deprecated)); }
+
+    return result;
+}
+
+static int parse_symbol_tags(JSONValue* value) {
+    int result = 0;
+
+    if (value != NULL || value->type != JSON_VALUE_ARRAY) {
+        return result;
+    }
+
+    for (size_t i = 0; i < json_array_length(value); i++) {
+        JSONValue item = json_array_get(value, i);
+        if (item.type == JSON_VALUE_INT) {
+            switch (item.value.int_value) {
+                case SYMBOLTAG_Deprecated: result |= LSTALK_SYMBOLTAG_DEPRECATED; break;
+                default: break;
+            }
+        }
+    }
 
     return result;
 }
@@ -3062,6 +3121,72 @@ static JSONValue string_array(char** array, int count) {
     for (int i = 0; i < count; i++) {
         json_array_push(&result, json_make_string(array[i]));
     }
+    return result;
+}
+
+static LSTalk_DocumentSymbol parse_document_symbol(JSONValue* value) {
+    LSTalk_DocumentSymbol result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue* name = json_object_get_ptr(value, "name");
+    if (name != NULL && name->type == JSON_VALUE_STRING) {
+        result.name = json_move_string(name);
+    }
+
+    JSONValue* detail = json_object_get_ptr(value, "detail");
+    if (detail != NULL && detail->type == JSON_VALUE_STRING) {
+        result.detail = json_move_string(detail);
+    }
+
+    JSONValue kind = json_object_get(value, "kind");
+    result.kind = parse_symbol_kind(&kind);
+
+    JSONValue range = json_object_get(value, "range");
+    if (range.type == JSON_VALUE_OBJECT) {
+        result.range = parse_range(&range);
+    }
+
+    JSONValue selection_range = json_object_get(value, "selectionRange");
+    if (selection_range.type == JSON_VALUE_OBJECT) {
+        result.selection_range = parse_range(&selection_range);
+    }
+
+    JSONValue* children = json_object_get_ptr(value, "children");
+    if (children != NULL && children->type == JSON_VALUE_ARRAY) {
+        result.children_count = json_array_length(children);
+        if (result.children_count > 0) {
+            result.children = (LSTalk_DocumentSymbol*)malloc(sizeof(LSTalk_DocumentSymbol) * json_array_length(children));
+            for (size_t i = 0; i < json_array_length(children); i++) {
+                JSONValue* item = json_array_get_ptr(children, i);
+                result.children[i] = parse_document_symbol(item);
+            }
+        }
+    }
+
+    return result;
+}
+
+static LSTalk_DocumentSymbolNotification parse_document_symbol_notification(JSONValue* value) {
+    LSTalk_DocumentSymbolNotification result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_ARRAY) {
+        return result;
+    }
+
+    result.symbols_count = json_array_length(value);
+    if (result.symbols_count > 0) {
+        result.symbols = (LSTalk_DocumentSymbol*)malloc(sizeof(LSTalk_DocumentSymbol) * json_array_length(value));
+        for (size_t i = 0; i < json_array_length(value); i++) {
+            JSONValue* item = json_array_get_ptr(value, i);
+            result.symbols[i] = parse_document_symbol(item);
+        }
+    }
+
     return result;
 }
 
@@ -3512,6 +3637,13 @@ static JSONValue make_client_capabilities_object(LSTalk_ClientCapabilities* capa
     return result;
 }
 
+LSTalk_ServerNotification notification_make(LSTalk_NotificationType type) {
+    LSTalk_ServerNotification result;
+    memset(&result, 0, sizeof(LSTalk_ServerNotification));
+    result.type = type;
+    return result;
+}
+
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
@@ -3685,7 +3817,6 @@ int lstalk_process_responses(LSTalk_Context* context) {
                 if (content_start != NULL) {
                     JSONValue value = json_decode(content_start);
                     JSONValue id = json_object_get(&value, "id");
-                    JSONValue method = json_object_get(&value, "method");
 
                     // Find the associated request for this response.
                     for (size_t request_index = 0; request_index < server->requests.length; request_index++) {
@@ -3703,7 +3834,13 @@ int lstalk_process_responses(LSTalk_Context* context) {
                                 vector_remove(&context->servers, i);
                                 i--;
                                 remove_request = 0;
+                            } else if (strcmp(method, "textDocument/documentSymbol") == 0) {
+                                JSONValue* result = json_object_get_ptr(&value, "result");
+                                LSTalk_ServerNotification notification = notification_make(LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS);
+                                notification.data.document_symbols = parse_document_symbol_notification(result);
+                                vector_push(&server->notifications, &notification);
                             }
+
                             if (remove_request) {
                                 rpc_close_request(request);
                                 vector_remove(&server->requests, request_index);
@@ -3713,11 +3850,11 @@ int lstalk_process_responses(LSTalk_Context* context) {
                         }
                     }
 
+                    JSONValue method = json_object_get(&value, "method");
+                    // This area is to handle notifications. These are sent from the server unprompted.
                     if (method.type == JSON_VALUE_STRING && strcmp(method.value.string_value, "textDocument/publishDiagnostics") == 0) {
-                        LSTalk_ServerNotification notification;
-                        notification.type = LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS;
-                        notification.polled = 0;
-                        JSONValue params = json_object_get(&method, "params");
+                        LSTalk_ServerNotification notification = notification_make(LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS);
+                        JSONValue params = json_object_get(&value, "params");
                         notification.data.publish_diagnostics = server_parse_publish_diagnostics(&params);
                         vector_push(&server->notifications, &notification);
                     }
@@ -3825,6 +3962,23 @@ int lstalk_text_document_did_close(LSTalk_Context* context, LSTalk_ServerID id, 
     json_object_const_key_set(&params, "textDocument", text_document_identifier);
 
     server_make_and_send_notification(context, server, "textDocument/didClose", params);
+    return 1;
+}
+
+int lstalk_text_document_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, char* path) {
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
+        return 0;
+    }
+
+    char* uri = file_uri(path);
+    JSONValue text_document_identifier = json_make_object();
+    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(uri));
+
+    JSONValue params = json_make_object();
+    json_object_const_key_set(&params, "textDocument", text_document_identifier);
+
+    server_make_and_send_request(context, server, "textDocument/documentSymbol", params);
     return 1;
 }
 
