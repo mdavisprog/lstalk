@@ -1738,6 +1738,10 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
     server_free_static_registration(&capabilities->call_hierarchy_provider.static_registration);
     server_free_text_document_registration(&capabilities->call_hierarchy_provider.text_document_registration);
 
+    string_free_array(capabilities->semantic_tokens_provider.semantic_tokens.legend.token_types,
+        capabilities->semantic_tokens_provider.semantic_tokens.legend.token_types_count);
+    string_free_array(capabilities->semantic_tokens_provider.semantic_tokens.legend.token_modifiers,
+        capabilities->semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count);
     server_free_static_registration(&capabilities->semantic_tokens_provider.static_registration);
     server_free_text_document_registration(&capabilities->semantic_tokens_provider.text_document_registration);
 
