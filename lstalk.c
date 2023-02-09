@@ -3642,7 +3642,7 @@ static JSONValue make_client_capabilities_object(LSTalk_ClientCapabilities* capa
     return result;
 }
 
-LSTalk_ServerNotification notification_make(LSTalk_NotificationType type) {
+static LSTalk_ServerNotification notification_make(LSTalk_NotificationType type) {
     LSTalk_ServerNotification result;
     memset(&result, 0, sizeof(LSTalk_ServerNotification));
     result.type = type;
