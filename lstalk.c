@@ -1771,7 +1771,7 @@ static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
     server_free_file_operation_registration(&capabilities->workspace.file_operations.will_delete);
 }
 
-static void server_free_publish_diagnostics(LSTalk_PublishDiagnostics* publish_diagnostics) {
+static void notification_free_publish_diagnostics(LSTalk_PublishDiagnostics* publish_diagnostics) {
     if (publish_diagnostics == NULL) {
         return;
     }
@@ -1828,7 +1828,7 @@ static void server_free_notification(LSTalk_ServerNotification* notification) {
 
     switch (notification->type) {
         case LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS: {
-            server_free_publish_diagnostics(&notification->data.publish_diagnostics);
+            notification_free_publish_diagnostics(&notification->data.publish_diagnostics);
             break;
         }
         case LSTALK_NOTIFICATION_NONE:
