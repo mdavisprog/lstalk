@@ -596,7 +596,7 @@ static char* process_read(Process* process) {
 #if LSTALK_WINDOWS
     return process_read_windows(process);
 #elif LSTALK_POSIX
-    process_read_posix(process);
+    return process_read_posix(process);
 #else
     #error "Current platform does not implement read_response"
 #endif
