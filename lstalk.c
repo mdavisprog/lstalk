@@ -1909,15 +1909,16 @@ static char** parse_string_array(JSONValue* value, char* key, int* count) {
         return NULL;
     }
 
-    char** result = (char**)calloc(array.value.array_value->values.length, sizeof(char*));
-    for (size_t i = 0; i < array.value.array_value->values.length; i++) {
-        JSONValue item = json_array_get(value, i);
+    size_t length = json_array_length(&array);
+    char** result = (char**)calloc(length, sizeof(char*));
+    for (size_t i = 0; i < length; i++) {
+        JSONValue item = json_array_get(&array, i);
         if (item.type == JSON_VALUE_STRING) {
             result[i] = string_alloc_copy(item.value.string_value);
         }
     }
 
-    *count = array.value.array_value->values.length;
+    *count = length;
     return result;
 }
 
