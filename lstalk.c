@@ -208,7 +208,7 @@ static void string_free_array(char** array, size_t count) {
 //
 // This section contains utility functions when operating on files.
 
-char* file_get_contents(char* path) {
+static char* file_get_contents(char* path) {
     if (path == NULL) {
         return NULL;
     }
@@ -235,7 +235,7 @@ char* file_get_contents(char* path) {
     return result;
 }
 
-char* file_uri(char* path) {
+static char* file_uri(char* path) {
     if (path == NULL) {
         return NULL;
     }
@@ -251,7 +251,7 @@ char* file_uri(char* path) {
     return result.data;
 }
 
-char* file_extension(char* path) {
+static char* file_extension(char* path) {
     if (path == NULL) {
         return NULL;
     }
