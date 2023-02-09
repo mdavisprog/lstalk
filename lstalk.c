@@ -1539,6 +1539,31 @@ static void rpc_close_request(Request* request) {
 //
 // This is the beginning of the exposed API functions for the library.
 
+//
+// LSTalk_Trace conversions
+//
+
+static char* trace_to_string(LSTalk_Trace trace) {
+    switch (trace) {
+        case LSTALK_TRACE_MESSAGES: return "messages";
+        case LSTALK_TRACE_VERBOSE: return "verbose";
+        case LSTALK_TRACE_OFF:
+        default: break;
+    }
+
+    return "off";
+}
+
+static LSTalk_Trace trace_from_string(char* trace) {
+    if (strcmp(trace, "messages") == 0) {
+        return LSTALK_TRACE_MESSAGES;
+    } else if (strcmp(trace, "verbose") == 0) {
+        return LSTALK_TRACE_VERBOSE;
+    }
+
+    return LSTALK_TRACE_OFF;
+}
+
 typedef struct TextDocumentItem {
     /**
      * The text document's URI.
@@ -2739,27 +2764,6 @@ static LSTalk_PublishDiagnostics server_parse_publish_diagnostics(JSONValue* val
     }
 
     return result;
-}
-
-static char* trace_to_string(LSTalk_Trace trace) {
-    switch (trace) {
-        case LSTALK_TRACE_MESSAGES: return "messages";
-        case LSTALK_TRACE_VERBOSE: return "verbose";
-        case LSTALK_TRACE_OFF:
-        default: break;
-    }
-
-    return "off";
-}
-
-static LSTalk_Trace string_to_trace(char* trace) {
-    if (strcmp(trace, "messages") == 0) {
-        return LSTALK_TRACE_MESSAGES;
-    } else if (strcmp(trace, "verbose") == 0) {
-        return LSTALK_TRACE_VERBOSE;
-    }
-
-    return LSTALK_TRACE_OFF;
 }
 
 static JSONValue resource_operation_kind_array(int value) {
@@ -3969,7 +3973,7 @@ int lstalk_set_trace(LSTalk_Context* context, LSTalk_ServerID id, LSTalk_Trace t
 }
 
 int lstalk_set_trace_from_string(LSTalk_Context* context, LSTalk_ServerID id, char* trace) {
-    return lstalk_set_trace(context, id, string_to_trace(trace));
+    return lstalk_set_trace(context, id, trace_from_string(trace));
 }
 
 int lstalk_text_document_did_open(LSTalk_Context* context, LSTalk_ServerID id, char* path) {
