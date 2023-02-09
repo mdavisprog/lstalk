@@ -1093,6 +1093,15 @@ static size_t json_array_length(JSONValue* array) {
     return array->value.array_value->values.length;
 }
 
+static JSONValue json_make_string_array(char** array, int count) {
+    JSONValue result = json_make_array();
+    for (int i = 0; i < count; i++) {
+        // TODO: Should this be json_make_owned_string to prevent an allocation?
+        json_array_push(&result, json_make_string(array[i]));
+    }
+    return result;
+}
+
 static JSONEncoder json_encode(JSONValue* value) {
     JSONEncoder encoder;
     encoder.string = vector_create(sizeof(char));
@@ -3176,14 +3185,6 @@ static void link_support(JSONValue* root, int value) {
     json_object_const_key_set(root, "linkSupport", json_make_boolean(value));
 }
 
-static JSONValue string_array(char** array, int count) {
-    JSONValue result = json_make_array();
-    for (int i = 0; i < count; i++) {
-        json_array_push(&result, json_make_string(array[i]));
-    }
-    return result;
-}
-
 static LSTalk_DocumentSymbol parse_document_symbol(JSONValue* value) {
     LSTalk_DocumentSymbol result;
     memset(&result, 0, sizeof(result));
@@ -3279,7 +3280,7 @@ static JSONValue make_workspace_symbol_object(LSTalk_WorkspaceSymbolClientCapabi
     json_object_const_key_set(&tag_support, "valueSet", symbol_tag_array(symbol->tag_support_value_set));
     json_object_const_key_set(&result, "tagSupport", tag_support);
     JSONValue resolve_support = json_make_object();
-    json_object_const_key_set(&resolve_support, "properties", string_array(symbol->resolve_support_properties, symbol->resolve_support_count));
+    json_object_const_key_set(&resolve_support, "properties", json_make_string_array(symbol->resolve_support_properties, symbol->resolve_support_count));
     json_object_const_key_set(&result, "resolveSupport", resolve_support);
 
     return result;
@@ -3374,7 +3375,7 @@ static JSONValue make_text_document_completion_item_object(LSTalk_CompletionItem
     json_object_const_key_set(&result, "insertReplaceSupport", json_make_boolean(completion_item->insert_replace_support));
     JSONValue item_resolve_properties = json_make_object();
     json_object_const_key_set(&item_resolve_properties, "properties",
-        string_array(completion_item->resolve_support_properties, completion_item->resolve_support_count));
+        json_make_string_array(completion_item->resolve_support_properties, completion_item->resolve_support_count));
     json_object_const_key_set(&result, "resolveSupport", item_resolve_properties);
     JSONValue insert_text_mode = json_make_object();
     json_object_const_key_set(&insert_text_mode, "valueSet", insert_text_mode_array(completion_item->insert_text_mode_support_value_set));
@@ -3396,7 +3397,7 @@ static JSONValue make_text_document_completion_object(LSTalk_CompletionClientCap
     json_object_const_key_set(&result, "insertTextMode", json_make_int(completion->insert_text_mode));
     JSONValue item_defaults = json_make_object();
     json_object_const_key_set(&item_defaults, "itemDefaults",
-        string_array(completion->completion_list_item_defaults, completion->completion_list_item_defaults_count));
+        json_make_string_array(completion->completion_list_item_defaults, completion->completion_list_item_defaults_count));
     json_object_const_key_set(&result, "completionList", item_defaults);
 
     return result;
@@ -3448,7 +3449,7 @@ static JSONValue make_text_document_code_action_object(LSTalk_CodeActionClientCa
     json_object_const_key_set(&result, "dataSupport", json_make_boolean(code_action->data_support));
     JSONValue resolve_support = json_make_object();
     json_object_const_key_set(&resolve_support, "properties",
-        string_array(code_action->resolve_support_properties, code_action->resolve_support_count));
+        json_make_string_array(code_action->resolve_support_properties, code_action->resolve_support_count));
     json_object_const_key_set(&result, "resolveSupport", resolve_support);
     json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(code_action->honors_change_annotations));
 
@@ -3507,9 +3508,9 @@ static JSONValue make_text_document_semantic_tokens_object(LSTalk_SemanticTokens
     json_object_const_key_set(&requests, "full", requests_full);
     json_object_const_key_set(&result, "requests", requests);
     json_object_const_key_set(&result, "tokenTypes",
-        string_array(semantic_tokens->token_types, semantic_tokens->token_types_count));
+        json_make_string_array(semantic_tokens->token_types, semantic_tokens->token_types_count));
     json_object_const_key_set(&result, "tokenModifiers",
-        string_array(semantic_tokens->token_modifiers, semantic_tokens->token_modifiers_count));
+        json_make_string_array(semantic_tokens->token_modifiers, semantic_tokens->token_modifiers_count));
     json_object_const_key_set(&result, "formats", token_format_array(semantic_tokens->formats));
     json_object_const_key_set(&result, "overlappingTokenSupport", json_make_boolean(semantic_tokens->overlapping_token_support));
     json_object_const_key_set(&result, "multilineTokenSupport", json_make_boolean(semantic_tokens->multiline_token_support));
@@ -3589,7 +3590,7 @@ static JSONValue make_text_document_object(LSTalk_TextDocumentClientCapabilities
     dynamic_registration(&inlay_hint, text_document->inlay_hint.dynamic_registration);
     JSONValue inlay_hint_resolve_support = json_make_object();
     json_object_const_key_set(&inlay_hint_resolve_support, "properties",
-        string_array(text_document->inlay_hint.properties, text_document->inlay_hint.properties_count));
+        json_make_string_array(text_document->inlay_hint.properties, text_document->inlay_hint.properties_count));
     json_object_const_key_set(&inlay_hint, "resolveSupport", inlay_hint_resolve_support);
 
     JSONValue diagnostic = json_make_object();
@@ -3658,7 +3659,7 @@ static JSONValue make_general_object(LSTalk_General* general) {
     JSONValue stale_request_support = json_make_object();
     json_object_const_key_set(&stale_request_support, "cancel", json_make_boolean(general->cancel));
     json_object_const_key_set(&stale_request_support, "retryOnContentModified",
-        string_array(general->retry_on_content_modified, general->retry_on_content_modified_count));
+        json_make_string_array(general->retry_on_content_modified, general->retry_on_content_modified_count));
     
     JSONValue regular_expressions = json_make_object();
     json_object_const_key_set(&regular_expressions, "engine", json_make_string(general->regular_expressions.engine));
@@ -3668,7 +3669,7 @@ static JSONValue make_general_object(LSTalk_General* general) {
     json_object_const_key_set(&markdown, "parser", json_make_string(general->markdown.parser));
     json_object_const_key_set(&markdown, "version", json_make_string(general->markdown.version));
     json_object_const_key_set(&markdown, "allowedTags",
-        string_array(general->markdown.allowed_tags, general->markdown.allowed_tags_count));
+        json_make_string_array(general->markdown.allowed_tags, general->markdown.allowed_tags_count));
 
     json_object_const_key_set(&result, "staleRequestSupport", stale_request_support);
     json_object_const_key_set(&result, "regularExpressions", regular_expressions);
