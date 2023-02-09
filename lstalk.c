@@ -1821,12 +1821,53 @@ static void notification_free_publish_diagnostics(LSTalk_PublishDiagnostics* pub
     }
 }
 
+static void free_document_symbol(LSTalk_DocumentSymbol* document_symbol) {
+    if (document_symbol == NULL) {
+        return;
+    }
+
+    if (document_symbol->name != NULL) {
+        free(document_symbol->name);
+    }
+
+    if (document_symbol->detail != NULL) {
+        free(document_symbol->detail);
+    }
+
+    if (document_symbol->children != NULL) {
+        for (int i = 0; i < document_symbol->children_count; i++) {
+            free_document_symbol(&document_symbol->children[i]);
+        }
+
+        free(document_symbol->children);
+    }
+}
+
+static void notification_free_document_symbol(LSTalk_DocumentSymbolNotification* notification) {
+    if (notification == NULL) {
+        return;
+    }
+
+    if (notification->symbols != NULL) {
+        for (size_t i = 0; i < notification->symbols_count; i++) {
+            free_document_symbol(&notification->symbols[i]);
+        }
+
+        free(notification->symbols);
+    }
+}
+
 static void server_free_notification(LSTalk_ServerNotification* notification) {
     if (notification == NULL) {
         return;
     }
 
     switch (notification->type) {
+        case LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS: {
+            notification_free_document_symbol(&notification->data.document_symbols);
+            break;
+        }
+
         case LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS: {
             notification_free_publish_diagnostics(&notification->data.publish_diagnostics);
             break;
