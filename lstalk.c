@@ -69,6 +69,7 @@ SOFTWARE.
 #elif LSTALK_POSIX
     #include <fcntl.h>
     #include <signal.h>
+    #include <sys/stat.h>
     #include <unistd.h>
 #endif
 
@@ -449,6 +450,15 @@ typedef struct Process {
 } Process;
 
 static Process* process_create_posix(const char* path) {
+    struct stat info;
+    if (stat(path, &info) != 0) {
+        return NULL;
+    }
+
+    if (!(info.st_mode & S_IFREG)) {
+        return NULL;
+    }
+
     Pipes pipes;
 
     if (pipe(pipes.in) < 0) {
