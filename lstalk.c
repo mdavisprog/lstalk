@@ -1544,11 +1544,6 @@ static void rpc_close_request(Request* request) {
 }
 
 //
-// lstalk API
-//
-// This is the beginning of the exposed API functions for the library.
-
-//
 // LSTalk_Trace conversions
 //
 
@@ -1572,6 +1567,2441 @@ static LSTalk_Trace trace_from_string(char* trace) {
 
     return LSTALK_TRACE_OFF;
 }
+
+//
+// Begin Client Capabilities
+//
+
+/**
+ * The kind of resource operations supported by the client.
+ */
+typedef enum {
+    /**
+     * Supports creating new files and folders.
+     */
+    RESOURCEOPERATIONKIND_CREATE = 1 << 0,
+
+    /**
+     * Supports renaming existing files and folders.
+     */
+    RESOURCEOPERATIONKIND_RENAME = 1 << 1,
+
+    /**
+     * Supports deleting existing files and folders.
+     */
+    RESOURCEOPERATIONKIND_DELETE = 1 << 2,
+} ResourceOperationKind;
+
+static JSONValue resource_operation_kind_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & RESOURCEOPERATIONKIND_CREATE) { json_array_push(&result, json_make_string_const("create")); }
+    if (value & RESOURCEOPERATIONKIND_RENAME) { json_array_push(&result, json_make_string_const("rename")); }
+    if (value & RESOURCEOPERATIONKIND_DELETE) { json_array_push(&result, json_make_string_const("delete")); }
+
+    return result;
+}
+
+/**
+ * The failure handling strategy of a client if applying the workspace edit
+ * fails.
+ *
+ * @since 3.13.0
+ */
+typedef enum {
+    /**
+     * Applying the workspace change is simply aborted if one of the changes
+     * provided fails. All operations executed before the failing operation
+     * stay executed.
+     */
+    FAILUREHANDLINGKIND_ABORT = 1 << 0,
+
+    /**
+     * All operations are executed transactional. That means they either all
+     * succeed or no changes at all are applied to the workspace.
+     */
+    FAILUREHANDLINGKIND_TRANSACTIONAL = 1 << 1,
+
+    /**
+     * If the workspace edit contains only textual file changes they are
+     * executed transactional. If resource changes (create, rename or delete
+     * file) are part of the change the failure handling strategy is abort.
+     */
+    FAILUREHANDLINGKIND_TEXTONLYTRANSACTIONAL = 1 << 2,
+
+    /**
+     * The client tries to undo the operations already executed. But there is no
+     * guarantee that this is succeeding.
+     */
+    FAILUREHANDLINGKIND_UNDO = 1 << 3,
+} FailureHandlingKind;
+
+static JSONValue failure_handling_kind_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & FAILUREHANDLINGKIND_ABORT) { json_array_push(&result, json_make_string_const("abort")); }
+    if (value & FAILUREHANDLINGKIND_TRANSACTIONAL) { json_array_push(&result, json_make_string_const("transactional")); }
+    if (value & FAILUREHANDLINGKIND_TEXTONLYTRANSACTIONAL) { json_array_push(&result, json_make_string_const("textOnlyTransactional")); }
+    if (value & FAILUREHANDLINGKIND_UNDO) { json_array_push(&result, json_make_string_const("undo")); }
+
+    return result;
+}
+
+typedef enum {
+    SYMBOLKIND_File = 1,
+    SYMBOLKIND_Module = 2,
+    SYMBOLKIND_Namespace = 3,
+    SYMBOLKIND_Package = 4,
+    SYMBOLKIND_Class = 5,
+    SYMBOLKIND_Method = 6,
+    SYMBOLKIND_Property = 7,
+    SYMBOLKIND_Field = 8,
+    SYMBOLKIND_Constructor = 9,
+    SYMBOLKIND_Enum = 10,
+    SYMBOLKIND_Interface = 11,
+    SYMBOLKIND_Function = 12,
+    SYMBOLKIND_Variable = 13,
+    SYMBOLKIND_Constant = 14,
+    SYMBOLKIND_String = 15,
+    SYMBOLKIND_Number = 16,
+    SYMBOLKIND_Boolean = 17,
+    SYMBOLKIND_Array = 18,
+    SYMBOLKIND_Object = 19,
+    SYMBOLKIND_Key = 20,
+    SYMBOLKIND_Null = 21,
+    SYMBOLKIND_EnumMember = 22,
+    SYMBOLKIND_Struct = 23,
+    SYMBOLKIND_Event = 24,
+    SYMBOLKIND_Operator = 25,
+    SYMBOLKIND_TypeParameter = 26,
+} SymbolKind;
+
+static JSONValue symbol_kind_make_array(long long value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_SYMBOLKIND_FILE) { json_array_push(&result, json_make_int(SYMBOLKIND_File)); }
+    if (value & LSTALK_SYMBOLKIND_MODULE) { json_array_push(&result, json_make_int(SYMBOLKIND_Module)); }
+    if (value & LSTALK_SYMBOLKIND_NAMESPACE) { json_array_push(&result, json_make_int(SYMBOLKIND_Namespace)); }
+    if (value & LSTALK_SYMBOLKIND_PACKAGE) { json_array_push(&result, json_make_int(SYMBOLKIND_Package)); }
+    if (value & LSTALK_SYMBOLKIND_CLASS) { json_array_push(&result, json_make_int(SYMBOLKIND_Class)); }
+    if (value & LSTALK_SYMBOLKIND_METHOD) { json_array_push(&result, json_make_int(SYMBOLKIND_Method)); }
+    if (value & LSTALK_SYMBOLKIND_PROPERTY) { json_array_push(&result, json_make_int(SYMBOLKIND_Property)); }
+    if (value & LSTALK_SYMBOLKIND_FIELD) { json_array_push(&result, json_make_int(SYMBOLKIND_Field)); }
+    if (value & LSTALK_SYMBOLKIND_CONSTRUCTOR) { json_array_push(&result, json_make_int(SYMBOLKIND_Constructor)); }
+    if (value & LSTALK_SYMBOLKIND_ENUM) { json_array_push(&result, json_make_int(SYMBOLKIND_Enum)); }
+    if (value & LSTALK_SYMBOLKIND_INTERFACE) { json_array_push(&result, json_make_int(SYMBOLKIND_Interface)); }
+    if (value & LSTALK_SYMBOLKIND_FUNCTION) { json_array_push(&result, json_make_int(SYMBOLKIND_Function)); }
+    if (value & LSTALK_SYMBOLKIND_VARIABLE) { json_array_push(&result, json_make_int(SYMBOLKIND_Variable)); }
+    if (value & LSTALK_SYMBOLKIND_CONSTANT) { json_array_push(&result, json_make_int(SYMBOLKIND_Constant)); }
+    if (value & LSTALK_SYMBOLKIND_STRING) { json_array_push(&result, json_make_int(SYMBOLKIND_String)); }
+    if (value & LSTALK_SYMBOLKIND_NUMBER) { json_array_push(&result, json_make_int(SYMBOLKIND_Number)); }
+    if (value & LSTALK_SYMBOLKIND_BOOLEAN) { json_array_push(&result, json_make_int(SYMBOLKIND_Boolean)); }
+    if (value & LSTALK_SYMBOLKIND_ARRAY) { json_array_push(&result, json_make_int(SYMBOLKIND_Array)); }
+    if (value & LSTALK_SYMBOLKIND_OBJECT) { json_array_push(&result, json_make_int(SYMBOLKIND_Object)); }
+    if (value & LSTALK_SYMBOLKIND_KEY) { json_array_push(&result, json_make_int(SYMBOLKIND_Key)); }
+    if (value & LSTALK_SYMBOLKIND_NULL) { json_array_push(&result, json_make_int(SYMBOLKIND_Null)); }
+    if (value & LSTALK_SYMBOLKIND_ENUMMEMBER) { json_array_push(&result, json_make_int(SYMBOLKIND_EnumMember)); }
+    if (value & LSTALK_SYMBOLKIND_STRUCT) { json_array_push(&result, json_make_int(SYMBOLKIND_Struct)); }
+    if (value & LSTALK_SYMBOLKIND_EVENT) { json_array_push(&result, json_make_int(SYMBOLKIND_Event)); }
+    if (value & LSTALK_SYMBOLKIND_OPERATOR) { json_array_push(&result, json_make_int(SYMBOLKIND_Operator)); }
+    if (value & LSTALK_SYMBOLKIND_TYPEPARAMETER) { json_array_push(&result, json_make_int(SYMBOLKIND_TypeParameter)); }
+
+    return result;
+}
+
+static LSTalk_SymbolKind symbol_kind_parse(JSONValue* value) {
+    if (value == NULL || value->type != JSON_VALUE_INT) {
+        return LSTALK_SYMBOLKIND_NONE;
+    }
+
+    int kind = value->value.int_value;
+    switch (kind) {
+        case SYMBOLKIND_File: return LSTALK_SYMBOLKIND_FILE;
+        case SYMBOLKIND_Module: return LSTALK_SYMBOLKIND_MODULE;
+        case SYMBOLKIND_Namespace: return LSTALK_SYMBOLKIND_NAMESPACE;
+        case SYMBOLKIND_Package: return LSTALK_SYMBOLKIND_PACKAGE;
+        case SYMBOLKIND_Class: return LSTALK_SYMBOLKIND_CLASS;
+        case SYMBOLKIND_Method: return LSTALK_SYMBOLKIND_METHOD;
+        case SYMBOLKIND_Property: return LSTALK_SYMBOLKIND_PROPERTY;
+        case SYMBOLKIND_Field: return LSTALK_SYMBOLKIND_FIELD;
+        case SYMBOLKIND_Constructor: return LSTALK_SYMBOLKIND_CONSTRUCTOR;
+        case SYMBOLKIND_Enum: return LSTALK_SYMBOLKIND_ENUM;
+        case SYMBOLKIND_Interface: return LSTALK_SYMBOLKIND_INTERFACE;
+        case SYMBOLKIND_Function: return LSTALK_SYMBOLKIND_FUNCTION;
+        case SYMBOLKIND_Variable: return LSTALK_SYMBOLKIND_VARIABLE;
+        case SYMBOLKIND_Constant: return LSTALK_SYMBOLKIND_CONSTANT;
+        case SYMBOLKIND_String: return LSTALK_SYMBOLKIND_STRING;
+        case SYMBOLKIND_Number: return LSTALK_SYMBOLKIND_NUMBER;
+        case SYMBOLKIND_Boolean: return LSTALK_SYMBOLKIND_BOOLEAN;
+        case SYMBOLKIND_Array: return LSTALK_SYMBOLKIND_ARRAY;
+        case SYMBOLKIND_Object: return LSTALK_SYMBOLKIND_OBJECT;
+        case SYMBOLKIND_Key: return LSTALK_SYMBOLKIND_KEY;
+        case SYMBOLKIND_Null: return LSTALK_SYMBOLKIND_NULL;
+        case SYMBOLKIND_EnumMember: return LSTALK_SYMBOLKIND_ENUMMEMBER;
+        case SYMBOLKIND_Struct: return LSTALK_SYMBOLKIND_STRUCT;
+        case SYMBOLKIND_Event: return LSTALK_SYMBOLKIND_EVENT;
+        case SYMBOLKIND_Operator: return LSTALK_SYMBOLKIND_OPERATOR;
+        case SYMBOLKIND_TypeParameter: return LSTALK_SYMBOLKIND_TYPEPARAMETER;
+        default: break;
+    }
+
+    return LSTALK_SYMBOLKIND_NONE;
+}
+
+typedef enum {
+    SYMBOLTAG_Deprecated = 1,
+} SymbolTag;
+
+static JSONValue symbol_tags_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & LSTALK_SYMBOLTAG_DEPRECATED) { json_array_push(&result, json_make_int(SYMBOLTAG_Deprecated)); }
+
+    return result;
+}
+
+static int symbol_tags_parse(JSONValue* value) {
+    int result = 0;
+
+    if (value != NULL || value->type != JSON_VALUE_ARRAY) {
+        return result;
+    }
+
+    for (size_t i = 0; i < json_array_length(value); i++) {
+        JSONValue item = json_array_get(value, i);
+        if (item.type == JSON_VALUE_INT) {
+            switch (item.value.int_value) {
+                case SYMBOLTAG_Deprecated: result |= LSTALK_SYMBOLTAG_DEPRECATED; break;
+                default: break;
+            }
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Describes the content type that a client supports in various
+ * result literals like `Hover`, `ParameterInfo` or `CompletionItem`.
+ *
+ * Please note that `MarkupKinds` must not start with a `$`. This kinds
+ * are reserved for internal usage.
+ */
+typedef enum {
+    /**
+     * Plain text is supported as a content format
+     */
+    MARKUPKIND_PLAINTEXT = 1 << 0,
+
+    /**
+     * Markdown is supported as a content format
+     */
+    MARKUPKIND_MARKDOWN = 1 << 1,
+} MarkupKind;
+
+static JSONValue markup_kind_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & MARKUPKIND_PLAINTEXT) { json_array_push(&result, json_make_string_const("plaintext")); }
+    if (value & MARKUPKIND_MARKDOWN) { json_array_push(&result, json_make_string_const("markdown")); }
+
+    return result;
+}
+
+/**
+ * Completion item tags are extra annotations that tweak the rendering of a
+ * completion item.
+ *
+ * @since 3.15.0
+ */
+typedef enum {
+    /**
+     * Render a completion as obsolete, usually using a strike-out.
+     */
+    COMPLETIONITEMTAGMASK_DEPRECATED = 1 << 0,
+} CompletionItemTagMask;
+
+typedef enum {
+    COMPLETIONITEMTAG_DEPRECATED = 1,
+} CompletionItemTag;
+
+static JSONValue completion_item_tag_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & COMPLETIONITEMTAGMASK_DEPRECATED) { json_array_push(&result, json_make_int(COMPLETIONITEMTAG_DEPRECATED)); }
+
+    return result;
+}
+
+/**
+ * How whitespace and indentation is handled during completion
+ * item insertion.
+ *
+ * @since 3.16.0
+ */
+typedef enum {
+    /**
+     * The insertion or replace strings is taken as it is. If the
+     * value is multi line the lines below the cursor will be
+     * inserted using the indentation defined in the string value.
+     * The client will not apply any kind of adjustments to the
+     * string.
+     */
+    INSERTTEXTMODEMASK_ASIS = 1 << 0,
+
+    /**
+     * The editor adjusts leading whitespace of new lines so that
+     * they match the indentation up to the cursor of the line for
+     * which the item is accepted.
+     *
+     * Consider a line like this: <2tabs><cursor><3tabs>foo. Accepting a
+     * multi line completion item is indented using 2 tabs and all
+     * following lines inserted will be indented using 2 tabs as well.
+     */
+    INSERTTEXTMODEMASK_ADJUSTINDENTATION = 1 << 1,
+} InsertTextModeMask;
+
+typedef enum {
+    INSERTTEXTMODE_ASIS = 1,
+    INSERTTEXTMODE_ADJUSTINDENTATION = 2,
+} InsertTextMode;
+
+static JSONValue insert_text_mode_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & INSERTTEXTMODEMASK_ASIS) { json_array_push(&result, json_make_int(INSERTTEXTMODE_ASIS)); }
+    if (value & INSERTTEXTMODEMASK_ADJUSTINDENTATION) { json_array_push(&result, json_make_int(INSERTTEXTMODE_ADJUSTINDENTATION)); }
+
+    return result;
+}
+
+/**
+ * The kind of a completion entry.
+ */
+typedef enum {
+    COMPLETIONITEMKINDMASK_TEXT = 1 << 0,
+    COMPLETIONITEMKINDMASK_METHOD = 1 << 1,
+    COMPLETIONITEMKINDMASK_FUNCTION = 1 << 2,
+    COMPLETIONITEMKINDMASK_CONSTRUCTOR = 1 << 3,
+    COMPLETIONITEMKINDMASK_FIELD = 1 << 4,
+    COMPLETIONITEMKINDMASK_VARIABLE = 1 << 5,
+    COMPLETIONITEMKINDMASK_CLASS = 1 << 6,
+    COMPLETIONITEMKINDMASK_INTERFACE = 1 << 7,
+    COMPLETIONITEMKINDMASK_MODULE = 1 << 8,
+    COMPLETIONITEMKINDMASK_PROPERTY = 1 << 9,
+    COMPLETIONITEMKINDMASK_UNIT = 1 << 10,
+    COMPLETIONITEMKINDMASK_VALUE = 1 << 11,
+    COMPLETIONITEMKINDMASK_ENUM = 1 << 12,
+    COMPLETIONITEMKINDMASK_KEYWORD = 1 << 13,
+    COMPLETIONITEMKINDMASK_SNIPPET = 1 << 14,
+    COMPLETIONITEMKINDMASK_COLOR = 1 << 15,
+    COMPLETIONITEMKINDMASK_FILE = 1 << 16,
+    COMPLETIONITEMKINDMASK_REFERENCE = 1 << 17,
+    COMPLETIONITEMKINDMASK_FOLDER = 1 << 18,
+    COMPLETIONITEMKINDMASK_ENUMMEMBER = 1 << 19,
+    COMPLETIONITEMKINDMASK_CONSTANT = 1 << 20,
+    COMPLETIONITEMKINDMASK_STRUCT = 1 << 21,
+    COMPLETIONITEMKINDMASK_EVENT = 1 << 22,
+    COMPLETIONITEMKINDMASK_OPERATOR = 1 << 23,
+    COMPLETIONITEMKINDMASK_TYPEPARAMETER = 1 << 24,
+} CompletionItemKindMask;
+
+typedef enum {
+    COMPLETIONITEMKIND_TEXT = 1,
+    COMPLETIONITEMKIND_METHOD = 2,
+    COMPLETIONITEMKIND_FUNCTION = 3,
+    COMPLETIONITEMKIND_CONSTRUCTOR = 4,
+    COMPLETIONITEMKIND_FIELD = 5,
+    COMPLETIONITEMKIND_VARIABLE = 6,
+    COMPLETIONITEMKIND_CLASS = 7,
+    COMPLETIONITEMKIND_INTERFACE = 8,
+    COMPLETIONITEMKIND_MODULE = 9,
+    COMPLETIONITEMKIND_PROPERTY = 10,
+    COMPLETIONITEMKIND_UNIT = 11,
+    COMPLETIONITEMKIND_VALUE = 12,
+    COMPLETIONITEMKIND_ENUM = 13,
+    COMPLETIONITEMKIND_KEYWORD = 14,
+    COMPLETIONITEMKIND_SNIPPET = 15,
+    COMPLETIONITEMKIND_COLOR = 16,
+    COMPLETIONITEMKIND_FILE = 17,
+    COMPLETIONITEMKIND_REFERENCE = 18,
+    COMPLETIONITEMKIND_FOLDER = 19,
+    COMPLETIONITEMKIND_ENUMMEMBER = 20,
+    COMPLETIONITEMKIND_CONSTANT = 21,
+    COMPLETIONITEMKIND_STRUCT = 22,
+    COMPLETIONITEMKIND_EVENT = 23,
+    COMPLETIONITEMKIND_OPERATOR = 24,
+    COMPLETIONITEMKIND_TYPEPARAMETER = 25,
+} CompletionItemKind;
+
+static JSONValue completion_item_kind_make_array(long long value) {
+    JSONValue result = json_make_array();
+
+    if (value & COMPLETIONITEMKINDMASK_TEXT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_TEXT)); }
+    if (value & COMPLETIONITEMKINDMASK_METHOD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_METHOD)); }
+    if (value & COMPLETIONITEMKINDMASK_FUNCTION) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FUNCTION)); }
+    if (value & COMPLETIONITEMKINDMASK_CONSTRUCTOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_CONSTRUCTOR)); }
+    if (value & COMPLETIONITEMKINDMASK_FIELD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FIELD)); }
+    if (value & COMPLETIONITEMKINDMASK_VARIABLE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_VARIABLE)); }
+    if (value & COMPLETIONITEMKINDMASK_CLASS) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_CLASS)); }
+    if (value & COMPLETIONITEMKINDMASK_INTERFACE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_INTERFACE)); }
+    if (value & COMPLETIONITEMKINDMASK_MODULE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_MODULE)); }
+    if (value & COMPLETIONITEMKINDMASK_PROPERTY) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_PROPERTY)); }
+    if (value & COMPLETIONITEMKINDMASK_UNIT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_UNIT)); }
+    if (value & COMPLETIONITEMKINDMASK_VALUE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_VALUE)); }
+    if (value & COMPLETIONITEMKINDMASK_ENUM) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_ENUM)); }
+    if (value & COMPLETIONITEMKINDMASK_KEYWORD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_KEYWORD)); }
+    if (value & COMPLETIONITEMKINDMASK_SNIPPET) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_SNIPPET)); }
+    if (value & COMPLETIONITEMKINDMASK_COLOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_COLOR)); }
+    if (value & COMPLETIONITEMKINDMASK_FILE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FILE)); }
+    if (value & COMPLETIONITEMKINDMASK_REFERENCE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_REFERENCE)); }
+    if (value & COMPLETIONITEMKINDMASK_FOLDER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FOLDER)); }
+    if (value & COMPLETIONITEMKINDMASK_ENUMMEMBER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_ENUMMEMBER)); }
+    if (value & COMPLETIONITEMKINDMASK_CONSTANT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_CONSTANT)); }
+    if (value & COMPLETIONITEMKINDMASK_STRUCT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_STRUCT)); }
+    if (value & COMPLETIONITEMKINDMASK_EVENT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_EVENT)); }
+    if (value & COMPLETIONITEMKINDMASK_OPERATOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_OPERATOR)); }
+    if (value & COMPLETIONITEMKINDMASK_TYPEPARAMETER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_TYPEPARAMETER)); }
+
+    return result;
+}
+
+/**
+ * A set of predefined code action kinds.
+ */
+typedef enum {
+    /**
+     * Empty kind.
+     */
+    CODEACTIONKIND_EMPTY = 1 << 0,
+
+    /**
+     * Base kind for quickfix actions: 'quickfix'.
+     */
+    CODEACTIONKIND_QUICKFIX = 1 << 1,
+
+    /**
+     * Base kind for refactoring actions: 'refactor'.
+     */
+    CODEACTIONKIND_REFACTOR = 1 << 2,
+
+    /**
+     * Base kind for refactoring extraction actions: 'refactor.extract'.
+     *
+     * Example extract actions:
+     *
+     * - Extract method
+     * - Extract function
+     * - Extract variable
+     * - Extract interface from class
+     * - ...
+     */
+    CODEACTIONKIND_REFACTOREXTRACT = 1 << 3,
+
+    /**
+     * Base kind for refactoring inline actions: 'refactor.inline'.
+     *
+     * Example inline actions:
+     *
+     * - Inline function
+     * - Inline variable
+     * - Inline constant
+     * - ...
+     */
+    CODEACTIONKIND_REFACTORINLINE = 1 << 4,
+
+    /**
+     * Base kind for refactoring rewrite actions: 'refactor.rewrite'.
+     *
+     * Example rewrite actions:
+     *
+     * - Convert JavaScript function to class
+     * - Add or remove parameter
+     * - Encapsulate field
+     * - Make method static
+     * - Move method to base class
+     * - ...
+     */
+    CODEACTIONKIND_REFACTORREWRITE = 1 << 5,
+
+    /**
+     * Base kind for source actions: `source`.
+     *
+     * Source code actions apply to the entire file.
+     */
+    CODEACTIONKIND_SOURCE = 1 << 6,
+
+    /**
+     * Base kind for an organize imports source action:
+     * `source.organizeImports`.
+     */
+    CODEACTIONKIND_SOURCEORGANIZEIMPORTS = 1 << 7,
+
+    /**
+     * Base kind for a 'fix all' source action: `source.fixAll`.
+     *
+     * 'Fix all' actions automatically fix errors that have a clear fix that
+     * do not require user input. They should not suppress errors or perform
+     * unsafe fixes such as generating new types or classes.
+     *
+     * @since 3.17.0
+     */
+    CODEACTIONKIND_SOURCEFIXALL = 1 << 8,
+} CodeActionKind;
+
+static JSONValue code_action_kind_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & CODEACTIONKIND_EMPTY) { json_array_push(&result, json_make_string_const("")); }
+    if (value & CODEACTIONKIND_QUICKFIX) { json_array_push(&result, json_make_string_const("quickfix")); }
+    if (value & CODEACTIONKIND_REFACTOR) { json_array_push(&result, json_make_string_const("refactor")); }
+    if (value & CODEACTIONKIND_REFACTOREXTRACT) { json_array_push(&result, json_make_string_const("refactor.extract")); }
+    if (value & CODEACTIONKIND_REFACTORINLINE) { json_array_push(&result, json_make_string_const("refactor.inline")); }
+    if (value & CODEACTIONKIND_REFACTORREWRITE) { json_array_push(&result, json_make_string_const("refactor.rewrite")); }
+    if (value & CODEACTIONKIND_SOURCE) { json_array_push(&result, json_make_string_const("source")); }
+    if (value & CODEACTIONKIND_SOURCEORGANIZEIMPORTS) { json_array_push(&result, json_make_string_const("source.organizeImports")); }
+    if (value & CODEACTIONKIND_SOURCEFIXALL) { json_array_push(&result, json_make_string_const("source.fixAll")); }
+
+    return result;
+}
+
+static int code_action_kind_parse(JSONValue* value) {
+    if (value == NULL || value->type != JSON_VALUE_ARRAY) {
+        return 0;
+    }
+
+    int result = 0;
+    for (size_t i = 0; i < value->value.array_value->values.length; i++) {
+        JSONValue item = json_array_get(value, i);
+
+        if (item.type == JSON_VALUE_STRING) {
+            if (strcmp(item.value.string_value, "") == 0) {
+                result |= CODEACTIONKIND_EMPTY;
+            } else if (strcmp(item.value.string_value, "quickfix") == 0) {
+                result |= CODEACTIONKIND_QUICKFIX;
+            } else if (strcmp(item.value.string_value, "refactor") == 0) {
+                result |= CODEACTIONKIND_REFACTOR;
+            } else if (strcmp(item.value.string_value, "refactor.extract") == 0) {
+                result |= CODEACTIONKIND_REFACTOREXTRACT;
+            } else if (strcmp(item.value.string_value, "refactor.inline") == 0) {
+                result |= CODEACTIONKIND_REFACTORINLINE;
+            } else if (strcmp(item.value.string_value, "refactor.rewrite") == 0) {
+                result |= CODEACTIONKIND_REFACTORREWRITE;
+            } else if (strcmp(item.value.string_value, "source") == 0) {
+                result |= CODEACTIONKIND_SOURCE;
+            } else if (strcmp(item.value.string_value, "source.organizeImports") == 0) {
+                result |= CODEACTIONKIND_SOURCEORGANIZEIMPORTS;
+            } else if (strcmp(item.value.string_value, "source.fixAll") == 0) {
+                result |= CODEACTIONKIND_SOURCEFIXALL;
+            }
+        }
+    }
+
+    return result;
+}
+
+/**
+ * The diagnostic tags.
+ *
+ * @since 3.15.0
+ */
+typedef enum {
+    /**
+     * Unused or unnecessary code.
+     *
+     * Clients are allowed to render diagnostics with this tag faded out
+     * instead of having an error squiggle.
+     */
+    DIAGNOSTICTAGMASK_UNNECESSARY = 1 << 0,
+
+    /**
+     * Deprecated or obsolete code.
+     *
+     * Clients are allowed to rendered diagnostics with this tag strike through.
+     */
+    DIAGNOSTICTAGMASK_DEPRECATED = 1 << 1,
+} DiagnosticTagMask;
+
+typedef enum {
+    DIAGNOSTICTAG_UNNECESSARY = 1,
+    DIAGNOSTICTAG_DEPRECATED = 2,
+} DiagnosticTag;
+
+static JSONValue diagnostic_tags_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & DIAGNOSTICTAGMASK_UNNECESSARY) { json_array_push(&result, json_make_int(DIAGNOSTICTAG_UNNECESSARY)); }
+    if (value & DIAGNOSTICTAGMASK_DEPRECATED) { json_array_push(&result, json_make_int(DIAGNOSTICTAG_DEPRECATED)); }
+
+    return result;
+}
+
+static int diagnostic_tags_parse(JSONValue* value) {
+    int result = 0;
+    
+    if (value == NULL || value->type != JSON_VALUE_ARRAY) {
+        return result;
+    }
+
+    for (size_t i = 0; i < json_array_length(value); i++) {
+        JSONValue item = json_array_get(value, i);
+        if (item.type == JSON_VALUE_INT) {
+            switch (item.value.int_value) {
+                case DIAGNOSTICTAG_UNNECESSARY: result |= DIAGNOSTICTAGMASK_UNNECESSARY; break;
+                case DIAGNOSTICTAG_DEPRECATED: result |= DIAGNOSTICTAGMASK_DEPRECATED; break;
+                default: break;
+            }
+        }
+    }
+
+    return result;
+}
+
+/**
+ * A set of predefined range kinds.
+ */
+typedef enum {
+    /**
+     * Folding range for a comment
+     */
+    FOLDINGRANGEKIND_COMMENT = 1 << 0,
+
+    /**
+     * Folding range for a imports or includes
+     */
+    FOLDINGRANGEKIND_IMPORTS = 1 << 1,
+
+    /**
+     * Folding range for a region (e.g. `#region`)
+     */
+    FOLDINGRANGEKIND_REGION = 1 << 2,
+} FoldingRangeKind;
+
+static JSONValue folding_range_kind_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & FOLDINGRANGEKIND_COMMENT) { json_array_push(&result, json_make_string_const("comment")); }
+    if (value & FOLDINGRANGEKIND_IMPORTS) { json_array_push(&result, json_make_string_const("imports")); }
+    if (value & FOLDINGRANGEKIND_REGION) { json_array_push(&result, json_make_string_const("region")); }
+
+    return result;
+}
+
+typedef enum {
+    TOKENFORMAT_RELATIVE = 1 << 0,
+} TokenFormat;
+
+static JSONValue token_format_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & TOKENFORMAT_RELATIVE) { json_array_push(&result, json_make_string_const("relative")); }
+
+    return result;
+}
+
+/**
+ * A set of predefined position encoding kinds.
+ *
+ * @since 3.17.0
+ */
+typedef enum {
+    /**
+     * Character offsets count UTF-8 code units (e.g bytes).
+     */
+    POSITIONENCODINGKIND_UTF8 = 1 << 0,
+
+    /**
+     * Character offsets count UTF-16 code units.
+     *
+     * This is the default and must always be supported
+     * by servers
+     */
+    POSITIONENCODINGKIND_UTF16 = 1 << 1,
+
+    /**
+     * Character offsets count UTF-32 code units.
+     *
+     * Implementation note: these are the same as Unicode code points,
+     * so this `PositionEncodingKind` may also be used for an
+     * encoding-agnostic representation of character offsets.
+     */
+    POSITIONENCODINGKIND_UTF32 = 1 << 2,
+} PositionEncodingKind;
+
+static JSONValue position_encoding_kind_make_array(int value) {
+    JSONValue result = json_make_array();
+
+    if (value & POSITIONENCODINGKIND_UTF8) { json_array_push(&result, json_make_string_const("utf-8")); }
+    if (value & POSITIONENCODINGKIND_UTF16) { json_array_push(&result, json_make_string_const("utf-16")); }
+    if (value & POSITIONENCODINGKIND_UTF32) { json_array_push(&result, json_make_string_const("utf-32")); }
+
+    return result;
+}
+
+static PositionEncodingKind position_encoding_kind_parse(char* value) {
+    if (value == NULL) {
+        return POSITIONENCODINGKIND_UTF16;
+    }
+
+    if (strcmp(value, "utf-8") == 0) { return POSITIONENCODINGKIND_UTF8; }
+    if (strcmp(value, "utf-16") == 0) { return POSITIONENCODINGKIND_UTF16; }
+    if (strcmp(value, "utf-32") == 0) { return POSITIONENCODINGKIND_UTF32; }
+
+    return POSITIONENCODINGKIND_UTF16;
+}
+
+/**
+ * Capabilities specific to `WorkspaceEdit`s
+ */
+typedef struct WorkspaceEditClientCapabilities {
+    /**
+     * The client supports versioned document changes in `WorkspaceEdit`s
+     */
+    int document_changes;
+
+    /**
+     * The resource operations the client supports. Clients should at least
+     * support 'create', 'rename' and 'delete' files and folders.
+     *
+     * @since 3.13.0
+     */
+    int resource_operations;
+
+    /**
+     * The failure handling strategy of a client if applying the workspace edit
+     * fails.
+     *
+     * @since 3.13.0
+     */
+    int failure_handling;
+
+    /**
+     * Whether the client normalizes line endings to the client specific
+     * setting.
+     * If set to `true` the client will normalize line ending characters
+     * in a workspace edit to the client specific new line character(s).
+     *
+     * @since 3.16.0
+     */
+    int normalizes_line_endings;
+
+    /**
+     * Whether the client in general supports change annotations on text edits,
+     * create file, rename file and delete file changes.
+     *
+     * @since 3.16.0
+     * 
+     * changeAnnotationSupport?: {}
+     * 
+     * Whether the client groups edits with equal labels into tree nodes,
+     * for instance all edits labelled with "Changes in Strings" would
+     * be a tree node.
+     */
+    int groups_on_label;
+} WorkspaceEditClientCapabilities;
+
+static JSONValue workspace_edit_client_capabilities_make(WorkspaceEditClientCapabilities* workspace_edit) {
+    JSONValue result = json_make_object();
+    json_object_const_key_set(&result, "documentChanges", json_make_boolean(workspace_edit->document_changes));
+    json_object_const_key_set(&result, "resourceOperations", resource_operation_kind_make_array(workspace_edit->resource_operations));
+    json_object_const_key_set(&result, "failureHandling", failure_handling_kind_make_array(workspace_edit->failure_handling));
+    json_object_const_key_set(&result, "normalizesLineEndings", json_make_boolean(workspace_edit->normalizes_line_endings));
+    JSONValue change_annotation_support = json_make_object();
+    json_object_const_key_set(&change_annotation_support, "groupsOnLabel", json_make_boolean(workspace_edit->groups_on_label));
+    json_object_const_key_set(&result, "changeAnnotationSupport", change_annotation_support);
+    return result;
+}
+
+typedef struct DynamicRegistration {
+    int value;
+} DynamicRegistration;
+
+static void dynamic_registration_set(JSONValue* root, DynamicRegistration* dynamic_registration) {
+    if (root == NULL || root->type != JSON_VALUE_OBJECT || dynamic_registration == NULL) {
+        return;
+    }
+
+    json_object_const_key_set(root, "dynamicRegistration", json_make_boolean(dynamic_registration->value));
+}
+
+static JSONValue dynamic_registration_make(DynamicRegistration* dynamic_registration) {
+    JSONValue result = json_make_object();
+    json_object_const_key_set(&result, "dynamicRegistration", json_make_boolean(dynamic_registration->value));
+    return result;
+}
+
+/**
+ * Capabilities specific to the `workspace/didChangeWatchedFiles`
+ * notification.
+ */
+typedef struct DidChangeWatchedFilesClientCapabilities {
+    /**
+     * Did change watched files notification supports dynamic registration.
+     * Please note that the current protocol doesn't support static
+     * configuration for file changes from the server side.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * Whether the client has support for relative patterns
+     * or not.
+     *
+     * @since 3.17.0
+     */
+    int relative_pattern_support;
+} DidChangeWatchedFilesClientCapabilities;
+
+typedef struct WorkspaceSymbolClientCapabilities {
+    /**
+     * Symbol request supports dynamic registration.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * Specific capabilities for the `SymbolKind` in the `workspace/symbol`
+     * request.
+     *
+     * symbolKind:
+     * 
+     * The symbol kind values the client supports. When this
+     * property exists the client also guarantees that it will
+     * handle values outside its set gracefully and falls back
+     * to a default value when unknown.
+     *
+     * If this property is not present the client only supports
+     * the symbol kinds from `File` to `Array` as defined in
+     * the initial version of the protocol.
+     */
+    long long symbol_kind_value_set;
+
+    /**
+     * The client supports tags on `SymbolInformation` and `WorkspaceSymbol`.
+     * Clients supporting tags have to handle unknown tags gracefully.
+     *
+     * @since 3.16.0
+     *
+     * tagSupport:
+     * 
+     * The tags supported by the client.
+     */
+    int tag_support_value_set;
+
+    /**
+     * The client support partial workspace symbols. The client will send the
+     * request `workspaceSymbol/resolve` to the server to resolve additional
+     * properties.
+     *
+     * @since 3.17.0 - proposedState
+     *
+     * resolveSupport:
+     * 
+     * The properties that a client can resolve lazily. Usually
+     * `location.range`
+     */
+    char** resolve_support_properties;
+    int resolve_support_count;
+} WorkspaceSymbolClientCapabilities;
+
+static JSONValue workspace_symbol_client_capabilities_make(WorkspaceSymbolClientCapabilities* symbol) {
+    JSONValue result = json_make_object();
+
+    dynamic_registration_set(&result, &symbol->dynamic_registration);
+    JSONValue symbol_kind = json_make_object();
+    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_make_array(symbol->symbol_kind_value_set));
+    json_object_const_key_set(&result, "symbolKind", symbol_kind);
+    JSONValue tag_support = json_make_object();
+    json_object_const_key_set(&tag_support, "valueSet", symbol_tags_make_array(symbol->tag_support_value_set));
+    json_object_const_key_set(&result, "tagSupport", tag_support);
+    JSONValue resolve_support = json_make_object();
+    json_object_const_key_set(&resolve_support, "properties", json_make_string_array(symbol->resolve_support_properties, symbol->resolve_support_count));
+    json_object_const_key_set(&result, "resolveSupport", resolve_support);
+
+    return result;
+}
+
+typedef struct RefreshSupport {
+    /**
+     * Note that this event is global and will force the client to refresh all
+     * values. It should be used with absolute care and is useful for situation
+     * where a server for example detect a project wide change that requires
+     * such a calculation.
+     */
+    int value;
+} RefreshSupport;
+
+static JSONValue refresh_support_make(RefreshSupport* refresh_support) {
+    JSONValue result = json_make_object();
+    json_object_const_key_set(&result, "refreshSupport", json_make_boolean(refresh_support->value));
+    return result;
+}
+
+/**
+ * The client has support for file requests/notifications.
+ *
+ * @since 3.16.0
+ */
+typedef struct FileOperations {
+    /**
+     * Whether the client supports dynamic registration for file
+     * requests/notifications.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * The client has support for sending didCreateFiles notifications.
+     */
+    int did_create;
+
+    /**
+     * The client has support for sending willCreateFiles requests.
+     */
+    int will_create;
+
+    /**
+     * The client has support for sending didRenameFiles notifications.
+     */
+    int did_rename;
+
+    /**
+     * The client has support for sending willRenameFiles requests.
+     */
+    int will_rename;
+
+    /**
+     * The client has support for sending didDeleteFiles notifications.
+     */
+    int did_delete;
+
+    /**
+     * The client has support for sending willDeleteFiles requests.
+     */
+    int will_delete;
+} FileOperations;
+
+static JSONValue file_operations_make(FileOperations* file_ops) {
+    JSONValue result = json_make_object();
+    dynamic_registration_set(&result, &file_ops->dynamic_registration);
+    json_object_const_key_set(&result, "didCreate", json_make_boolean(file_ops->did_create));
+    json_object_const_key_set(&result, "willCreate", json_make_boolean(file_ops->will_create));
+    json_object_const_key_set(&result, "didRename", json_make_boolean(file_ops->did_rename));
+    json_object_const_key_set(&result, "willRename", json_make_boolean(file_ops->will_rename));
+    json_object_const_key_set(&result, "didDelete", json_make_boolean(file_ops->did_delete));
+    json_object_const_key_set(&result, "willDelete", json_make_boolean(file_ops->will_delete));
+    return result;
+}
+
+/**
+ * Workspace specific client capabilities.
+ */
+typedef struct Workspace {
+    /**
+     * The client supports applying batch edits
+     * to the workspace by supporting the request
+     * 'workspace/applyEdit'
+     */
+    int apply_edit;
+
+    /**
+     * Capabilities specific to `WorkspaceEdit`s
+     */
+    WorkspaceEditClientCapabilities workspace_edit;
+
+    /**
+     * Capabilities specific to the `workspace/didChangeConfiguration`
+     * notification.
+     */
+    DynamicRegistration did_change_configuration;
+
+    /**
+     * Capabilities specific to the `workspace/didChangeWatchedFiles`
+     * notification.
+     */
+    DidChangeWatchedFilesClientCapabilities did_change_watched_files;
+
+    /**
+     * Capabilities specific to the `workspace/symbol` request.
+     */
+    WorkspaceSymbolClientCapabilities symbol;
+
+    /**
+     * Capabilities specific to the `workspace/executeCommand` request.
+     */
+    DynamicRegistration execute_command;
+
+    /**
+     * The client has support for workspace folders.
+     *
+     * @since 3.6.0
+     */
+    int workspace_folders;
+
+    /**
+     * The client supports `workspace/configuration` requests.
+     *
+     * @since 3.6.0
+     */
+    int configuration;
+
+    /**
+     * Capabilities specific to the semantic token requests scoped to the
+     * workspace.
+     *
+     * @since 3.16.0
+     */
+    RefreshSupport semantic_tokens;
+
+    /**
+     * Capabilities specific to the code lens requests scoped to the
+     * workspace.
+     *
+     * @since 3.16.0
+     */
+    RefreshSupport code_lens;
+
+    /**
+     * The client has support for file requests/notifications.
+     *
+     * @since 3.16.0
+     */
+    FileOperations file_operations;
+
+    /**
+     * Client workspace capabilities specific to inline values.
+     *
+     * @since 3.17.0
+     */
+    RefreshSupport inline_value;
+
+    /**
+     * Client workspace capabilities specific to inlay hints.
+     *
+     * @since 3.17.0
+     */
+    RefreshSupport inlay_hint;
+
+    /**
+     * Client workspace capabilities specific to diagnostics.
+     *
+     * @since 3.17.0.
+     */
+    RefreshSupport diagnostics;
+} Workspace;
+
+static JSONValue workspace_make(Workspace* workspace) {
+    JSONValue result = json_make_object();
+
+    JSONValue did_change_watched_files = json_make_object();
+    dynamic_registration_set(&did_change_watched_files, &workspace->did_change_watched_files.dynamic_registration);
+    json_object_const_key_set(&did_change_watched_files, "relativePatternSupport", json_make_boolean(workspace->did_change_watched_files.relative_pattern_support));
+
+    json_object_const_key_set(&result, "applyEdit", json_make_boolean(workspace->apply_edit));
+    json_object_const_key_set(&result, "workspaceEdit", workspace_edit_client_capabilities_make(&workspace->workspace_edit));
+    json_object_const_key_set(&result, "didChangeConfiguration", dynamic_registration_make(&workspace->did_change_configuration));
+    json_object_const_key_set(&result, "didChangeWatchedFiles", did_change_watched_files);
+    json_object_const_key_set(&result, "symbol", workspace_symbol_client_capabilities_make(&workspace->symbol));
+    json_object_const_key_set(&result, "executeCommand", dynamic_registration_make(&workspace->execute_command));
+    json_object_const_key_set(&result, "workspaceFolders", json_make_boolean(workspace->workspace_folders));
+    json_object_const_key_set(&result, "configuration", json_make_boolean(workspace->configuration));
+    json_object_const_key_set(&result, "semanticTokens", refresh_support_make(&workspace->semantic_tokens));
+    json_object_const_key_set(&result, "codeLens", refresh_support_make(&workspace->code_lens));
+    json_object_const_key_set(&result, "fileOperations", file_operations_make(&workspace->file_operations));
+    json_object_const_key_set(&result, "inlineValue", refresh_support_make(&workspace->inline_value));
+    json_object_const_key_set(&result, "inlayHint", refresh_support_make(&workspace->inlay_hint));
+    json_object_const_key_set(&result, "diagnostics", refresh_support_make(&workspace->diagnostics));
+
+    return result;
+}
+
+typedef struct TextDocumentSyncClientCapabilities {
+    /**
+     * Whether text document synchronization supports dynamic registration.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * The client supports sending will save notifications.
+     */
+    int will_save;
+
+    /**
+     * The client supports sending a will save request and
+     * waits for a response providing text edits which will
+     * be applied to the document before it is saved.
+     */
+    int will_save_wait_until;
+
+    /**
+     * The client supports did save notifications.
+     */
+    int did_save;
+} TextDocumentSyncClientCapabilities;
+
+static JSONValue text_document_sync_client_capabilities_make(TextDocumentSyncClientCapabilities* sync) {
+    JSONValue result = json_make_object();
+    dynamic_registration_set(&result, &sync->dynamic_registration);
+    json_object_const_key_set(&result, "willSave", json_make_boolean(sync->will_save));
+    json_object_const_key_set(&result, "willSaveWaitUntil", json_make_boolean(sync->will_save_wait_until));
+    json_object_const_key_set(&result, "didSave", json_make_boolean(sync->did_save));
+    return result;
+}
+
+/**
+ * The client supports the following `CompletionItem` specific
+ * capabilities.
+ */
+typedef struct CompletionItem {
+    /**
+     * Client supports snippets as insert text.
+     *
+     * A snippet can define tab stops and placeholders with `$1`, `$2`
+     * and `${3:foo}`. `$0` defines the final tab stop, it defaults to
+     * the end of the snippet. Placeholders with equal identifiers are
+     * linked, that is typing in one will update others too.
+     */
+    int snippet_support;
+
+    /**
+     * Client supports commit characters on a completion item.
+     */
+    int commit_characters_support;
+
+    /**
+     * Client supports the follow content formats for the documentation
+     * property. The order describes the preferred format of the client.
+     */
+    int documentation_format;
+
+    /**
+     * Client supports the deprecated property on a completion item.
+     */
+    int deprecated_support;
+
+    /**
+     * Client supports the preselect property on a completion item.
+     */
+    int preselect_support;
+
+    /**
+     * Client supports the tag property on a completion item. Clients
+     * supporting tags have to handle unknown tags gracefully. Clients
+     * especially need to preserve unknown tags when sending a completion
+     * item back to the server in a resolve call.
+     *
+     * @since 3.15.0
+     *
+     * tagSupport:
+     *
+     * The tags supported by the client.
+     */
+    int tag_support_value_set;
+
+    /**
+     * Client supports insert replace edit to control different behavior if
+     * a completion item is inserted in the text or should replace text.
+     *
+     * @since 3.16.0
+     */
+    int insert_replace_support;
+
+    /**
+     * Indicates which properties a client can resolve lazily on a
+     * completion item. Before version 3.16.0 only the predefined properties
+     * `documentation` and `detail` could be resolved lazily.
+     *
+     * @since 3.16.0
+     *
+     * resolveSupport
+     * 
+     * The properties that a client can resolve lazily.
+     */
+    char** resolve_support_properties;
+    int resolve_support_count;
+
+    /**
+     * The client supports the `insertTextMode` property on
+     * a completion item to override the whitespace handling mode
+     * as defined by the client (see `insertTextMode`).
+     *
+     * @since 3.16.0
+     *
+     * insertTextModeSupport
+     * 
+     */
+    int insert_text_mode_support_value_set;
+
+    /**
+     * The client has support for completion item label
+     * details (see also `CompletionItemLabelDetails`).
+     *
+     * @since 3.17.0
+     */
+    int label_details_support;
+} CompletionItem;
+
+static JSONValue completion_item_make(CompletionItem* completion_item) {
+    JSONValue result = json_make_object();
+
+    json_object_const_key_set(&result, "snippetSupport", json_make_boolean(completion_item->snippet_support));
+    json_object_const_key_set(&result, "commitCharactersSupport", json_make_boolean(completion_item->commit_characters_support));
+    json_object_const_key_set(&result, "documentationFormat", markup_kind_make_array(completion_item->documentation_format));
+    json_object_const_key_set(&result, "deprecatedSupport", json_make_boolean(completion_item->deprecated_support));
+    json_object_const_key_set(&result, "preselectSupport", json_make_boolean(completion_item->preselect_support));
+    JSONValue item_tag_support = json_make_object();
+    json_object_const_key_set(&item_tag_support, "valueSet", completion_item_tag_make_array(completion_item->tag_support_value_set));
+    json_object_const_key_set(&result, "tagSupport", item_tag_support);
+    json_object_const_key_set(&result, "insertReplaceSupport", json_make_boolean(completion_item->insert_replace_support));
+    JSONValue item_resolve_properties = json_make_object();
+    json_object_const_key_set(&item_resolve_properties, "properties",
+        json_make_string_array(completion_item->resolve_support_properties, completion_item->resolve_support_count));
+    json_object_const_key_set(&result, "resolveSupport", item_resolve_properties);
+    JSONValue insert_text_mode = json_make_object();
+    json_object_const_key_set(&insert_text_mode, "valueSet", insert_text_mode_make_array(completion_item->insert_text_mode_support_value_set));
+    json_object_const_key_set(&result, "insertTextModeSupport", insert_text_mode);
+    json_object_const_key_set(&result, "labelDetailsSupport", json_make_boolean(completion_item->label_details_support));
+
+    return result;
+}
+
+/**
+ * Capabilities specific to the `textDocument/completion` request.
+ */
+typedef struct CompletionClientCapabilities {
+    /**
+     * Whether completion supports dynamic registration.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * The client supports the following `CompletionItem` specific
+     * capabilities.
+     */
+    CompletionItem completion_item;
+
+    /**
+     * completionItemKind
+     * 
+     * The completion item kind values the client supports. When this
+     * property exists the client also guarantees that it will
+     * handle values outside its set gracefully and falls back
+     * to a default value when unknown.
+     *
+     * If this property is not present the client only supports
+     * the completion items kinds from `Text` to `Reference` as defined in
+     * the initial version of the protocol.
+     */
+    long long completion_item_kind_value_set;
+
+    /**
+     * The client supports to send additional context information for a
+     * `textDocument/completion` request.
+     */
+    int context_support;
+
+    /**
+     * The client's default when the completion item doesn't provide a
+     * `insertTextMode` property.
+     *
+     * @since 3.17.0
+     */
+    int insert_text_mode;
+
+    /**
+     * The client supports the following `CompletionList` specific
+     * capabilities.
+     *
+     * @since 3.17.0
+     *
+     * completionList
+     * 
+     * The client supports the following itemDefaults on
+     * a completion list.
+     *
+     * The value lists the supported property names of the
+     * `CompletionList.itemDefaults` object. If omitted
+     * no properties are supported.
+     *
+     * @since 3.17.0
+     */
+    char** completion_list_item_defaults;
+    int completion_list_item_defaults_count;
+} CompletionClientCapabilities;
+
+static JSONValue completion_client_capabilities_make(CompletionClientCapabilities* completion) {
+    JSONValue result = json_make_object();
+
+    dynamic_registration_set(&result, &completion->dynamic_registration);
+    json_object_const_key_set(&result, "completionItem", completion_item_make(&completion->completion_item));
+    JSONValue item_kind = json_make_object();
+    json_object_const_key_set(&item_kind, "valueSet", completion_item_kind_make_array(completion->completion_item_kind_value_set));
+    json_object_const_key_set(&result, "completionItemKind", item_kind);
+    json_object_const_key_set(&result, "contextSupport", json_make_boolean(completion->context_support));
+    json_object_const_key_set(&result, "insertTextMode", json_make_int(completion->insert_text_mode));
+    JSONValue item_defaults = json_make_object();
+    json_object_const_key_set(&item_defaults, "itemDefaults",
+        json_make_string_array(completion->completion_list_item_defaults, completion->completion_list_item_defaults_count));
+    json_object_const_key_set(&result, "completionList", item_defaults);
+
+    return result;
+}
+
+/**
+ * Capabilities specific to the `textDocument/hover` request.
+ */
+typedef struct HoverClientCapabilities {
+    /**
+     * Whether hover supports dynamic registration.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * Client supports the follow content formats if the content
+     * property refers to a `literal of type MarkupContent`.
+     * The order describes the preferred format of the client.
+     */
+    int content_format;
+} HoverClientCapabilities;
+
+/**
+ * The client supports the following `SignatureInformation`
+ * specific properties.
+ */
+typedef struct SignatureInformation {
+    /**
+     * Client supports the follow content formats for the documentation
+     * property. The order describes the preferred format of the client.
+     */
+    int documentation_format;
+
+    /**
+     * Client capabilities specific to parameter information.
+     *
+     * parameterInformation:
+     * 
+     * The client supports processing label offsets instead of a
+     * simple label string.
+     *
+     * @since 3.14.0
+     */
+    int label_offset_support;
+
+    /**
+     * The client supports the `activeParameter` property on
+     * `SignatureInformation` literal.
+     *
+     * @since 3.16.0
+     */
+    int active_parameter_support;
+} SignatureInformation;
+
+/**
+ * Capabilities specific to the `textDocument/signatureHelp` request.
+ */
+typedef struct SignatureHelpClientCapabilities {
+    /**
+     * Whether signature help supports dynamic registration.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * The client supports the following `SignatureInformation`
+     * specific properties.
+     */
+    SignatureInformation signature_information;
+
+    /**
+     * The client supports to send additional context information for a
+     * `textDocument/signatureHelp` request. A client that opts into
+     * contextSupport will also support the `retriggerCharacters` on
+     * `SignatureHelpOptions`.
+     *
+     * @since 3.15.0
+     */
+    int context_support;
+} SignatureHelpClientCapabilities;
+
+static JSONValue signature_help_client_capabilities_make(SignatureHelpClientCapabilities* signature_help) {
+    JSONValue result = json_make_object();
+    dynamic_registration_set(&result, &signature_help->dynamic_registration);
+    JSONValue info = json_make_object();
+    json_object_const_key_set(&info, "documentationFormat", markup_kind_make_array(signature_help->signature_information.documentation_format));
+    JSONValue parameter_info = json_make_object();
+    json_object_const_key_set(&parameter_info, "labelOffsetSupport", json_make_boolean(signature_help->signature_information.label_offset_support));
+    json_object_const_key_set(&info, "parameterInformation", parameter_info);
+    json_object_const_key_set(&info, "activeParameterSupport", json_make_boolean(signature_help->signature_information.active_parameter_support));
+    json_object_const_key_set(&result, "signatureInformation", info);
+    json_object_const_key_set(&result, "contextSupport", json_make_boolean(signature_help->context_support));
+    return result;
+}
+
+typedef struct DynamicRegistrationLink {
+    DynamicRegistration dynamic_registration;
+    int link_support;
+} DynamicRegistrationLink;
+
+static JSONValue dynamic_registration_link_make(DynamicRegistrationLink* dynamic_registration_link) {
+    JSONValue result = json_make_object();
+    dynamic_registration_set(&result, &dynamic_registration_link->dynamic_registration);
+    json_object_const_key_set(&result, "linkSupport", json_make_boolean(dynamic_registration_link->link_support));
+    return result;
+}
+
+/**
+ * Capabilities specific to the `textDocument/documentSymbol` request.
+ */
+typedef struct DocumentSymbolClientCapabilities {
+    /**
+     * Whether document symbol supports dynamic registration.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * Specific capabilities for the `SymbolKind` in the
+     * `textDocument/documentSymbol` request.
+     *
+     * symbolKind:
+     * 
+     * The symbol kind values the client supports. When this
+     * property exists the client also guarantees that it will
+     * handle values outside its set gracefully and falls back
+     * to a default value when unknown.
+     *
+     * If this property is not present the client only supports
+     * the symbol kinds from `File` to `Array` as defined in
+     * the initial version of the protocol.
+     */
+    int symbol_kind_value_set;
+
+    /**
+     * The client supports hierarchical document symbols.
+     */
+    int hierarchical_document_symbol_support;
+
+    /**
+     * The client supports tags on `SymbolInformation`. Tags are supported on
+     * `DocumentSymbol` if `hierarchicalDocumentSymbolSupport` is set to true.
+     * Clients supporting tags have to handle unknown tags gracefully.
+     *
+     * @since 3.16.0
+     *
+     * tagSupport:
+     * 
+     * The tags supported by the client.
+     */
+    int tag_support_value_set;
+
+    /**
+     * The client supports an additional label presented in the UI when
+     * registering a document symbol provider.
+     *
+     * @since 3.16.0
+     */
+    int label_support;
+} DocumentSymbolClientCapabilities;
+
+static JSONValue document_symbol_client_capabilities_make(DocumentSymbolClientCapabilities* symbol) {
+    JSONValue result = json_make_object();
+    dynamic_registration_set(&result, &symbol->dynamic_registration);
+    JSONValue symbol_kind = json_make_object();
+    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_make_array(symbol->symbol_kind_value_set));
+    json_object_const_key_set(&result, "symbolKind", symbol_kind);
+    json_object_const_key_set(&result, "hierarchicalDocumentSymbolSupport", json_make_boolean(symbol->hierarchical_document_symbol_support));
+    JSONValue tag_support = json_make_object();
+    json_object_const_key_set(&tag_support, "valueSet", symbol_tags_make_array(symbol->tag_support_value_set));
+    json_object_const_key_set(&result, "tagSupport", tag_support);
+    json_object_const_key_set(&result, "labelSupport", json_make_boolean(symbol->label_support));
+    return result;
+}
+
+/**
+ * Capabilities specific to the `textDocument/codeAction` request.
+ */
+typedef struct CodeActionClientCapabilities {
+    /**
+     * Whether code action supports dynamic registration.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * The client supports code action literals as a valid
+     * response of the `textDocument/codeAction` request.
+     *
+     * @since 3.8.0
+     *
+     * codeActionLiteralSupport:
+     * 
+     * The code action kind is supported with the following value
+     * set.
+     *
+     * codeActionKind:
+     * 
+     * The code action kind values the client supports. When this
+     * property exists the client also guarantees that it will
+     * handle values outside its set gracefully and falls back
+     * to a default value when unknown.
+     */
+    int code_action_value_set;
+
+    /**
+     * Whether code action supports the `isPreferred` property.
+     *
+     * @since 3.15.0
+     */
+    int is_preferred_support;
+
+    /**
+     * Whether code action supports the `disabled` property.
+     *
+     * @since 3.16.0
+     */
+    int disabled_support;
+
+    /**
+     * Whether code action supports the `data` property which is
+     * preserved between a `textDocument/codeAction` and a
+     * `codeAction/resolve` request.
+     *
+     * @since 3.16.0
+     */
+    int data_support;
+
+    /**
+     * Whether the client supports resolving additional code action
+     * properties via a separate `codeAction/resolve` request.
+     *
+     * @since 3.16.0
+     *
+     * resolveSupport:
+     * 
+     * The properties that a client can resolve lazily.
+     */
+    char** resolve_support_properties;
+    int resolve_support_count;
+
+    /**
+     * Whether the client honors the change annotations in
+     * text edits and resource operations returned via the
+     * `CodeAction#edit` property by for example presenting
+     * the workspace edit in the user interface and asking
+     * for confirmation.
+     *
+     * @since 3.16.0
+     */
+    int honors_change_annotations;
+} CodeActionClientCapabilities;
+
+static JSONValue code_action_client_capabilities_make(CodeActionClientCapabilities* code_action) {
+    JSONValue result = json_make_object();
+    dynamic_registration_set(&result, &code_action->dynamic_registration);
+    JSONValue kind = json_make_object();
+    json_object_const_key_set(&kind, "valueSet", code_action_kind_make_array(code_action->code_action_value_set));
+    JSONValue literal_support = json_make_object();
+    json_object_const_key_set(&literal_support, "codeActionKind", kind);
+    json_object_const_key_set(&result, "codeActionLiteralSupport", literal_support);
+    json_object_const_key_set(&result, "isPreferredSupport", json_make_boolean(code_action->is_preferred_support));
+    json_object_const_key_set(&result, "disabledSupport", json_make_boolean(code_action->disabled_support));
+    json_object_const_key_set(&result, "dataSupport", json_make_boolean(code_action->data_support));
+    JSONValue resolve_support = json_make_object();
+    json_object_const_key_set(&resolve_support, "properties",
+        json_make_string_array(code_action->resolve_support_properties, code_action->resolve_support_count));
+    json_object_const_key_set(&result, "resolveSupport", resolve_support);
+    json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(code_action->honors_change_annotations));
+    return result;
+}
+
+/**
+ * Capabilities specific to the `textDocument/documentLink` request.
+ */
+typedef struct DocumentLinkClientCapabilities {
+    /**
+     * Whether document link supports dynamic registration.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * Whether the client supports the `tooltip` property on `DocumentLink`.
+     *
+     * @since 3.15.0
+     */
+    int tooltip_support;
+} DocumentLinkClientCapabilities;
+
+typedef enum {
+    /**
+     * The client's default behavior is to select the identifier
+     * according to the language's syntax rule.
+     */
+    PREPARESUPPORTDEFAULTBEHAVIOR_IDENTIFIER = 1,
+} PrepareSupportDefaultBehavior;
+
+/**
+ * Capabilities specific to the `textDocument/rename` request.
+ */
+typedef struct RenameClientCapabilities {
+    /**
+     * Whether rename supports dynamic registration.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * Client supports testing for validity of rename operations
+     * before execution.
+     *
+     * @since version 3.12.0
+     */
+    int prepare_support;
+
+    /**
+     * Client supports the default behavior result
+     * (`{ defaultBehavior: boolean }`).
+     *
+     * The value indicates the default behavior used by the
+     * client.
+     *
+     * @since version 3.16.0
+     */
+    PrepareSupportDefaultBehavior prepare_support_default_behavior;
+
+    /**
+     * Whether the client honors the change annotations in
+     * text edits and resource operations returned via the
+     * rename request's workspace edit by for example presenting
+     * the workspace edit in the user interface and asking
+     * for confirmation.
+     *
+     * @since 3.16.0
+     */
+    int honors_change_annotations;
+} RenameClientCapabilities;
+
+static JSONValue rename_client_capabilities_make(RenameClientCapabilities* rename) {
+    JSONValue result = json_make_object();
+    dynamic_registration_set(&result, &rename->dynamic_registration);
+    json_object_const_key_set(&result, "prepareSupport", json_make_boolean(rename->prepare_support));
+    json_object_const_key_set(&result, "prepareSupportDefaultBehavior", json_make_int(rename->prepare_support_default_behavior));
+    json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(rename->honors_change_annotations));
+    return result;
+}
+
+/**
+ * Capabilities specific to the `textDocument/publishDiagnostics`
+ * notification.
+ */
+typedef struct PublishDiagnosticsClientCapabilities {
+    /**
+     * Whether the clients accepts diagnostics with related information.
+     */
+    int related_information;
+
+    /**
+     * Client supports the tag property to provide meta data about a diagnostic.
+     * Clients supporting tags have to handle unknown tags gracefully.
+     *
+     * @since 3.15.0
+     *
+     * tagSupport:
+     * 
+     * The tags supported by the client.
+     */
+    int value_set;
+
+    /**
+     * Whether the client interprets the version property of the
+     * `textDocument/publishDiagnostics` notification's parameter.
+     *
+     * @since 3.15.0
+     */
+    int version_support;
+
+    /**
+     * Client supports a codeDescription property
+     *
+     * @since 3.16.0
+     */
+    int code_description_support;
+
+    /**
+     * Whether code action supports the `data` property which is
+     * preserved between a `textDocument/publishDiagnostics` and
+     * `textDocument/codeAction` request.
+     *
+     * @since 3.16.0
+     */
+    int data_support;
+} PublishDiagnosticsClientCapabilities;
+
+static JSONValue publish_diagnostics_client_capabilities_make(PublishDiagnosticsClientCapabilities* publish) {
+    JSONValue result = json_make_object();
+    json_object_const_key_set(&result, "relatedInformation", json_make_boolean(publish->related_information));
+    JSONValue tag_support = json_make_object();
+    json_object_const_key_set(&tag_support, "valueSet", diagnostic_tags_make_array(publish->value_set));
+    json_object_const_key_set(&result, "tagSupport", tag_support);
+    json_object_const_key_set(&result, "versionSupport", json_make_boolean(publish->version_support));
+    json_object_const_key_set(&result, "codeDescriptionSupport", json_make_boolean(publish->code_description_support));
+    json_object_const_key_set(&result, "dataSupport", json_make_boolean(publish->data_support));
+    return result;
+}
+
+/**
+ * Capabilities specific to the `textDocument/foldingRange` request.
+ *
+ * @since 3.10.0
+ */
+typedef struct FoldingRangeClientCapabilities {
+    /**
+     * Whether implementation supports dynamic registration for folding range
+     * providers. If this is set to `true` the client supports the new
+     * `FoldingRangeRegistrationOptions` return value for the corresponding
+     * server capability as well.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * The maximum number of folding ranges that the client prefers to receive
+     * per document. The value serves as a hint, servers are free to follow the
+     * limit.
+     */
+    unsigned int range_limit;
+
+    /**
+     * If set, the client signals that it only supports folding complete lines.
+     * If set, client will ignore specified `startCharacter` and `endCharacter`
+     * properties in a FoldingRange.
+     */
+    int line_folding_only;
+
+    /**
+     * Specific options for the folding range kind.
+     *
+     * @since 3.17.0
+     *
+     * foldingRangeKind:
+     * 
+     * The folding range kind values the client supports. When this
+     * property exists the client also guarantees that it will
+     * handle values outside its set gracefully and falls back
+     * to a default value when unknown.
+     */
+    int value_set;
+
+    /**
+     * Specific options for the folding range.
+     * @since 3.17.0
+     *
+     * foldingRange:
+     * 
+    * If set, the client signals that it supports setting collapsedText on
+    * folding ranges to display custom labels instead of the default text.
+    *
+    * @since 3.17.0
+    */
+    int collapsed_text;
+} FoldingRangeClientCapabilities;
+
+static JSONValue folding_range_client_capabilities_make(FoldingRangeClientCapabilities* folding_range) {
+    JSONValue result = json_make_object();
+    dynamic_registration_set(&result, &folding_range->dynamic_registration);
+    json_object_const_key_set(&result, "rangeLimit", json_make_int(folding_range->range_limit));
+    json_object_const_key_set(&result, "lineFoldingOnly", json_make_boolean(folding_range->line_folding_only));
+    JSONValue kind = json_make_object();
+    json_object_const_key_set(&kind, "valueSet", folding_range_kind_make_array(folding_range->value_set));
+    json_object_const_key_set(&result, "foldingRangeKind", kind);
+    JSONValue range = json_make_object();
+    json_object_const_key_set(&range, "collapsedText", json_make_boolean(folding_range->collapsed_text));
+    json_object_const_key_set(&result, "foldingRange", range);
+    return result;
+}
+
+/**
+ * Capabilities specific to the various semantic token requests.
+ *
+ * @since 3.16.0
+ */
+typedef struct SemanticTokensClientCapabilities {
+    /**
+     * Whether implementation supports dynamic registration. If this is set to
+     * `true` the client supports the new `(TextDocumentRegistrationOptions &
+     * StaticRegistrationOptions)` return value for the corresponding server
+     * capability as well.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * Which requests the client supports and might send to the server
+     * depending on the server's capability. Please note that clients might not
+     * show semantic tokens or degrade some of the user experience if a range
+     * or full request is advertised by the client but not provided by the
+     * server. If for example the client capability `requests.full` and
+     * `request.range` are both set to true but the server only provides a
+     * range provider the client might not render a minimap correctly or might
+     * even decide to not show any semantic tokens at all.
+     *
+     * requests:
+     *
+     * The client will send the `textDocument/semanticTokens/range` request
+     * if the server provides a corresponding handler.
+     *
+     * range?: boolean | {}
+     */
+    int range;
+
+    /**
+     * requests:
+     * 
+     * The client will send the `textDocument/semanticTokens/full` request
+     * if the server provides a corresponding handler.
+     *
+     * full?: boolean | {}
+     * 
+     * The client will send the `textDocument/semanticTokens/full/delta`
+     * request if the server provides a corresponding handler.
+     */
+    int delta;
+
+    /**
+     * The token types that the client supports.
+     */
+    char** token_types;
+    int token_types_count;
+
+    /**
+     * The token modifiers that the client supports.
+     */
+    char** token_modifiers;
+    int token_modifiers_count;
+
+    /**
+     * The formats the clients supports.
+     */
+    int formats;
+
+    /**
+     * Whether the client supports tokens that can overlap each other.
+     */
+    int overlapping_token_support;
+
+    /**
+     * Whether the client supports tokens that can span multiple lines.
+     */
+    int multiline_token_support;
+
+    /**
+     * Whether the client allows the server to actively cancel a
+     * semantic token request, e.g. supports returning
+     * ErrorCodes.ServerCancelled. If a server does the client
+     * needs to retrigger the request.
+     *
+     * @since 3.17.0
+     */
+    int server_cancel_support;
+
+    /**
+     * Whether the client uses semantic tokens to augment existing
+     * syntax tokens. If set to `true` client side created syntax
+     * tokens and semantic tokens are both used for colorization. If
+     * set to `false` the client only uses the returned semantic tokens
+     * for colorization.
+     *
+     * If the value is `undefined` then the client behavior is not
+     * specified.
+     *
+     * @since 3.17.0
+     */
+    int augments_syntax_tokens;
+} SemanticTokensClientCapabilities;
+
+static JSONValue semantic_tokens_client_capabilities_make(SemanticTokensClientCapabilities* semantic_tokens) {
+    JSONValue result = json_make_object();
+    dynamic_registration_set(&result, &semantic_tokens->dynamic_registration);
+    JSONValue requests_full = json_make_object();
+    json_object_const_key_set(&requests_full, "delta", json_make_boolean(semantic_tokens->delta));
+    JSONValue requests = json_make_object();
+    json_object_const_key_set(&requests, "range", json_make_boolean(semantic_tokens->range));
+    json_object_const_key_set(&requests, "full", requests_full);
+    json_object_const_key_set(&result, "requests", requests);
+    json_object_const_key_set(&result, "tokenTypes",
+        json_make_string_array(semantic_tokens->token_types, semantic_tokens->token_types_count));
+    json_object_const_key_set(&result, "tokenModifiers",
+        json_make_string_array(semantic_tokens->token_modifiers, semantic_tokens->token_modifiers_count));
+    json_object_const_key_set(&result, "formats", token_format_make_array(semantic_tokens->formats));
+    json_object_const_key_set(&result, "overlappingTokenSupport", json_make_boolean(semantic_tokens->overlapping_token_support));
+    json_object_const_key_set(&result, "multilineTokenSupport", json_make_boolean(semantic_tokens->multiline_token_support));
+    json_object_const_key_set(&result, "serverCancelSupport", json_make_boolean(semantic_tokens->server_cancel_support));
+    json_object_const_key_set(&result, "augmentsSyntaxTokens", json_make_boolean(semantic_tokens->augments_syntax_tokens));
+    return result;
+}
+
+/**
+ * Inlay hint client capabilities.
+ *
+ * @since 3.17.0
+ */
+typedef struct InlayHintClientCapabilities {
+    /**
+     * Whether inlay hints support dynamic registration.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * Indicates which properties a client can resolve lazily on a inlay
+     * hint.
+     *
+     * resolveSupport:
+     * 
+     * The properties that a client can resolve lazily.
+     */
+    char** properties;
+    int properties_count;
+} InlayHintClientCapabilities;
+
+/**
+ * Client capabilities specific to diagnostic pull requests.
+ *
+ * @since 3.17.0
+ */
+typedef struct DiagnosticClientCapabilities {
+    /**
+     * Whether implementation supports dynamic registration. If this is set to
+     * `true` the client supports the new
+     * `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+     * return value for the corresponding server capability as well.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * Whether the clients supports related documents for document diagnostic
+     * pulls.
+     */
+    int related_document_support;
+} DiagnosticClientCapabilities;
+
+/**
+ * Text document specific client capabilities.
+ */
+typedef struct TextDocumentClientCapabilities {
+    TextDocumentSyncClientCapabilities synchronization;
+
+    /**
+     * Capabilities specific to the `textDocument/completion` request.
+     */
+    CompletionClientCapabilities completion;
+
+    /**
+     * Capabilities specific to the `textDocument/hover` request.
+     */
+    HoverClientCapabilities hover;
+
+    /**
+     * Capabilities specific to the `textDocument/signatureHelp` request.
+     */
+    SignatureHelpClientCapabilities signature_help;
+
+    /**
+     * Capabilities specific to the `textDocument/declaration` request.
+     *
+     * @since 3.14.0
+     */
+    DynamicRegistrationLink declaration;
+
+    /**
+     * Capabilities specific to the `textDocument/definition` request.
+     */
+    DynamicRegistrationLink definition;
+
+    /**
+     * Capabilities specific to the `textDocument/typeDefinition` request.
+     *
+     * @since 3.6.0
+     */
+    DynamicRegistrationLink type_definition;
+
+    /**
+     * Capabilities specific to the `textDocument/implementation` request.
+     *
+     * @since 3.6.0
+     */
+    DynamicRegistrationLink implementation;
+
+    /**
+     * Capabilities specific to the `textDocument/references` request.
+     */
+    DynamicRegistration references;
+
+    /**
+     * Capabilities specific to the `textDocument/documentHighlight` request.
+     */
+    DynamicRegistration document_highlight;
+
+    /**
+     * Capabilities specific to the `textDocument/documentSymbol` request.
+     */
+    DocumentSymbolClientCapabilities document_symbol;
+
+    /**
+     * Capabilities specific to the `textDocument/codeAction` request.
+     */
+    CodeActionClientCapabilities code_action;
+
+    /**
+     * Capabilities specific to the `textDocument/codeLens` request.
+     */
+    DynamicRegistration code_lens;
+
+    /**
+     * Capabilities specific to the `textDocument/documentLink` request.
+     */
+    DocumentLinkClientCapabilities document_link;
+
+    /**
+     * Capabilities specific to the `textDocument/documentColor` and the
+     * `textDocument/colorPresentation` request.
+     *
+     * @since 3.6.0
+     */
+    DynamicRegistration color_provider;
+
+    /**
+     * Capabilities specific to the `textDocument/formatting` request.
+     */
+    DynamicRegistration formatting;
+
+    /**
+     * Capabilities specific to the `textDocument/rangeFormatting` request.
+     */
+    DynamicRegistration range_formatting;
+
+    /**
+     * Capabilities specific to the `textDocument/onTypeFormatting` request.
+     */
+    DynamicRegistration on_type_formatting;
+
+    /**
+     * Capabilities specific to the `textDocument/rename` request.
+     */
+    RenameClientCapabilities rename;
+
+    /**
+     * Capabilities specific to the `textDocument/publishDiagnostics`
+     * notification.
+     */
+    PublishDiagnosticsClientCapabilities publish_diagnostics;
+
+    /**
+     * Capabilities specific to the `textDocument/foldingRange` request.
+     *
+     * @since 3.10.0
+     */
+    FoldingRangeClientCapabilities folding_range;
+
+    /**
+     * Capabilities specific to the `textDocument/selectionRange` request.
+     *
+     * @since 3.15.0
+     */
+    DynamicRegistration selection_range;
+
+    /**
+     * Capabilities specific to the `textDocument/linkedEditingRange` request.
+     *
+     * @since 3.16.0
+     */
+    DynamicRegistration linked_editing_range;
+
+    /**
+     * Capabilities specific to the various call hierarchy requests.
+     *
+     * @since 3.16.0
+     */
+    DynamicRegistration call_hierarchy;
+
+    /**
+     * Capabilities specific to the various semantic token requests.
+     *
+     * @since 3.16.0
+     */
+    SemanticTokensClientCapabilities semantic_tokens;
+
+    /**
+     * Capabilities specific to the `textDocument/moniker` request.
+     *
+     * @since 3.16.0
+     */
+    DynamicRegistration moniker;
+
+    /**
+     * Capabilities specific to the various type hierarchy requests.
+     *
+     * @since 3.17.0
+     */
+    DynamicRegistration type_hierarchy;
+
+    /**
+     * Capabilities specific to the `textDocument/inlineValue` request.
+     *
+     * @since 3.17.0
+     */
+    DynamicRegistration inline_value;
+
+    /**
+     * Capabilities specific to the `textDocument/inlayHint` request.
+     *
+     * @since 3.17.0
+     */
+    InlayHintClientCapabilities inlay_hint;
+
+    /**
+     * Capabilities specific to the diagnostic pull model.
+     *
+     * @since 3.17.0
+     */
+    DiagnosticClientCapabilities diagnostic;
+} TextDocumentClientCapabilities;
+
+static JSONValue text_document_client_capabilities_make(TextDocumentClientCapabilities* text_document) {
+    JSONValue result = json_make_object();
+
+    JSONValue hover = json_make_object();
+    dynamic_registration_set(&hover, &text_document->hover.dynamic_registration);
+    json_object_const_key_set(&hover, "contentFormat", markup_kind_make_array(text_document->hover.content_format));
+
+    JSONValue document_link = json_make_object();
+    dynamic_registration_set(&document_link, &text_document->document_link.dynamic_registration);
+    json_object_const_key_set(&document_link, "tooltipSupport", json_make_boolean(text_document->document_link.tooltip_support));
+
+    JSONValue inlay_hint = json_make_object();
+    dynamic_registration_set(&inlay_hint, &text_document->inlay_hint.dynamic_registration);
+    JSONValue inlay_hint_resolve_support = json_make_object();
+    json_object_const_key_set(&inlay_hint_resolve_support, "properties",
+        json_make_string_array(text_document->inlay_hint.properties, text_document->inlay_hint.properties_count));
+    json_object_const_key_set(&inlay_hint, "resolveSupport", inlay_hint_resolve_support);
+
+    JSONValue diagnostic = json_make_object();
+    dynamic_registration_set(&diagnostic, &text_document->diagnostic.dynamic_registration);
+    json_object_const_key_set(&diagnostic, "relatedDocumentSupport", json_make_boolean(text_document->diagnostic.related_document_support));
+
+    json_object_const_key_set(&result, "synchronization", text_document_sync_client_capabilities_make(&text_document->synchronization));
+    json_object_const_key_set(&result, "completion", completion_client_capabilities_make(&text_document->completion));
+    json_object_const_key_set(&result, "hover", hover);
+    json_object_const_key_set(&result, "signatureHelp", signature_help_client_capabilities_make(&text_document->signature_help));
+    json_object_const_key_set(&result, "declaration", dynamic_registration_link_make(&text_document->declaration));
+    json_object_const_key_set(&result, "definition", dynamic_registration_link_make(&text_document->definition));
+    json_object_const_key_set(&result, "typeDefinition", dynamic_registration_link_make(&text_document->type_definition));
+    json_object_const_key_set(&result, "implementation", dynamic_registration_link_make(&text_document->implementation));
+    json_object_const_key_set(&result, "references", dynamic_registration_make(&text_document->references));
+    json_object_const_key_set(&result, "documentHighlight", dynamic_registration_make(&text_document->document_highlight));
+    json_object_const_key_set(&result, "documentSymbol", document_symbol_client_capabilities_make(&text_document->document_symbol));
+    json_object_const_key_set(&result, "codeAction", code_action_client_capabilities_make(&text_document->code_action));
+    json_object_const_key_set(&result, "codeLens", dynamic_registration_make(&text_document->code_lens));
+    json_object_const_key_set(&result, "documentLink", document_link);
+    json_object_const_key_set(&result, "colorProvider", dynamic_registration_make(&text_document->color_provider));
+    json_object_const_key_set(&result, "formatting", dynamic_registration_make(&text_document->formatting));
+    json_object_const_key_set(&result, "rangeFormatting", dynamic_registration_make(&text_document->range_formatting));
+    json_object_const_key_set(&result, "onTypeFormatting", dynamic_registration_make(&text_document->on_type_formatting));
+    json_object_const_key_set(&result, "rename", rename_client_capabilities_make(&text_document->rename));
+    json_object_const_key_set(&result, "publishDiagnostics", publish_diagnostics_client_capabilities_make(&text_document->publish_diagnostics));
+    json_object_const_key_set(&result, "foldingRange", folding_range_client_capabilities_make(&text_document->folding_range));
+    json_object_const_key_set(&result, "selectionRange", dynamic_registration_make(&text_document->selection_range));
+    json_object_const_key_set(&result, "linkedEditingRange", dynamic_registration_make(&text_document->linked_editing_range));
+    json_object_const_key_set(&result, "callHierarchy", dynamic_registration_make(&text_document->call_hierarchy));
+    json_object_const_key_set(&result, "semanticTokens", semantic_tokens_client_capabilities_make(&text_document->semantic_tokens));
+    json_object_const_key_set(&result, "moniker", dynamic_registration_make(&text_document->moniker));
+    json_object_const_key_set(&result, "typeHierarchy", dynamic_registration_make(&text_document->type_hierarchy));
+    json_object_const_key_set(&result, "inlineValue", dynamic_registration_make(&text_document->inline_value));
+    json_object_const_key_set(&result, "inlayHint", inlay_hint);
+    json_object_const_key_set(&result, "diagnostic", diagnostic);
+
+    return result;
+}
+
+/**
+ * Notebook specific client capabilities.
+ *
+ * @since 3.17.0
+ */
+typedef struct NotebookDocumentSyncClientCapabilities {
+    /**
+     * Whether implementation supports dynamic registration. If this is
+     * set to `true` the client supports the new
+     * `(TextDocumentRegistrationOptions & StaticRegistrationOptions)`
+     * return value for the corresponding server capability as well.
+     */
+    DynamicRegistration dynamic_registration;
+
+    /**
+     * The client supports sending execution summary data per cell.
+     */
+    int execution_summary_support;
+} NotebookDocumentSyncClientCapabilities;
+
+/**
+ * Capabilities specific to the notebook document support.
+ *
+ * @since 3.17.0
+ */
+typedef struct NotebookDocumentClientCapabilities {
+    /**
+     * Capabilities specific to notebook document synchronization
+     *
+     * @since 3.17.0
+     */
+    NotebookDocumentSyncClientCapabilities synchronization;
+} NotebookDocumentClientCapabilities;
+
+/**
+ * Show message request client capabilities
+ */
+typedef struct ShowMessageRequestClientCapabilities {
+    /**
+     * Capabilities specific to the `MessageActionItem` type.
+     *
+     * messageActionItem:
+     * 
+     * Whether the client supports additional attributes which
+     * are preserved and sent back to the server in the
+     * request's response.
+     */
+    int message_action_item_additional_properties_support;
+} ShowMessageRequestClientCapabilities;
+
+/**
+ * Client capabilities for the show document request.
+ *
+ * @since 3.16.0
+ */
+typedef struct ShowDocumentClientCapabilities {
+    /**
+     * The client has support for the show document
+     * request.
+     */
+    int support;
+} ShowDocumentClientCapabilities;
+
+/**
+ * Window specific client capabilities.
+ */
+typedef struct WindowClientCapabilities {
+    /**
+     * It indicates whether the client supports server initiated
+     * progress using the `window/workDoneProgress/create` request.
+     *
+     * The capability also controls Whether client supports handling
+     * of progress notifications. If set servers are allowed to report a
+     * `workDoneProgress` property in the request specific server
+     * capabilities.
+     *
+     * @since 3.15.0
+     */
+    int work_done_progress;
+
+    /**
+     * Capabilities specific to the showMessage request
+     *
+     * @since 3.16.0
+     */
+    ShowMessageRequestClientCapabilities show_message;
+
+    /**
+     * Client capabilities for the show document request.
+     *
+     * @since 3.16.0
+     */
+    ShowDocumentClientCapabilities show_document;
+} WindowClientCapabilities;
+
+static JSONValue window_client_capabilities_make(WindowClientCapabilities* window) {
+    JSONValue result = json_make_object();
+    JSONValue show_message_message_action_item = json_make_object();
+    json_object_const_key_set(&show_message_message_action_item, "additionalPropertiesSupport", json_make_boolean(window->show_message.message_action_item_additional_properties_support));
+    JSONValue show_message = json_make_object();
+    json_object_const_key_set(&show_message, "messageActionItem", show_message_message_action_item);
+    JSONValue show_document = json_make_object();
+    json_object_const_key_set(&show_document, "support", json_make_boolean(window->show_document.support));
+    json_object_const_key_set(&result, "workDoneProgress", json_make_boolean(window->work_done_progress));
+    json_object_const_key_set(&result, "showMessage", show_message);
+    json_object_const_key_set(&result, "showDocument", show_document);
+    return result;
+}
+
+/**
+ * Client capabilities specific to regular expressions.
+ */
+typedef struct RegularExpressionsClientCapabilities {
+    /**
+     * The engine's name.
+     */
+    char* engine;
+
+    /**
+     * The engine's version.
+     */
+    char* version;
+} RegularExpressionsClientCapabilities;
+
+/**
+ * Client capabilities specific to the used markdown parser.
+ *
+ * @since 3.16.0
+ */
+typedef struct MarkdownClientCapabilities {
+    /**
+     * The name of the parser.
+     */
+    char* parser;
+
+    /**
+     * The version of the parser.
+     */
+    char* version;
+
+    /**
+     * A list of HTML tags that the client allows / supports in
+     * Markdown.
+     *
+     * @since 3.17.0
+     */
+    char** allowed_tags;
+    int allowed_tags_count;
+} MarkdownClientCapabilities;
+
+/**
+ * General client capabilities.
+ *
+ * @since 3.16.0
+ */
+typedef struct GeneralClientCapabilities {
+    /**
+     * Client capability that signals how the client
+     * handles stale requests (e.g. a request
+     * for which the client will not process the response
+     * anymore since the information is outdated).
+     *
+     * @since 3.17.0
+     *
+     * staleRequestSupport:
+     * 
+     * The client will actively cancel the request.
+     */
+    int cancel;
+
+    /**
+     * The list of requests for which the client
+     * will retry the request if it receives a
+     * response with error code `ContentModified``
+     * 
+     * staleRequestSupport
+     */
+    char** retry_on_content_modified;
+    int retry_on_content_modified_count;
+
+    /**
+     * Client capabilities specific to regular expressions.
+     *
+     * @since 3.16.0
+     */
+    RegularExpressionsClientCapabilities regular_expressions;
+
+    /**
+     * Client capabilities specific to the client's markdown parser.
+     *
+     * @since 3.16.0
+     */
+    MarkdownClientCapabilities markdown;
+
+    /**
+     * The position encodings supported by the client. Client and server
+     * have to agree on the same position encoding to ensure that offsets
+     * (e.g. character position in a line) are interpreted the same on both
+     * side.
+     *
+     * To keep the protocol backwards compatible the following applies: if
+     * the value 'utf-16' is missing from the array of position encodings
+     * servers can assume that the client supports UTF-16. UTF-16 is
+     * therefore a mandatory encoding.
+     *
+     * If omitted it defaults to ['utf-16'].
+     *
+     * Implementation considerations: since the conversion from one encoding
+     * into another requires the content of the file / line the conversion
+     * is best done where the file is read which is usually on the server
+     * side.
+     *
+     * @since 3.17.0
+     */
+    int position_encodings;
+} GeneralClientCapabilities;
+
+static JSONValue general_client_capabilities_make(GeneralClientCapabilities* general) {
+    JSONValue result = json_make_object();
+    JSONValue stale_request_support = json_make_object();
+    json_object_const_key_set(&stale_request_support, "cancel", json_make_boolean(general->cancel));
+    json_object_const_key_set(&stale_request_support, "retryOnContentModified",
+        json_make_string_array(general->retry_on_content_modified, general->retry_on_content_modified_count));
+    JSONValue regular_expressions = json_make_object();
+    json_object_const_key_set(&regular_expressions, "engine", json_make_string(general->regular_expressions.engine));
+    json_object_const_key_set(&regular_expressions, "version", json_make_string(general->regular_expressions.version));
+    JSONValue markdown = json_make_object();
+    json_object_const_key_set(&markdown, "parser", json_make_string(general->markdown.parser));
+    json_object_const_key_set(&markdown, "version", json_make_string(general->markdown.version));
+    json_object_const_key_set(&markdown, "allowedTags",
+        json_make_string_array(general->markdown.allowed_tags, general->markdown.allowed_tags_count));
+    json_object_const_key_set(&result, "staleRequestSupport", stale_request_support);
+    json_object_const_key_set(&result, "regularExpressions", regular_expressions);
+    json_object_const_key_set(&result, "markdown", markdown);
+    json_object_const_key_set(&result, "positionEncodings", position_encoding_kind_make_array(general->position_encodings));
+    return result;
+}
+
+/**
+ * The capabilities provided by the client (editor or tool)
+ */
+typedef struct ClientCapabilities {
+    /**
+     * Workspace specific client capabilities.
+     */
+    Workspace workspace;
+
+    /**
+     * Text document specific client capabilities.
+     */
+    TextDocumentClientCapabilities text_document;
+
+    /**
+     * Capabilities specific to the notebook document support.
+     *
+     * @since 3.17.0
+     */
+    NotebookDocumentClientCapabilities notebook_document;
+
+    /**
+     * Window specific client capabilities.
+     */
+    WindowClientCapabilities window;
+
+    /**
+     * General client capabilities.
+     *
+     * @since 3.16.0
+     */
+    GeneralClientCapabilities general;
+} ClientCapabilities;
+
+static JSONValue client_capabilities_make(ClientCapabilities* capabilities) {
+    JSONValue result = json_make_object();
+    JSONValue notebook_sync = json_make_object();
+    dynamic_registration_set(&notebook_sync, &capabilities->notebook_document.synchronization.dynamic_registration);
+    json_object_const_key_set(&notebook_sync, "executionSummarySupport", json_make_boolean(capabilities->notebook_document.synchronization.execution_summary_support));
+    JSONValue notebook_document = json_make_object();
+    json_object_const_key_set(&notebook_document, "synchronization", notebook_sync);
+    json_object_const_key_set(&result, "workspace", workspace_make(&capabilities->workspace));
+    json_object_const_key_set(&result, "textDocument", text_document_client_capabilities_make(&capabilities->text_document));
+    json_object_const_key_set(&result, "notebookDocument", notebook_document);
+    json_object_const_key_set(&result, "window", window_client_capabilities_make(&capabilities->window));
+    json_object_const_key_set(&result, "general", general_client_capabilities_make(&capabilities->general));
+    return result;
+}
+
+//
+// End Client Capabilities
+//
 
 typedef struct TextDocumentItem {
     /**
@@ -1642,7 +4072,7 @@ typedef struct LSTalk_Context {
     LSTalk_ServerID server_id;
     ClientInfo client_info;
     char* locale;
-    LSTalk_ClientCapabilities client_capabilities;
+    ClientCapabilities client_capabilities;
     int debug_flags;
 } LSTalk_Context;
 
@@ -2140,8 +4570,6 @@ static LSTalk_FileOperationRegistrationOptions parse_file_operation_registration
     return result;
 }
 
-static LSTalk_PositionEncodingKind parse_position_encoding_kind(char* value);
-static int parse_code_action_kind(JSONValue* value);
 static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
     LSTalk_ServerInfo info;
     memset(&info, 0, sizeof(info));
@@ -2156,9 +4584,9 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
         if (capabilities.type == JSON_VALUE_OBJECT) {
             JSONValue position_encoding = json_object_get(&capabilities, "positionEncoding");
             if (position_encoding.type == JSON_VALUE_STRING) {
-                info.capabilities.position_encoding = parse_position_encoding_kind(position_encoding.value.string_value);
+                info.capabilities.position_encoding = position_encoding_kind_parse(position_encoding.value.string_value);
             } else {
-                info.capabilities.position_encoding = LSTALK_POSITIONENCODINGKIND_UTF16;
+                info.capabilities.position_encoding = POSITIONENCODINGKIND_UTF16;
             }
 
             JSONValue text_document_sync = json_object_get(&capabilities, "textDocumentSync");
@@ -2335,7 +4763,7 @@ static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
                 info.capabilities.code_action_provider.work_done_progress = parse_work_done_progress(&code_action_provider);
 
                 JSONValue code_action_kinds = json_object_get(&code_action_provider, "codeActionKinds");
-                info.capabilities.code_action_provider.code_action_kinds = parse_code_action_kind(&code_action_kinds);
+                info.capabilities.code_action_provider.code_action_kinds = code_action_kind_parse(&code_action_kinds);
 
                 JSONValue resolve_provider = json_object_get(&code_action_provider, "resolveProvider");
                 if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
@@ -2673,7 +5101,6 @@ static LSTalk_Location parse_location(JSONValue* value) {
     return result;
 }
 
-static int parse_diagnostic_tags(JSONValue* value);
 static LSTalk_PublishDiagnostics server_parse_publish_diagnostics(JSONValue* value) {
     LSTalk_PublishDiagnostics result;
     memset(&result, 0, sizeof(LSTalk_PublishDiagnostics));
@@ -2743,7 +5170,7 @@ static LSTalk_PublishDiagnostics server_parse_publish_diagnostics(JSONValue* val
 
                 JSONValue tags = json_object_get(item, "tags");
                 if (tags.type == JSON_VALUE_ARRAY) {
-                    diagnostic->tags = parse_diagnostic_tags(&tags);
+                    diagnostic->tags = diagnostic_tags_parse(&tags);
                 }
 
                 JSONValue* related_information = json_object_get_ptr(item, "relatedInformation");
@@ -2775,416 +5202,6 @@ static LSTalk_PublishDiagnostics server_parse_publish_diagnostics(JSONValue* val
     return result;
 }
 
-static JSONValue resource_operation_kind_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_RESOURCEOPERATIONKIND_CREATE) {
-        json_array_push(&result, json_make_string_const("create"));
-    }
-
-    if (value & LSTALK_RESOURCEOPERATIONKIND_RENAME) {
-        json_array_push(&result, json_make_string_const("rename"));
-    }
-
-    if (value & LSTALK_RESOURCEOPERATIONKIND_DELETE) {
-        json_array_push(&result, json_make_string_const("delete"));
-    }
-
-    return result;
-}
-
-static JSONValue failure_handling_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_FAILUREHANDLINGKIND_ABORT) {
-        json_array_push(&result, json_make_string_const("abort"));
-    }
-
-    if (value & LSTALK_FAILUREHANDLINGKIND_TRANSACTIONAL) {
-        json_array_push(&result, json_make_string_const("transactional"));
-    }
-
-    if (value & LSTALK_FAILUREHANDLINGKIND_TEXTONLYTRANSACTIONAL) {
-        json_array_push(&result, json_make_string_const("textOnlyTransactional"));
-    }
-
-    if (value & LSTALK_FAILUREHANDLINGKIND_UNDO) {
-        json_array_push(&result, json_make_string_const("undo"));
-    }
-
-    return result;
-}
-
-typedef enum {
-    SYMBOLKIND_File = 1,
-    SYMBOLKIND_Module = 2,
-    SYMBOLKIND_Namespace = 3,
-    SYMBOLKIND_Package = 4,
-    SYMBOLKIND_Class = 5,
-    SYMBOLKIND_Method = 6,
-    SYMBOLKIND_Property = 7,
-    SYMBOLKIND_Field = 8,
-    SYMBOLKIND_Constructor = 9,
-    SYMBOLKIND_Enum = 10,
-    SYMBOLKIND_Interface = 11,
-    SYMBOLKIND_Function = 12,
-    SYMBOLKIND_Variable = 13,
-    SYMBOLKIND_Constant = 14,
-    SYMBOLKIND_String = 15,
-    SYMBOLKIND_Number = 16,
-    SYMBOLKIND_Boolean = 17,
-    SYMBOLKIND_Array = 18,
-    SYMBOLKIND_Object = 19,
-    SYMBOLKIND_Key = 20,
-    SYMBOLKIND_Null = 21,
-    SYMBOLKIND_EnumMember = 22,
-    SYMBOLKIND_Struct = 23,
-    SYMBOLKIND_Event = 24,
-    SYMBOLKIND_Operator = 25,
-    SYMBOLKIND_TypeParameter = 26,
-} SymbolKind;
-
-static JSONValue symbol_kind_array(long long value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_SYMBOLKIND_FILE) { json_array_push(&result, json_make_int(SYMBOLKIND_File)); }
-    if (value & LSTALK_SYMBOLKIND_MODULE) { json_array_push(&result, json_make_int(SYMBOLKIND_Module)); }
-    if (value & LSTALK_SYMBOLKIND_NAMESPACE) { json_array_push(&result, json_make_int(SYMBOLKIND_Namespace)); }
-    if (value & LSTALK_SYMBOLKIND_PACKAGE) { json_array_push(&result, json_make_int(SYMBOLKIND_Package)); }
-    if (value & LSTALK_SYMBOLKIND_CLASS) { json_array_push(&result, json_make_int(SYMBOLKIND_Class)); }
-    if (value & LSTALK_SYMBOLKIND_METHOD) { json_array_push(&result, json_make_int(SYMBOLKIND_Method)); }
-    if (value & LSTALK_SYMBOLKIND_PROPERTY) { json_array_push(&result, json_make_int(SYMBOLKIND_Property)); }
-    if (value & LSTALK_SYMBOLKIND_FIELD) { json_array_push(&result, json_make_int(SYMBOLKIND_Field)); }
-    if (value & LSTALK_SYMBOLKIND_CONSTRUCTOR) { json_array_push(&result, json_make_int(SYMBOLKIND_Constructor)); }
-    if (value & LSTALK_SYMBOLKIND_ENUM) { json_array_push(&result, json_make_int(SYMBOLKIND_Enum)); }
-    if (value & LSTALK_SYMBOLKIND_INTERFACE) { json_array_push(&result, json_make_int(SYMBOLKIND_Interface)); }
-    if (value & LSTALK_SYMBOLKIND_FUNCTION) { json_array_push(&result, json_make_int(SYMBOLKIND_Function)); }
-    if (value & LSTALK_SYMBOLKIND_VARIABLE) { json_array_push(&result, json_make_int(SYMBOLKIND_Variable)); }
-    if (value & LSTALK_SYMBOLKIND_CONSTANT) { json_array_push(&result, json_make_int(SYMBOLKIND_Constant)); }
-    if (value & LSTALK_SYMBOLKIND_STRING) { json_array_push(&result, json_make_int(SYMBOLKIND_String)); }
-    if (value & LSTALK_SYMBOLKIND_NUMBER) { json_array_push(&result, json_make_int(SYMBOLKIND_Number)); }
-    if (value & LSTALK_SYMBOLKIND_BOOLEAN) { json_array_push(&result, json_make_int(SYMBOLKIND_Boolean)); }
-    if (value & LSTALK_SYMBOLKIND_ARRAY) { json_array_push(&result, json_make_int(SYMBOLKIND_Array)); }
-    if (value & LSTALK_SYMBOLKIND_OBJECT) { json_array_push(&result, json_make_int(SYMBOLKIND_Object)); }
-    if (value & LSTALK_SYMBOLKIND_KEY) { json_array_push(&result, json_make_int(SYMBOLKIND_Key)); }
-    if (value & LSTALK_SYMBOLKIND_NULL) { json_array_push(&result, json_make_int(SYMBOLKIND_Null)); }
-    if (value & LSTALK_SYMBOLKIND_ENUMMEMBER) { json_array_push(&result, json_make_int(SYMBOLKIND_EnumMember)); }
-    if (value & LSTALK_SYMBOLKIND_STRUCT) { json_array_push(&result, json_make_int(SYMBOLKIND_Struct)); }
-    if (value & LSTALK_SYMBOLKIND_EVENT) { json_array_push(&result, json_make_int(SYMBOLKIND_Event)); }
-    if (value & LSTALK_SYMBOLKIND_OPERATOR) { json_array_push(&result, json_make_int(SYMBOLKIND_Operator)); }
-    if (value & LSTALK_SYMBOLKIND_TYPEPARAMETER) { json_array_push(&result, json_make_int(SYMBOLKIND_TypeParameter)); }
-
-    return result;
-}
-
-static LSTalk_SymbolKind parse_symbol_kind(JSONValue* value) {
-    if (value == NULL || value->type != JSON_VALUE_INT) {
-        return LSTALK_SYMBOLKIND_NONE;
-    }
-
-    int kind = value->value.int_value;
-    switch (kind) {
-        case SYMBOLKIND_File: return LSTALK_SYMBOLKIND_FILE;
-        case SYMBOLKIND_Module: return LSTALK_SYMBOLKIND_MODULE;
-        case SYMBOLKIND_Namespace: return LSTALK_SYMBOLKIND_NAMESPACE;
-        case SYMBOLKIND_Package: return LSTALK_SYMBOLKIND_PACKAGE;
-        case SYMBOLKIND_Class: return LSTALK_SYMBOLKIND_CLASS;
-        case SYMBOLKIND_Method: return LSTALK_SYMBOLKIND_METHOD;
-        case SYMBOLKIND_Property: return LSTALK_SYMBOLKIND_PROPERTY;
-        case SYMBOLKIND_Field: return LSTALK_SYMBOLKIND_FIELD;
-        case SYMBOLKIND_Constructor: return LSTALK_SYMBOLKIND_CONSTRUCTOR;
-        case SYMBOLKIND_Enum: return LSTALK_SYMBOLKIND_ENUM;
-        case SYMBOLKIND_Interface: return LSTALK_SYMBOLKIND_INTERFACE;
-        case SYMBOLKIND_Function: return LSTALK_SYMBOLKIND_FUNCTION;
-        case SYMBOLKIND_Variable: return LSTALK_SYMBOLKIND_VARIABLE;
-        case SYMBOLKIND_Constant: return LSTALK_SYMBOLKIND_CONSTANT;
-        case SYMBOLKIND_String: return LSTALK_SYMBOLKIND_STRING;
-        case SYMBOLKIND_Number: return LSTALK_SYMBOLKIND_NUMBER;
-        case SYMBOLKIND_Boolean: return LSTALK_SYMBOLKIND_BOOLEAN;
-        case SYMBOLKIND_Array: return LSTALK_SYMBOLKIND_ARRAY;
-        case SYMBOLKIND_Object: return LSTALK_SYMBOLKIND_OBJECT;
-        case SYMBOLKIND_Key: return LSTALK_SYMBOLKIND_KEY;
-        case SYMBOLKIND_Null: return LSTALK_SYMBOLKIND_NULL;
-        case SYMBOLKIND_EnumMember: return LSTALK_SYMBOLKIND_ENUMMEMBER;
-        case SYMBOLKIND_Struct: return LSTALK_SYMBOLKIND_STRUCT;
-        case SYMBOLKIND_Event: return LSTALK_SYMBOLKIND_EVENT;
-        case SYMBOLKIND_Operator: return LSTALK_SYMBOLKIND_OPERATOR;
-        case SYMBOLKIND_TypeParameter: return LSTALK_SYMBOLKIND_TYPEPARAMETER;
-        default: break;
-    }
-
-    return LSTALK_SYMBOLKIND_NONE;
-}
-
-typedef enum {
-    SYMBOLTAG_Deprecated = 1,
-} SymbolTag;
-
-static JSONValue symbol_tag_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_SYMBOLTAG_DEPRECATED) { json_array_push(&result, json_make_int(SYMBOLTAG_Deprecated)); }
-
-    return result;
-}
-
-static int parse_symbol_tags(JSONValue* value) {
-    int result = 0;
-
-    if (value != NULL || value->type != JSON_VALUE_ARRAY) {
-        return result;
-    }
-
-    for (size_t i = 0; i < json_array_length(value); i++) {
-        JSONValue item = json_array_get(value, i);
-        if (item.type == JSON_VALUE_INT) {
-            switch (item.value.int_value) {
-                case SYMBOLTAG_Deprecated: result |= LSTALK_SYMBOLTAG_DEPRECATED; break;
-                default: break;
-            }
-        }
-    }
-
-    return result;
-}
-
-static JSONValue markup_kind_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_MARKUPKIND_PLAINTEXT) { json_array_push(&result, json_make_string_const("plaintext")); }
-    if (value & LSTALK_MARKUPKIND_MARKDOWN) { json_array_push(&result, json_make_string_const("markdown")); }
-
-    return result;
-}
-
-typedef enum {
-    COMPLETIONITEMTAG_Deprecated = 1,
-} CompletionItemTag;
-
-static JSONValue completion_item_tag_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_COMPLETIONITEMTAG_DEPRECATED) { json_array_push(&result, json_make_int(COMPLETIONITEMTAG_Deprecated)); }
-
-    return result;
-}
-
-typedef enum {
-    INSERTTEXTMODE_AsIs = 1,
-    INSERTTEXTMODE_AdjustIndentation2,
-} InsertTextMode;
-
-static JSONValue insert_text_mode_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_INSERTTEXTMODE_ASIS) { json_array_push(&result, json_make_int(INSERTTEXTMODE_AsIs)); }
-    if (value & LSTALK_INSERTTEXTMODE_ADJUSTINDENTATION) { json_array_push(&result, json_make_int(INSERTTEXTMODE_AdjustIndentation2)); }
-
-    return result;
-}
-
-typedef enum {
-    COMPLETIONITEMKIND_Text = 1,
-    COMPLETIONITEMKIND_Method = 2,
-    COMPLETIONITEMKIND_Function = 3,
-    COMPLETIONITEMKIND_Constructor = 4,
-    COMPLETIONITEMKIND_Field = 5,
-    COMPLETIONITEMKIND_Variable = 6,
-    COMPLETIONITEMKIND_Class = 7,
-    COMPLETIONITEMKIND_Interface = 8,
-    COMPLETIONITEMKIND_Module = 9,
-    COMPLETIONITEMKIND_Property = 10,
-    COMPLETIONITEMKIND_Unit = 11,
-    COMPLETIONITEMKIND_Value = 12,
-    COMPLETIONITEMKIND_Enum = 13,
-    COMPLETIONITEMKIND_Keyword = 14,
-    COMPLETIONITEMKIND_Snippet = 15,
-    COMPLETIONITEMKIND_Color = 16,
-    COMPLETIONITEMKIND_File = 17,
-    COMPLETIONITEMKIND_Reference = 18,
-    COMPLETIONITEMKIND_Folder = 19,
-    COMPLETIONITEMKIND_EnumMember = 20,
-    COMPLETIONITEMKIND_Constant = 21,
-    COMPLETIONITEMKIND_Struct = 22,
-    COMPLETIONITEMKIND_Event = 23,
-    COMPLETIONITEMKIND_Operator = 24,
-    COMPLETIONITEMKIND_TypeParameter = 25,
-} CompletionItemKind;
-
-static JSONValue completion_item_kind_array(long long value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_COMPLETIONITEMKIND_TEXT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Text)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_METHOD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Method)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_FUNCTION) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Function)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_CONSTRUCTOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Constructor)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_FIELD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Field)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_VARIABLE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Variable)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_CLASS) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Class)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_INTERFACE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Interface)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_MODULE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Module)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_PROPERTY) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Property)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_UNIT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Unit)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_VALUE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Value)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_ENUM) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Enum)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_KEYWORD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Keyword)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_SNIPPET) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Snippet)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_COLOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Color)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_FILE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_File)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_REFERENCE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Reference)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_FOLDER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Folder)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_ENUMMEMBER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_EnumMember)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_CONSTANT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Constant)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_STRUCT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Struct)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_EVENT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Event)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_OPERATOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_Operator)); }
-    if (value & LSTALK_COMPLETIONITEMKIND_TYPEPARAMETER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_TypeParameter)); }
-
-    return result;
-}
-
-static JSONValue code_action_kind_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_CODEACTIONKIND_EMPTY) { json_array_push(&result, json_make_string_const("")); }
-    if (value & LSTALK_CODEACTIONKIND_QUICKFIX) { json_array_push(&result, json_make_string_const("quickfix")); }
-    if (value & LSTALK_CODEACTIONKIND_REFACTOR) { json_array_push(&result, json_make_string_const("refactor")); }
-    if (value & LSTALK_CODEACTIONKIND_REFACTOREXTRACT) { json_array_push(&result, json_make_string_const("refactor.extract")); }
-    if (value & LSTALK_CODEACTIONKIND_REFACTORINLINE) { json_array_push(&result, json_make_string_const("refactor.inline")); }
-    if (value & LSTALK_CODEACTIONKIND_REFACTORREWRITE) { json_array_push(&result, json_make_string_const("refactor.rewrite")); }
-    if (value & LSTALK_CODEACTIONKIND_SOURCE) { json_array_push(&result, json_make_string_const("source")); }
-    if (value & LSTALK_CODEACTIONKIND_SOURCEORGANIZEIMPORTS) { json_array_push(&result, json_make_string_const("source.organizeImports")); }
-    if (value & LSTALK_CODEACTIONKIND_SOURCEFIXALL) { json_array_push(&result, json_make_string_const("source.fixAll")); }
-
-    return result;
-}
-
-static int parse_code_action_kind(JSONValue* value) {
-    if (value == NULL || value->type != JSON_VALUE_ARRAY) {
-        return 0;
-    }
-
-    int result = 0;
-    for (size_t i = 0; i < value->value.array_value->values.length; i++) {
-        JSONValue item = json_array_get(value, i);
-
-        if (item.type == JSON_VALUE_STRING) {
-            if (strcmp(item.value.string_value, "") == 0) {
-                result |= LSTALK_CODEACTIONKIND_EMPTY;
-            } else if (strcmp(item.value.string_value, "quickfix") == 0) {
-                result |= LSTALK_CODEACTIONKIND_QUICKFIX;
-            } else if (strcmp(item.value.string_value, "refactor") == 0) {
-                result |= LSTALK_CODEACTIONKIND_REFACTOR;
-            } else if (strcmp(item.value.string_value, "refactor.extract") == 0) {
-                result |= LSTALK_CODEACTIONKIND_REFACTOREXTRACT;
-            } else if (strcmp(item.value.string_value, "refactor.inline") == 0) {
-                result |= LSTALK_CODEACTIONKIND_REFACTORINLINE;
-            } else if (strcmp(item.value.string_value, "refactor.rewrite") == 0) {
-                result |= LSTALK_CODEACTIONKIND_REFACTORREWRITE;
-            } else if (strcmp(item.value.string_value, "source") == 0) {
-                result |= LSTALK_CODEACTIONKIND_SOURCE;
-            } else if (strcmp(item.value.string_value, "source.organizeImports") == 0) {
-                result |= LSTALK_CODEACTIONKIND_SOURCEORGANIZEIMPORTS;
-            } else if (strcmp(item.value.string_value, "source.fixAll") == 0) {
-                result |= LSTALK_CODEACTIONKIND_SOURCEFIXALL;
-            }
-        }
-    }
-
-    return result;
-}
-
-typedef enum {
-    DIAGNOSTICTAG_Unnecessary = 1,
-    DIAGNOSTICTAG_Deprecated = 2,
-} DiagnosticTag;
-
-static JSONValue diagnostic_tag_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_DIAGNOSTICTAG_UNNECESSARY) { json_array_push(&result, json_make_int(DIAGNOSTICTAG_Unnecessary)); }
-    if (value & LSTALK_DIAGNOSTICTAG_DEPRECATED) { json_array_push(&result, json_make_int(DIAGNOSTICTAG_Deprecated)); }
-
-    return result;
-}
-
-static int parse_diagnostic_tags(JSONValue* value) {
-    int result = 0;
-    
-    if (value == NULL || value->type != JSON_VALUE_ARRAY) {
-        return result;
-    }
-
-    for (size_t i = 0; i < json_array_length(value); i++) {
-        JSONValue item = json_array_get(value, i);
-        if (item.type == JSON_VALUE_INT) {
-            switch (item.value.int_value) {
-                case DIAGNOSTICTAG_Unnecessary: result |= LSTALK_DIAGNOSTICTAG_UNNECESSARY; break;
-                case DIAGNOSTICTAG_Deprecated: result |= LSTALK_DIAGNOSTICTAG_DEPRECATED; break;
-                default: break;
-            }
-        }
-    }
-
-    return result;
-}
-
-static JSONValue folding_range_kind_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_FOLDINGRANGEKIND_COMMENT) { json_array_push(&result, json_make_string_const("comment")); }
-    if (value & LSTALK_FOLDINGRANGEKIND_IMPORTS) { json_array_push(&result, json_make_string_const("imports")); }
-    if (value & LSTALK_FOLDINGRANGEKIND_REGION) { json_array_push(&result, json_make_string_const("region")); }
-
-    return result;
-}
-
-static JSONValue token_format_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_TOKENFORMAT_RELATIVE) { json_array_push(&result, json_make_string_const("relative")); }
-
-    return result;
-}
-
-static JSONValue position_encoding_kind_array(int value) {
-    JSONValue result = json_make_array();
-
-    if (value & LSTALK_POSITIONENCODINGKIND_UTF8) { json_array_push(&result, json_make_string_const("utf-8")); }
-    if (value & LSTALK_POSITIONENCODINGKIND_UTF16) { json_array_push(&result, json_make_string_const("utf-16")); }
-    if (value & LSTALK_POSITIONENCODINGKIND_UTF32) { json_array_push(&result, json_make_string_const("utf-32")); }
-
-    return result;
-}
-
-static LSTalk_PositionEncodingKind parse_position_encoding_kind(char* value) {
-    if (value == NULL) {
-        return LSTALK_POSITIONENCODINGKIND_UTF16;
-    }
-
-    if (strcmp(value, "utf-8") == 0) { return LSTALK_POSITIONENCODINGKIND_UTF8; }
-    if (strcmp(value, "utf-16") == 0) { return LSTALK_POSITIONENCODINGKIND_UTF16; }
-    if (strcmp(value, "utf-32") == 0) { return LSTALK_POSITIONENCODINGKIND_UTF32; }
-
-    return LSTALK_POSITIONENCODINGKIND_UTF16;
-}
-
-static void dynamic_registration(JSONValue* root, int value) {
-    if (root == NULL || root->type != JSON_VALUE_OBJECT) {
-        return;
-    }
-
-    json_object_const_key_set(root, "dynamicRegistration", json_make_boolean(value));
-}
-
-static void link_support(JSONValue* root, int value) {
-    if (root == NULL || root->type != JSON_VALUE_OBJECT) {
-        return;
-    }
-
-    json_object_const_key_set(root, "linkSupport", json_make_boolean(value));
-}
-
 static LSTalk_DocumentSymbol parse_document_symbol(JSONValue* value) {
     LSTalk_DocumentSymbol result;
     memset(&result, 0, sizeof(result));
@@ -3204,7 +5221,7 @@ static LSTalk_DocumentSymbol parse_document_symbol(JSONValue* value) {
     }
 
     JSONValue kind = json_object_get(value, "kind");
-    result.kind = parse_symbol_kind(&kind);
+    result.kind = symbol_kind_parse(&kind);
 
     JSONValue range = json_object_get(value, "range");
     if (range.type == JSON_VALUE_OBJECT) {
@@ -3251,459 +5268,17 @@ static LSTalk_DocumentSymbolNotification parse_document_symbol_notification(JSON
     return result;
 }
 
-//
-// Begin Workspace Objects
-//
-
-static JSONValue make_workspace_edit_object(LSTalk_WorkspaceEditClientCapabilities* workspace_edit) {
-    JSONValue result = json_make_object();
-
-    json_object_const_key_set(&result, "documentChanges", json_make_boolean(workspace_edit->document_changes));
-    json_object_const_key_set(&result, "resourceOperations", resource_operation_kind_array(workspace_edit->resource_operations));
-    json_object_const_key_set(&result, "failureHandling", failure_handling_array(workspace_edit->failure_handling));
-    json_object_const_key_set(&result, "normalizesLineEndings", json_make_boolean(workspace_edit->normalizes_line_endings));
-    JSONValue change_annotation_support = json_make_object();
-    json_object_const_key_set(&change_annotation_support, "groupsOnLabel", json_make_boolean(workspace_edit->groups_on_label));
-    json_object_const_key_set(&result, "changeAnnotationSupport", change_annotation_support);
-
-    return result;
-}
-
-static JSONValue make_workspace_symbol_object(LSTalk_WorkspaceSymbolClientCapabilities* symbol) {
-    JSONValue result = json_make_object();
-
-    dynamic_registration(&result, symbol->dynamic_registration);
-    JSONValue symbol_kind = json_make_object();
-    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_array(symbol->symbol_kind_value_set));
-    json_object_const_key_set(&result, "symbolKind", symbol_kind);
-    JSONValue tag_support = json_make_object();
-    json_object_const_key_set(&tag_support, "valueSet", symbol_tag_array(symbol->tag_support_value_set));
-    json_object_const_key_set(&result, "tagSupport", tag_support);
-    JSONValue resolve_support = json_make_object();
-    json_object_const_key_set(&resolve_support, "properties", json_make_string_array(symbol->resolve_support_properties, symbol->resolve_support_count));
-    json_object_const_key_set(&result, "resolveSupport", resolve_support);
-
-    return result;
-}
-
-static JSONValue make_workspace_file_operations_object(LSTalk_FileOperations* file_ops) {
-    JSONValue result = json_make_object();
-
-    dynamic_registration(&result, file_ops->dynamic_registration);
-    json_object_const_key_set(&result, "didCreate", json_make_boolean(file_ops->did_create));
-    json_object_const_key_set(&result, "willCreate", json_make_boolean(file_ops->will_create));
-    json_object_const_key_set(&result, "didRename", json_make_boolean(file_ops->did_rename));
-    json_object_const_key_set(&result, "willRename", json_make_boolean(file_ops->will_rename));
-    json_object_const_key_set(&result, "didDelete", json_make_boolean(file_ops->did_delete));
-    json_object_const_key_set(&result, "willDelete", json_make_boolean(file_ops->will_delete));
-
-    return result;
-}
-
-static JSONValue make_workspace_object(LSTalk_Workspace* workspace) {
-    JSONValue result = json_make_object();
-
-    JSONValue did_change_configuration = json_make_object();
-    dynamic_registration(&did_change_configuration, workspace->did_change_configuration.dynamic_registration);
-
-    JSONValue did_change_watched_files = json_make_object();
-    dynamic_registration(&did_change_watched_files, workspace->did_change_watched_files.dynamic_registration);
-    json_object_const_key_set(&did_change_watched_files, "relativePatternSupport", json_make_boolean(workspace->did_change_watched_files.relative_pattern_support));
-
-    JSONValue execute_command = json_make_object();
-    dynamic_registration(&execute_command, workspace->execute_command.dynamic_registration);
-
-    JSONValue semantic_tokens = json_make_object();
-    json_object_const_key_set(&semantic_tokens, "refreshSupport", json_make_boolean(workspace->semantic_tokens.refresh_support));
-
-    JSONValue code_lens = json_make_object();
-    json_object_const_key_set(&code_lens, "refreshSupport", json_make_boolean(workspace->code_lens.refresh_support));
-
-    JSONValue inline_value = json_make_object();
-    json_object_const_key_set(&inline_value, "refreshSupport", json_make_boolean(workspace->inline_value.refresh_support));
-
-    JSONValue inlay_hint = json_make_object();
-    json_object_const_key_set(&inlay_hint, "refreshSupport", json_make_boolean(workspace->inlay_hint.refresh_support));
-
-    JSONValue diagnostics = json_make_object();
-    json_object_const_key_set(&diagnostics, "refreshSupport", json_make_boolean(workspace->diagnostics.refresh_support));
-
-    json_object_const_key_set(&result, "applyEdit", json_make_boolean(workspace->apply_edit));
-    json_object_const_key_set(&result, "workspaceEdit", make_workspace_edit_object(&workspace->workspace_edit));
-    json_object_const_key_set(&result, "didChangeConfiguration", did_change_configuration);
-    json_object_const_key_set(&result, "didChangeWatchedFiles", did_change_watched_files);
-    json_object_const_key_set(&result, "symbol", make_workspace_symbol_object(&workspace->symbol));
-    json_object_const_key_set(&result, "executeCommand", execute_command);
-    json_object_const_key_set(&result, "workspaceFolders", json_make_boolean(workspace->workspace_folders));
-    json_object_const_key_set(&result, "configuration", json_make_boolean(workspace->configuration));
-    json_object_const_key_set(&result, "semanticTokens", semantic_tokens);
-    json_object_const_key_set(&result, "codeLens", code_lens);
-    json_object_const_key_set(&result, "fileOperations", make_workspace_file_operations_object(&workspace->file_operations));
-    json_object_const_key_set(&result, "inlineValue", inline_value);
-    json_object_const_key_set(&result, "inlayHint", inlay_hint);
-    json_object_const_key_set(&result, "diagnostics", diagnostics);
-
-    return result;
-}
-
-//
-// Begin Text Document Objects
-//
-
-static JSONValue make_text_document_synchronization_object(LSTalk_TextDocumentSyncClientCapabilities* sync) {
-    JSONValue result = json_make_object();
-
-    dynamic_registration(&result, sync->dynamic_registration);
-    json_object_const_key_set(&result, "willSave", json_make_boolean(sync->will_save));
-    json_object_const_key_set(&result, "willSaveWaitUntil", json_make_boolean(sync->will_save_wait_until));
-    json_object_const_key_set(&result, "didSave", json_make_boolean(sync->did_save));
-
-    return result;
-}
-
-static JSONValue make_text_document_completion_item_object(LSTalk_CompletionItem* completion_item) {
-    JSONValue result = json_make_object();
-
-    json_object_const_key_set(&result, "snippetSupport", json_make_boolean(completion_item->snippet_support));
-    json_object_const_key_set(&result, "commitCharactersSupport", json_make_boolean(completion_item->commit_characters_support));
-    json_object_const_key_set(&result, "documentationFormat", markup_kind_array(completion_item->documentation_format));
-    json_object_const_key_set(&result, "deprecatedSupport", json_make_boolean(completion_item->deprecated_support));
-    json_object_const_key_set(&result, "preselectSupport", json_make_boolean(completion_item->preselect_support));
-    JSONValue item_tag_support = json_make_object();
-    json_object_const_key_set(&item_tag_support, "valueSet", completion_item_tag_array(completion_item->tag_support_value_set));
-    json_object_const_key_set(&result, "tagSupport", item_tag_support);
-    json_object_const_key_set(&result, "insertReplaceSupport", json_make_boolean(completion_item->insert_replace_support));
-    JSONValue item_resolve_properties = json_make_object();
-    json_object_const_key_set(&item_resolve_properties, "properties",
-        json_make_string_array(completion_item->resolve_support_properties, completion_item->resolve_support_count));
-    json_object_const_key_set(&result, "resolveSupport", item_resolve_properties);
-    JSONValue insert_text_mode = json_make_object();
-    json_object_const_key_set(&insert_text_mode, "valueSet", insert_text_mode_array(completion_item->insert_text_mode_support_value_set));
-    json_object_const_key_set(&result, "insertTextModeSupport", insert_text_mode);
-    json_object_const_key_set(&result, "labelDetailsSupport", json_make_boolean(completion_item->label_details_support));
-
-    return result;
-}
-
-static JSONValue make_text_document_completion_object(LSTalk_CompletionClientCapabilities* completion) {
-    JSONValue result = json_make_object();
-
-    dynamic_registration(&result, completion->dynamic_registration);
-    json_object_const_key_set(&result, "completionItem", make_text_document_completion_item_object(&completion->completion_item));
-    JSONValue item_kind = json_make_object();
-    json_object_const_key_set(&item_kind, "valueSet", completion_item_kind_array(completion->completion_item_kind_value_set));
-    json_object_const_key_set(&result, "completionItemKind", item_kind);
-    json_object_const_key_set(&result, "contextSupport", json_make_boolean(completion->context_support));
-    json_object_const_key_set(&result, "insertTextMode", json_make_int(completion->insert_text_mode));
-    JSONValue item_defaults = json_make_object();
-    json_object_const_key_set(&item_defaults, "itemDefaults",
-        json_make_string_array(completion->completion_list_item_defaults, completion->completion_list_item_defaults_count));
-    json_object_const_key_set(&result, "completionList", item_defaults);
-
-    return result;
-}
-
-static JSONValue make_text_document_signature_object(LSTalk_SignatureHelpClientCapabilities* signature_help) {
-    JSONValue result = json_make_object();
-
-    dynamic_registration(&result, signature_help->dynamic_registration);
-    JSONValue info = json_make_object();
-    json_object_const_key_set(&info, "documentationFormat", markup_kind_array(signature_help->signature_information.documentation_format));
-    JSONValue parameter_info = json_make_object();
-    json_object_const_key_set(&parameter_info, "labelOffsetSupport", json_make_boolean(signature_help->signature_information.label_offset_support));
-    json_object_const_key_set(&info, "parameterInformation", parameter_info);
-    json_object_const_key_set(&info, "activeParameterSupport", json_make_boolean(signature_help->signature_information.active_parameter_support));
-    json_object_const_key_set(&result, "signatureInformation", info);
-    json_object_const_key_set(&result, "contextSupport", json_make_boolean(signature_help->context_support));
-
-    return result;
-}
-
-static JSONValue make_text_document_symbol_object(LSTalk_DocumentSymbolClientCapabilities* symbol) {
-    JSONValue result = json_make_object();
-
-    dynamic_registration(&result, symbol->dynamic_registration);
-    JSONValue symbol_kind = json_make_object();
-    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_array(symbol->symbol_kind_value_set));
-    json_object_const_key_set(&result, "symbolKind", symbol_kind);
-    json_object_const_key_set(&result, "hierarchicalDocumentSymbolSupport", json_make_boolean(symbol->hierarchical_document_symbol_support));
-    JSONValue tag_support = json_make_object();
-    json_object_const_key_set(&tag_support, "valueSet", symbol_tag_array(symbol->tag_support_value_set));
-    json_object_const_key_set(&result, "tagSupport", tag_support);
-    json_object_const_key_set(&result, "labelSupport", json_make_boolean(symbol->label_support));
-
-    return result;
-}
-
-static JSONValue make_text_document_code_action_object(LSTalk_CodeActionClientCapabilities* code_action) {
-    JSONValue result = json_make_object();
-
-    dynamic_registration(&result, code_action->dynamic_registration);
-    JSONValue kind = json_make_object();
-    json_object_const_key_set(&kind, "valueSet", code_action_kind_array(code_action->code_action_value_set));
-    JSONValue literal_support = json_make_object();
-    json_object_const_key_set(&literal_support, "codeActionKind", kind);
-    json_object_const_key_set(&result, "codeActionLiteralSupport", literal_support);
-    json_object_const_key_set(&result, "isPreferredSupport", json_make_boolean(code_action->is_preferred_support));
-    json_object_const_key_set(&result, "disabledSupport", json_make_boolean(code_action->disabled_support));
-    json_object_const_key_set(&result, "dataSupport", json_make_boolean(code_action->data_support));
-    JSONValue resolve_support = json_make_object();
-    json_object_const_key_set(&resolve_support, "properties",
-        json_make_string_array(code_action->resolve_support_properties, code_action->resolve_support_count));
-    json_object_const_key_set(&result, "resolveSupport", resolve_support);
-    json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(code_action->honors_change_annotations));
-
-    return result;
-}
-
-static JSONValue make_text_document_rename_object(LSTalk_RenameClientCapabilities* rename) {
-    JSONValue result = json_make_object();
-
-    dynamic_registration(&result, rename->dynamic_registration);
-    json_object_const_key_set(&result, "prepareSupport", json_make_boolean(rename->prepare_support));
-    json_object_const_key_set(&result, "prepareSupportDefaultBehavior", json_make_int(rename->prepare_support_default_behavior));
-    json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(rename->honors_change_annotations));
-
-    return result;
-}
-
-static JSONValue make_text_document_publish_diagnostics_object(LSTalk_PublishDiagnosticsClientCapabilities* publish) {
-    JSONValue result = json_make_object();
-
-    json_object_const_key_set(&result, "relatedInformation", json_make_boolean(publish->related_information));
-    JSONValue tag_support = json_make_object();
-    json_object_const_key_set(&tag_support, "valueSet", diagnostic_tag_array(publish->value_set));
-    json_object_const_key_set(&result, "tagSupport", tag_support);
-    json_object_const_key_set(&result, "versionSupport", json_make_boolean(publish->version_support));
-    json_object_const_key_set(&result, "codeDescriptionSupport", json_make_boolean(publish->code_description_support));
-    json_object_const_key_set(&result, "dataSupport", json_make_boolean(publish->data_support));
-
-    return result;
-}
-
-static JSONValue make_text_document_folding_range_object(LSTalk_FoldingRangeClientCapabilities* folding_range) {
-    JSONValue result = json_make_object();
-
-    dynamic_registration(&result, folding_range->dynamic_registration);
-    json_object_const_key_set(&result, "rangeLimit", json_make_int(folding_range->range_limit));
-    json_object_const_key_set(&result, "lineFoldingOnly", json_make_boolean(folding_range->line_folding_only));
-    JSONValue kind = json_make_object();
-    json_object_const_key_set(&kind, "valueSet", folding_range_kind_array(folding_range->value_set));
-    json_object_const_key_set(&result, "foldingRangeKind", kind);
-    JSONValue range = json_make_object();
-    json_object_const_key_set(&range, "collapsedText", json_make_boolean(folding_range->collapsed_text));
-    json_object_const_key_set(&result, "foldingRange", range);
-
-    return result;
-}
-
-static JSONValue make_text_document_semantic_tokens_object(LSTalk_SemanticTokensClientCapabilities* semantic_tokens) {
-    JSONValue result = json_make_object();
-
-    dynamic_registration(&result, semantic_tokens->dynamic_registration);
-    JSONValue requests_full = json_make_object();
-    json_object_const_key_set(&requests_full, "delta", json_make_boolean(semantic_tokens->delta));
-    JSONValue requests = json_make_object();
-    json_object_const_key_set(&requests, "range", json_make_boolean(semantic_tokens->range));
-    json_object_const_key_set(&requests, "full", requests_full);
-    json_object_const_key_set(&result, "requests", requests);
-    json_object_const_key_set(&result, "tokenTypes",
-        json_make_string_array(semantic_tokens->token_types, semantic_tokens->token_types_count));
-    json_object_const_key_set(&result, "tokenModifiers",
-        json_make_string_array(semantic_tokens->token_modifiers, semantic_tokens->token_modifiers_count));
-    json_object_const_key_set(&result, "formats", token_format_array(semantic_tokens->formats));
-    json_object_const_key_set(&result, "overlappingTokenSupport", json_make_boolean(semantic_tokens->overlapping_token_support));
-    json_object_const_key_set(&result, "multilineTokenSupport", json_make_boolean(semantic_tokens->multiline_token_support));
-    json_object_const_key_set(&result, "serverCancelSupport", json_make_boolean(semantic_tokens->server_cancel_support));
-    json_object_const_key_set(&result, "augmentsSyntaxTokens", json_make_boolean(semantic_tokens->augments_syntax_tokens));
-
-    return result;
-}
-
-static JSONValue make_text_document_object(LSTalk_TextDocumentClientCapabilities* text_document) {
-    JSONValue result = json_make_object();
-
-    JSONValue hover = json_make_object();
-    dynamic_registration(&hover, text_document->hover.dynamic_registration);
-    json_object_const_key_set(&hover, "contentFormat", markup_kind_array(text_document->hover.content_format));
-
-    JSONValue declaration = json_make_object();
-    dynamic_registration(&declaration, text_document->declaration.dynamic_registration);
-    link_support(&declaration, text_document->declaration.link_support);
-
-    JSONValue definition = json_make_object();
-    dynamic_registration(&definition, text_document->definition.dynamic_registration);
-    link_support(&definition, text_document->definition.link_support);
-
-    JSONValue type_definition = json_make_object();
-    dynamic_registration(&type_definition, text_document->type_definition.dynamic_registration);
-    link_support(&type_definition, text_document->type_definition.link_support);
-
-    JSONValue implementation = json_make_object();
-    dynamic_registration(&implementation, text_document->implementation.dynamic_registration);
-    link_support(&implementation, text_document->implementation.link_support);
-
-    JSONValue references = json_make_object();
-    dynamic_registration(&references, text_document->references.dynamic_registration);
-
-    JSONValue document_highlight = json_make_object();
-    dynamic_registration(&document_highlight, text_document->document_highlight.dynamic_registration);
-
-    JSONValue code_lens = json_make_object();
-    dynamic_registration(&code_lens, text_document->code_lens.dynamic_registration);
-
-    JSONValue document_link = json_make_object();
-    dynamic_registration(&document_link, text_document->document_link.dynamic_registration);
-    json_object_const_key_set(&document_link, "tooltipSupport", json_make_boolean(text_document->document_link.tooltip_support));
-
-    JSONValue color_provider = json_make_object();
-    dynamic_registration(&color_provider, text_document->color_provider.dynamic_registration);
-
-    JSONValue formatting = json_make_object();
-    dynamic_registration(&formatting, text_document->formatting.dynamic_registration);
-
-    JSONValue range_formatting = json_make_object();
-    dynamic_registration(&range_formatting, text_document->range_formatting.dynamic_registration);
-
-    JSONValue on_type_formatting = json_make_object();
-    dynamic_registration(&on_type_formatting, text_document->on_type_formatting.dynamic_registration);
-
-    JSONValue selection_range = json_make_object();
-    dynamic_registration(&selection_range, text_document->selection_range.dynamic_registration);
-
-    JSONValue linked_editing_range = json_make_object();
-    dynamic_registration(&selection_range, text_document->linked_editing_range.dynamic_registration);
-
-    JSONValue call_hierarchy = json_make_object();
-    dynamic_registration(&call_hierarchy, text_document->call_hierarchy.dynamic_registration);
-
-    JSONValue moniker = json_make_object();
-    dynamic_registration(&moniker, text_document->moniker.dynamic_registration);
-
-    JSONValue type_hierarchy = json_make_object();
-    dynamic_registration(&type_hierarchy, text_document->type_hierarchy.dynamic_registration);
-
-    JSONValue inline_value = json_make_object();
-    dynamic_registration(&inline_value, text_document->inline_value.dynamic_registration);
-
-    JSONValue inlay_hint = json_make_object();
-    dynamic_registration(&inlay_hint, text_document->inlay_hint.dynamic_registration);
-    JSONValue inlay_hint_resolve_support = json_make_object();
-    json_object_const_key_set(&inlay_hint_resolve_support, "properties",
-        json_make_string_array(text_document->inlay_hint.properties, text_document->inlay_hint.properties_count));
-    json_object_const_key_set(&inlay_hint, "resolveSupport", inlay_hint_resolve_support);
-
-    JSONValue diagnostic = json_make_object();
-    dynamic_registration(&diagnostic, text_document->diagnostic.dynamic_registration);
-    json_object_const_key_set(&diagnostic, "relatedDocumentSupport", json_make_boolean(text_document->diagnostic.related_document_support));
-
-    json_object_const_key_set(&result, "synchronization", make_text_document_synchronization_object(&text_document->synchronization));
-    json_object_const_key_set(&result, "completion", make_text_document_completion_object(&text_document->completion));
-    json_object_const_key_set(&result, "hover", hover);
-    json_object_const_key_set(&result, "signatureHelp", make_text_document_signature_object(&text_document->signature_help));
-    json_object_const_key_set(&result, "declaration", declaration);
-    json_object_const_key_set(&result, "definition", definition);
-    json_object_const_key_set(&result, "typeDefinition", type_definition);
-    json_object_const_key_set(&result, "implementation", implementation);
-    json_object_const_key_set(&result, "references", references);
-    json_object_const_key_set(&result, "documentHighlight", document_highlight);
-    json_object_const_key_set(&result, "documentSymbol", make_text_document_symbol_object(&text_document->document_symbol));
-    json_object_const_key_set(&result, "codeAction", make_text_document_code_action_object(&text_document->code_action));
-    json_object_const_key_set(&result, "codeLens", code_lens);
-    json_object_const_key_set(&result, "documentLink", document_link);
-    json_object_const_key_set(&result, "colorProvider", color_provider);
-    json_object_const_key_set(&result, "formatting", formatting);
-    json_object_const_key_set(&result, "rangeFormatting", range_formatting);
-    json_object_const_key_set(&result, "onTypeFormatting", on_type_formatting);
-    json_object_const_key_set(&result, "rename", make_text_document_rename_object(&text_document->rename));
-    json_object_const_key_set(&result, "publishDiagnostics", make_text_document_publish_diagnostics_object(&text_document->publish_diagnostics));
-    json_object_const_key_set(&result, "foldingRange", make_text_document_folding_range_object(&text_document->folding_range));
-    json_object_const_key_set(&result, "selectionRange", selection_range);
-    json_object_const_key_set(&result, "linkedEditingRange", linked_editing_range);
-    json_object_const_key_set(&result, "callHierarchy", call_hierarchy);
-    json_object_const_key_set(&result, "semanticTokens", make_text_document_semantic_tokens_object(&text_document->semantic_tokens));
-    json_object_const_key_set(&result, "moniker", moniker);
-    json_object_const_key_set(&result, "typeHierarchy", type_hierarchy);
-    json_object_const_key_set(&result, "inlineValue", inline_value);
-    json_object_const_key_set(&result, "inlayHint", inlay_hint);
-    json_object_const_key_set(&result, "diagnostic", diagnostic);
-
-    return result;
-}
-
-//
-// Begin Client Capabilities Objects
-//
-
-static JSONValue make_window_object(LSTalk_Window* window) {
-    JSONValue result = json_make_object();
-
-    JSONValue show_message_message_action_item = json_make_object();
-    json_object_const_key_set(&show_message_message_action_item, "additionalPropertiesSupport", json_make_boolean(window->show_message.message_action_item_additional_properties_support));
-    JSONValue show_message = json_make_object();
-    json_object_const_key_set(&show_message, "messageActionItem", show_message_message_action_item);
-
-    JSONValue show_document = json_make_object();
-    json_object_const_key_set(&show_document, "support", json_make_boolean(window->show_document.support));
-
-    json_object_const_key_set(&result, "workDoneProgress", json_make_boolean(window->work_done_progress));
-    json_object_const_key_set(&result, "showMessage", show_message);
-    json_object_const_key_set(&result, "showDocument", show_document);
-
-    return result;
-}
-
-static JSONValue make_general_object(LSTalk_General* general) {
-    JSONValue result = json_make_object();
-
-    JSONValue stale_request_support = json_make_object();
-    json_object_const_key_set(&stale_request_support, "cancel", json_make_boolean(general->cancel));
-    json_object_const_key_set(&stale_request_support, "retryOnContentModified",
-        json_make_string_array(general->retry_on_content_modified, general->retry_on_content_modified_count));
-    
-    JSONValue regular_expressions = json_make_object();
-    json_object_const_key_set(&regular_expressions, "engine", json_make_string(general->regular_expressions.engine));
-    json_object_const_key_set(&regular_expressions, "version", json_make_string(general->regular_expressions.version));
-
-    JSONValue markdown = json_make_object();
-    json_object_const_key_set(&markdown, "parser", json_make_string(general->markdown.parser));
-    json_object_const_key_set(&markdown, "version", json_make_string(general->markdown.version));
-    json_object_const_key_set(&markdown, "allowedTags",
-        json_make_string_array(general->markdown.allowed_tags, general->markdown.allowed_tags_count));
-
-    json_object_const_key_set(&result, "staleRequestSupport", stale_request_support);
-    json_object_const_key_set(&result, "regularExpressions", regular_expressions);
-    json_object_const_key_set(&result, "markdown", markdown);
-    json_object_const_key_set(&result, "positionEncodings", position_encoding_kind_array(general->position_encodings));
-
-    return result;
-}
-
-static JSONValue make_client_capabilities_object(LSTalk_ClientCapabilities* capabilities) {
-    JSONValue result = json_make_object();
-
-    JSONValue notebook_sync = json_make_object();
-    dynamic_registration(&notebook_sync, capabilities->notebook_document.synchronization.dynamic_registration);
-    json_object_const_key_set(&notebook_sync, "executionSummarySupport", json_make_boolean(capabilities->notebook_document.synchronization.execution_summary_support));
-
-    JSONValue notebook_document = json_make_object();
-    json_object_const_key_set(&notebook_document, "synchronization", notebook_sync);
-
-    json_object_const_key_set(&result, "workspace", make_workspace_object(&capabilities->workspace));
-    json_object_const_key_set(&result, "textDocument", make_text_document_object(&capabilities->text_document));
-    json_object_const_key_set(&result, "notebookDocument", notebook_document);
-    json_object_const_key_set(&result, "window", make_window_object(&capabilities->window));
-    json_object_const_key_set(&result, "general", make_general_object(&capabilities->general));
-
-    return result;
-}
-
 static LSTalk_ServerNotification notification_make(LSTalk_NotificationType type) {
     LSTalk_ServerNotification result;
     memset(&result, 0, sizeof(LSTalk_ServerNotification));
     result.type = type;
     return result;
 }
+
+//
+// lstalk API
+//
+// This is the beginning of the exposed API functions for the library.
 
 LSTalk_Context* lstalk_init() {
     LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
@@ -3780,14 +5355,6 @@ void lstalk_set_locale(LSTalk_Context* context, char* locale) {
     context->locale = string_alloc_copy(locale);
 }
 
-LSTalk_ClientCapabilities* lstalk_get_client_capabilities(LSTalk_Context* context) {
-    if (context == NULL) {
-        return NULL;
-    }
-
-    return &context->client_capabilities;
-}
-
 void lstalk_set_debug_flags(LSTalk_Context* context, int flags) {
     if (context == NULL) {
         return;
@@ -3819,7 +5386,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&params, "clientInfo", client_info(&context->client_info));
     json_object_const_key_set(&params, "locale", json_make_string_const(context->locale));
     json_object_const_key_set(&params, "rootUri", json_make_string(connect_params.root_uri));
-    json_object_const_key_set(&params, "clientCapabilities", make_client_capabilities_object(&context->client_capabilities));
+    json_object_const_key_set(&params, "clientCapabilities", client_capabilities_make(&context->client_capabilities));
     json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params.trace)));
 
     server_make_and_send_request(context, &server, "initialize", params);
