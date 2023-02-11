@@ -5844,6 +5844,369 @@ static void server_capabilities_free(ServerCapabilities* capabilities) {
 //
 
 //
+// Begin Notifications
+//
+
+static LSTalk_Position position_parse(JSONValue* value) {
+    LSTalk_Position result;
+    memset(&result, 0, sizeof(LSTalk_Position));
+
+    if (value == NULL) {
+        return result;
+    }
+
+    JSONValue line = json_object_get(value, "line");
+    if (line.type == JSON_VALUE_INT) {
+        result.line = (unsigned int)line.value.int_value;
+    }
+
+    JSONValue character = json_object_get(value, "character");
+    if (character.type == JSON_VALUE_INT) {
+        result.character = (unsigned int)character.value.int_value;
+    }
+
+    return result;
+}
+
+static LSTalk_Range range_parse(JSONValue* value) {
+    LSTalk_Range result;
+    memset(&result, 0, sizeof(LSTalk_Range));
+
+    if (value == NULL) {
+        return result;
+    }
+
+    JSONValue start = json_object_get(value, "start");
+    if (start.type == JSON_VALUE_OBJECT) {
+        result.start = position_parse(&start);
+    }
+
+    JSONValue end = json_object_get(value, "end");
+    if (end.type == JSON_VALUE_OBJECT) {
+        result.end = position_parse(&end);
+    }
+
+    return result;
+}
+
+static LSTalk_Location location_parse(JSONValue* value) {
+    LSTalk_Location result;
+    memset(&result, 0, sizeof(LSTalk_Location));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue* uri = json_object_get_ptr(value, "uri");
+    if (uri != NULL && uri->type == JSON_VALUE_STRING) {
+        result.uri = json_move_string(uri);
+    }
+
+    JSONValue range = json_object_get(value, "range");
+    if (range.type == JSON_VALUE_OBJECT) {
+        result.range = range_parse(&range);
+    }
+
+    return result;
+}
+
+//
+// LSTalk_PublishDiagnostics
+//
+
+static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
+    LSTalk_PublishDiagnostics result;
+    memset(&result, 0, sizeof(LSTalk_PublishDiagnostics));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue* uri = json_object_get_ptr(value, "uri");
+    result.uri = json_move_string(uri);
+    
+    JSONValue version = json_object_get(value, "version");
+    if (version.type == JSON_VALUE_INT) {
+        result.version = version.value.int_value;
+    }
+
+    JSONValue* diagnostics = json_object_get_ptr(value, "diagnostics");
+    if (diagnostics != NULL && diagnostics->type == JSON_VALUE_ARRAY) {
+        result.diagnostics_count = json_array_length(diagnostics);
+        if (result.diagnostics_count > 0) {
+            result.diagnostics = (LSTalk_Diagnostic*)malloc(sizeof(LSTalk_Diagnostic) * result.diagnostics_count);
+            for (size_t i = 0; i < (size_t)result.diagnostics_count; i++) {
+                JSONValue* item = json_array_get_ptr(diagnostics, i);
+                LSTalk_Diagnostic* diagnostic = &result.diagnostics[i];
+                
+                JSONValue range = json_object_get(item, "range");
+                if (range.type == JSON_VALUE_OBJECT) {
+                    diagnostic->range = range_parse(&range);
+                }
+
+                JSONValue severity = json_object_get(item, "severity");
+                if (severity.type == JSON_VALUE_INT) {
+                    diagnostic->severity = (LSTalk_DiagnosticSeverity)severity.value.int_value;
+                }
+
+                JSONValue* code = json_object_get_ptr(item, "code");
+                if (code != NULL) {
+                    if (code->type == JSON_VALUE_STRING) {
+                        diagnostic->code = json_move_string(code);
+                    } else if (code->type == JSON_VALUE_INT) {
+                        size_t length = code->value.int_value == 0 ? 1 : (size_t)log10((double)code->value.int_value) + 1;
+                        if (code->value.int_value < 0) {
+                            length++;
+                        }
+                        diagnostic->code = (char*)malloc(sizeof(char) * length);
+                        sprintf(diagnostic->code, "%d", code->value.int_value);
+                    }
+                }
+
+                JSONValue* code_description = json_object_get_ptr(item, "codeDescription");
+                if (code_description != NULL && code_description->type == JSON_VALUE_OBJECT) {
+                    JSONValue* href = json_object_get_ptr(code_description, "href");
+                    if (href != NULL && href->type == JSON_VALUE_STRING) {
+                        diagnostic->code_description.href = json_move_string(href);
+                    }
+                }
+
+                JSONValue* source = json_object_get_ptr(item, "source");
+                if (source != NULL && source->type == JSON_VALUE_STRING) {
+                    diagnostic->source = json_move_string(source);
+                }
+
+                JSONValue* message = json_object_get_ptr(item, "message");
+                if (message != NULL && message->type == JSON_VALUE_STRING) {
+                    diagnostic->message = json_move_string(message);
+                }
+
+                JSONValue tags = json_object_get(item, "tags");
+                if (tags.type == JSON_VALUE_ARRAY) {
+                    diagnostic->tags = diagnostic_tags_parse(&tags);
+                }
+
+                JSONValue* related_information = json_object_get_ptr(item, "relatedInformation");
+                if (related_information != NULL && related_information->type == JSON_VALUE_ARRAY) {
+                    diagnostic->related_information_count = json_array_length(related_information);
+                    if (diagnostic->related_information_count > 0) {
+                        size_t size = sizeof(LSTalk_DiagnosticRelatedInformation) * diagnostic->related_information_count;
+                        diagnostic->related_information = (LSTalk_DiagnosticRelatedInformation*)malloc(size);
+                        for (size_t j = 0; j < diagnostic->related_information_count; j++) {
+                            JSONValue* related_information_item = json_array_get_ptr(related_information, j);
+                            LSTalk_DiagnosticRelatedInformation* diagnostic_related_information = &diagnostic->related_information[i];
+                            
+                            JSONValue* location = json_object_get_ptr(related_information_item, "location");
+                            if (location != NULL && location->type == JSON_VALUE_OBJECT) {
+                                diagnostic_related_information->location = location_parse(location);
+                            }
+
+                            JSONValue* message = json_object_get_ptr(related_information_item, "message");
+                            if (message != NULL && message->type == JSON_VALUE_STRING) {
+                                diagnostic_related_information->message = json_move_string(message);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+static void publish_diagnostics_free(LSTalk_PublishDiagnostics* publish_diagnostics) {
+    if (publish_diagnostics == NULL) {
+        return;
+    }
+
+    if (publish_diagnostics->uri != NULL) {
+        free(publish_diagnostics->uri);
+    }
+
+    for (int i = 0; i < publish_diagnostics->diagnostics_count; i++) {
+        LSTalk_Diagnostic* diagnostics = &publish_diagnostics->diagnostics[i];
+
+        if (diagnostics->code != NULL) {
+            free(diagnostics->code);
+        }
+
+        if (diagnostics->code_description.href != NULL) {
+            free(diagnostics->code_description.href);
+        }
+
+        if (diagnostics->source != NULL) {
+            free(diagnostics->source);
+        }
+
+        if (diagnostics->message != NULL) {
+            free(diagnostics->message);
+        }
+
+        for (size_t j = 0; j < diagnostics->related_information_count; j++) {
+            LSTalk_DiagnosticRelatedInformation* related_information = &diagnostics->related_information[j];
+
+            if (related_information->location.uri != NULL) {
+                free(related_information->location.uri);
+            }
+
+            if (related_information->message != NULL) {
+                free(related_information->message);
+            }
+        }
+
+        if (diagnostics->related_information != NULL) {
+            free(diagnostics->related_information);
+        }
+    }
+
+    if (publish_diagnostics->diagnostics != NULL) {
+        free(publish_diagnostics->diagnostics);
+    }
+}
+
+//
+// LSTalk_DocumentSymbol
+//
+
+static LSTalk_DocumentSymbol document_symbol_parse(JSONValue* value) {
+    LSTalk_DocumentSymbol result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue* name = json_object_get_ptr(value, "name");
+    if (name != NULL && name->type == JSON_VALUE_STRING) {
+        result.name = json_move_string(name);
+    }
+
+    JSONValue* detail = json_object_get_ptr(value, "detail");
+    if (detail != NULL && detail->type == JSON_VALUE_STRING) {
+        result.detail = json_move_string(detail);
+    }
+
+    JSONValue kind = json_object_get(value, "kind");
+    result.kind = symbol_kind_parse(&kind);
+
+    JSONValue range = json_object_get(value, "range");
+    if (range.type == JSON_VALUE_OBJECT) {
+        result.range = range_parse(&range);
+    }
+
+    JSONValue selection_range = json_object_get(value, "selectionRange");
+    if (selection_range.type == JSON_VALUE_OBJECT) {
+        result.selection_range = range_parse(&selection_range);
+    }
+
+    JSONValue* children = json_object_get_ptr(value, "children");
+    if (children != NULL && children->type == JSON_VALUE_ARRAY) {
+        result.children_count = json_array_length(children);
+        if (result.children_count > 0) {
+            result.children = (LSTalk_DocumentSymbol*)malloc(sizeof(LSTalk_DocumentSymbol) * json_array_length(children));
+            for (size_t i = 0; i < json_array_length(children); i++) {
+                JSONValue* item = json_array_get_ptr(children, i);
+                result.children[i] = document_symbol_parse(item);
+            }
+        }
+    }
+
+    return result;
+}
+
+static void document_symbol_free(LSTalk_DocumentSymbol* document_symbol) {
+    if (document_symbol == NULL) {
+        return;
+    }
+
+    if (document_symbol->name != NULL) {
+        free(document_symbol->name);
+    }
+
+    if (document_symbol->detail != NULL) {
+        free(document_symbol->detail);
+    }
+
+    if (document_symbol->children != NULL) {
+        for (int i = 0; i < document_symbol->children_count; i++) {
+            document_symbol_free(&document_symbol->children[i]);
+        }
+
+        free(document_symbol->children);
+    }
+}
+
+//
+// LSTalk_DocumentSymbolNotification
+//
+
+static LSTalk_DocumentSymbolNotification document_symbol_notification_parse(JSONValue* value) {
+    LSTalk_DocumentSymbolNotification result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_ARRAY) {
+        return result;
+    }
+
+    result.symbols_count = json_array_length(value);
+    if (result.symbols_count > 0) {
+        result.symbols = (LSTalk_DocumentSymbol*)malloc(sizeof(LSTalk_DocumentSymbol) * json_array_length(value));
+        for (size_t i = 0; i < json_array_length(value); i++) {
+            JSONValue* item = json_array_get_ptr(value, i);
+            result.symbols[i] = document_symbol_parse(item);
+        }
+    }
+
+    return result;
+}
+
+static void document_symbol_notification_free(LSTalk_DocumentSymbolNotification* notification) {
+    if (notification == NULL) {
+        return;
+    }
+
+    if (notification->symbols != NULL) {
+        for (size_t i = 0; i < notification->symbols_count; i++) {
+            document_symbol_free(&notification->symbols[i]);
+        }
+
+        free(notification->symbols);
+    }
+}
+
+static LSTalk_Notification notification_make(LSTalk_NotificationType type) {
+    LSTalk_Notification result;
+    memset(&result, 0, sizeof(LSTalk_Notification));
+    result.type = type;
+    return result;
+}
+
+static void notification_free(LSTalk_Notification* notification) {
+    if (notification == NULL) {
+        return;
+    }
+
+    switch (notification->type) {
+        case LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS: {
+            document_symbol_notification_free(&notification->data.document_symbols);
+            break;
+        }
+
+        case LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS: {
+            publish_diagnostics_free(&notification->data.publish_diagnostics);
+            break;
+        }
+        case LSTALK_NOTIFICATION_NONE:
+        default: break;
+    }
+}
+
+//
+// End Notifications
+//
+
+//
 // Server
 //
 
@@ -5922,178 +6285,6 @@ static void server_send_request(Server* server, Request* request, int debug_flag
     rpc_send_request(server->process, request, debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
 }
 
-typedef struct ClientInfo {
-    char* name;
-    char* version;
-} ClientInfo;
-
-static void client_info_clear(ClientInfo* info) {
-    if (info == NULL) {
-        return;
-    }
-
-    if (info->name != NULL) {
-        free(info->name);
-    }
-
-    if (info->version != NULL) {
-        free(info->version);
-    }
-}
-
-static JSONValue client_info(ClientInfo* info) {
-    if (info == NULL) {
-        return json_make_null();
-    }
-
-    JSONValue result = json_make_object();
-    json_object_const_key_set(&result, "name", json_make_string_const(info->name));
-    json_object_const_key_set(&result, "version", json_make_string_const(info->version));
-    return result;
-}
-
-typedef struct LSTalk_Context {
-    Vector servers;
-    LSTalk_ServerID server_id;
-    ClientInfo client_info;
-    char* locale;
-    ClientCapabilities client_capabilities;
-    int debug_flags;
-} LSTalk_Context;
-
-static void server_make_and_send_notification(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
-    Request request = rpc_make_notification(method, params);
-    server_send_request(server, &request, context->debug_flags);
-    rpc_close_request(&request);
-}
-
-static void server_make_and_send_request(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
-    Request request = rpc_make_request(&server->request_id, method, params);
-    server_send_request(server, &request, context->debug_flags);
-    vector_push(&server->requests, &request);
-}
-
-static Server* context_get_server(LSTalk_Context* context, LSTalk_ServerID id) {
-    if (context == NULL || id == LSTALK_INVALID_SERVER_ID) {
-        return NULL;
-    }
-
-    for (size_t i = 0; i < context->servers.length; i++) {
-        Server* server = (Server*)vector_get(&context->servers, i);
-        if (server->id == id) {
-            return server;
-        }
-    }
-
-    return NULL;
-}
-
-static void notification_free_publish_diagnostics(LSTalk_PublishDiagnostics* publish_diagnostics) {
-    if (publish_diagnostics == NULL) {
-        return;
-    }
-
-    if (publish_diagnostics->uri != NULL) {
-        free(publish_diagnostics->uri);
-    }
-
-    for (int i = 0; i < publish_diagnostics->diagnostics_count; i++) {
-        LSTalk_Diagnostic* diagnostics = &publish_diagnostics->diagnostics[i];
-
-        if (diagnostics->code != NULL) {
-            free(diagnostics->code);
-        }
-
-        if (diagnostics->code_description.href != NULL) {
-            free(diagnostics->code_description.href);
-        }
-
-        if (diagnostics->source != NULL) {
-            free(diagnostics->source);
-        }
-
-        if (diagnostics->message != NULL) {
-            free(diagnostics->message);
-        }
-
-        for (size_t j = 0; j < diagnostics->related_information_count; j++) {
-            LSTalk_DiagnosticRelatedInformation* related_information = &diagnostics->related_information[j];
-
-            if (related_information->location.uri != NULL) {
-                free(related_information->location.uri);
-            }
-
-            if (related_information->message != NULL) {
-                free(related_information->message);
-            }
-        }
-
-        if (diagnostics->related_information != NULL) {
-            free(diagnostics->related_information);
-        }
-    }
-
-    if (publish_diagnostics->diagnostics != NULL) {
-        free(publish_diagnostics->diagnostics);
-    }
-}
-
-static void free_document_symbol(LSTalk_DocumentSymbol* document_symbol) {
-    if (document_symbol == NULL) {
-        return;
-    }
-
-    if (document_symbol->name != NULL) {
-        free(document_symbol->name);
-    }
-
-    if (document_symbol->detail != NULL) {
-        free(document_symbol->detail);
-    }
-
-    if (document_symbol->children != NULL) {
-        for (int i = 0; i < document_symbol->children_count; i++) {
-            free_document_symbol(&document_symbol->children[i]);
-        }
-
-        free(document_symbol->children);
-    }
-}
-
-static void notification_free_document_symbol(LSTalk_DocumentSymbolNotification* notification) {
-    if (notification == NULL) {
-        return;
-    }
-
-    if (notification->symbols != NULL) {
-        for (size_t i = 0; i < notification->symbols_count; i++) {
-            free_document_symbol(&notification->symbols[i]);
-        }
-
-        free(notification->symbols);
-    }
-}
-
-static void server_free_notification(LSTalk_ServerNotification* notification) {
-    if (notification == NULL) {
-        return;
-    }
-
-    switch (notification->type) {
-        case LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS: {
-            notification_free_document_symbol(&notification->data.document_symbols);
-            break;
-        }
-
-        case LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS: {
-            notification_free_publish_diagnostics(&notification->data.publish_diagnostics);
-            break;
-        }
-        case LSTALK_NOTIFICATION_NONE:
-        default: break;
-    }
-}
-
 static void server_close(Server* server) {
     if (server == NULL) {
         return;
@@ -6135,247 +6326,80 @@ static void server_close(Server* server) {
     vector_destroy(&server->text_documents);
 
     for (size_t i = 0; i < server->notifications.length; i++) {
-        LSTalk_ServerNotification* notification = (LSTalk_ServerNotification*)vector_get(&server->notifications, i);
-        server_free_notification(notification);
+        LSTalk_Notification* notification = (LSTalk_Notification*)vector_get(&server->notifications, i);
+        notification_free(notification);
     }
     vector_destroy(&server->notifications);
 }
 
-static LSTalk_Position parse_position(JSONValue* value) {
-    LSTalk_Position result;
-    memset(&result, 0, sizeof(LSTalk_Position));
+typedef struct ClientInfo {
+    char* name;
+    char* version;
+} ClientInfo;
 
-    if (value == NULL) {
-        return result;
+static void client_info_clear(ClientInfo* info) {
+    if (info == NULL) {
+        return;
     }
 
-    JSONValue line = json_object_get(value, "line");
-    if (line.type == JSON_VALUE_INT) {
-        result.line = (unsigned int)line.value.int_value;
+    if (info->name != NULL) {
+        free(info->name);
     }
 
-    JSONValue character = json_object_get(value, "character");
-    if (character.type == JSON_VALUE_INT) {
-        result.character = (unsigned int)character.value.int_value;
+    if (info->version != NULL) {
+        free(info->version);
+    }
+}
+
+static JSONValue client_info(ClientInfo* info) {
+    if (info == NULL) {
+        return json_make_null();
     }
 
+    JSONValue result = json_make_object();
+    json_object_const_key_set(&result, "name", json_make_string_const(info->name));
+    json_object_const_key_set(&result, "version", json_make_string_const(info->version));
     return result;
 }
 
-static LSTalk_Range parse_range(JSONValue* value) {
-    LSTalk_Range result;
-    memset(&result, 0, sizeof(LSTalk_Range));
+//
+// LSTalk_Context
+//
 
-    if (value == NULL) {
-        return result;
-    }
+typedef struct LSTalk_Context {
+    Vector servers;
+    LSTalk_ServerID server_id;
+    ClientInfo client_info;
+    char* locale;
+    ClientCapabilities client_capabilities;
+    int debug_flags;
+} LSTalk_Context;
 
-    JSONValue start = json_object_get(value, "start");
-    if (start.type == JSON_VALUE_OBJECT) {
-        result.start = parse_position(&start);
-    }
-
-    JSONValue end = json_object_get(value, "end");
-    if (end.type == JSON_VALUE_OBJECT) {
-        result.end = parse_position(&end);
-    }
-
-    return result;
+static void server_make_and_send_notification(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
+    Request request = rpc_make_notification(method, params);
+    server_send_request(server, &request, context->debug_flags);
+    rpc_close_request(&request);
 }
 
-static LSTalk_Location parse_location(JSONValue* value) {
-    LSTalk_Location result;
-    memset(&result, 0, sizeof(LSTalk_Location));
-
-    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
-        return result;
-    }
-
-    JSONValue* uri = json_object_get_ptr(value, "uri");
-    if (uri != NULL && uri->type == JSON_VALUE_STRING) {
-        result.uri = json_move_string(uri);
-    }
-
-    JSONValue range = json_object_get(value, "range");
-    if (range.type == JSON_VALUE_OBJECT) {
-        result.range = parse_range(&range);
-    }
-
-    return result;
+static void server_make_and_send_request(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
+    Request request = rpc_make_request(&server->request_id, method, params);
+    server_send_request(server, &request, context->debug_flags);
+    vector_push(&server->requests, &request);
 }
 
-static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
-    LSTalk_PublishDiagnostics result;
-    memset(&result, 0, sizeof(LSTalk_PublishDiagnostics));
-
-    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
-        return result;
+static Server* context_get_server(LSTalk_Context* context, LSTalk_ServerID id) {
+    if (context == NULL || id == LSTALK_INVALID_SERVER_ID) {
+        return NULL;
     }
 
-    JSONValue* uri = json_object_get_ptr(value, "uri");
-    result.uri = json_move_string(uri);
-    
-    JSONValue version = json_object_get(value, "version");
-    if (version.type == JSON_VALUE_INT) {
-        result.version = version.value.int_value;
-    }
-
-    JSONValue* diagnostics = json_object_get_ptr(value, "diagnostics");
-    if (diagnostics != NULL && diagnostics->type == JSON_VALUE_ARRAY) {
-        result.diagnostics_count = json_array_length(diagnostics);
-        if (result.diagnostics_count > 0) {
-            result.diagnostics = (LSTalk_Diagnostic*)malloc(sizeof(LSTalk_Diagnostic) * result.diagnostics_count);
-            for (size_t i = 0; i < (size_t)result.diagnostics_count; i++) {
-                JSONValue* item = json_array_get_ptr(diagnostics, i);
-                LSTalk_Diagnostic* diagnostic = &result.diagnostics[i];
-                
-                JSONValue range = json_object_get(item, "range");
-                if (range.type == JSON_VALUE_OBJECT) {
-                    diagnostic->range = parse_range(&range);
-                }
-
-                JSONValue severity = json_object_get(item, "severity");
-                if (severity.type == JSON_VALUE_INT) {
-                    diagnostic->severity = (LSTalk_DiagnosticSeverity)severity.value.int_value;
-                }
-
-                JSONValue* code = json_object_get_ptr(item, "code");
-                if (code != NULL) {
-                    if (code->type == JSON_VALUE_STRING) {
-                        diagnostic->code = json_move_string(code);
-                    } else if (code->type == JSON_VALUE_INT) {
-                        size_t length = code->value.int_value == 0 ? 1 : (size_t)log10((double)code->value.int_value) + 1;
-                        if (code->value.int_value < 0) {
-                            length++;
-                        }
-                        diagnostic->code = (char*)malloc(sizeof(char) * length);
-                        sprintf(diagnostic->code, "%d", code->value.int_value);
-                    }
-                }
-
-                JSONValue* code_description = json_object_get_ptr(item, "codeDescription");
-                if (code_description != NULL && code_description->type == JSON_VALUE_OBJECT) {
-                    JSONValue* href = json_object_get_ptr(code_description, "href");
-                    if (href != NULL && href->type == JSON_VALUE_STRING) {
-                        diagnostic->code_description.href = json_move_string(href);
-                    }
-                }
-
-                JSONValue* source = json_object_get_ptr(item, "source");
-                if (source != NULL && source->type == JSON_VALUE_STRING) {
-                    diagnostic->source = json_move_string(source);
-                }
-
-                JSONValue* message = json_object_get_ptr(item, "message");
-                if (message != NULL && message->type == JSON_VALUE_STRING) {
-                    diagnostic->message = json_move_string(message);
-                }
-
-                JSONValue tags = json_object_get(item, "tags");
-                if (tags.type == JSON_VALUE_ARRAY) {
-                    diagnostic->tags = diagnostic_tags_parse(&tags);
-                }
-
-                JSONValue* related_information = json_object_get_ptr(item, "relatedInformation");
-                if (related_information != NULL && related_information->type == JSON_VALUE_ARRAY) {
-                    diagnostic->related_information_count = json_array_length(related_information);
-                    if (diagnostic->related_information_count > 0) {
-                        size_t size = sizeof(LSTalk_DiagnosticRelatedInformation) * diagnostic->related_information_count;
-                        diagnostic->related_information = (LSTalk_DiagnosticRelatedInformation*)malloc(size);
-                        for (size_t j = 0; j < diagnostic->related_information_count; j++) {
-                            JSONValue* related_information_item = json_array_get_ptr(related_information, j);
-                            LSTalk_DiagnosticRelatedInformation* diagnostic_related_information = &diagnostic->related_information[i];
-                            
-                            JSONValue* location = json_object_get_ptr(related_information_item, "location");
-                            if (location != NULL && location->type == JSON_VALUE_OBJECT) {
-                                diagnostic_related_information->location = parse_location(location);
-                            }
-
-                            JSONValue* message = json_object_get_ptr(related_information_item, "message");
-                            if (message != NULL && message->type == JSON_VALUE_STRING) {
-                                diagnostic_related_information->message = json_move_string(message);
-                            }
-                        }
-                    }
-                }
-            }
+    for (size_t i = 0; i < context->servers.length; i++) {
+        Server* server = (Server*)vector_get(&context->servers, i);
+        if (server->id == id) {
+            return server;
         }
     }
 
-    return result;
-}
-
-static LSTalk_DocumentSymbol parse_document_symbol(JSONValue* value) {
-    LSTalk_DocumentSymbol result;
-    memset(&result, 0, sizeof(result));
-
-    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
-        return result;
-    }
-
-    JSONValue* name = json_object_get_ptr(value, "name");
-    if (name != NULL && name->type == JSON_VALUE_STRING) {
-        result.name = json_move_string(name);
-    }
-
-    JSONValue* detail = json_object_get_ptr(value, "detail");
-    if (detail != NULL && detail->type == JSON_VALUE_STRING) {
-        result.detail = json_move_string(detail);
-    }
-
-    JSONValue kind = json_object_get(value, "kind");
-    result.kind = symbol_kind_parse(&kind);
-
-    JSONValue range = json_object_get(value, "range");
-    if (range.type == JSON_VALUE_OBJECT) {
-        result.range = parse_range(&range);
-    }
-
-    JSONValue selection_range = json_object_get(value, "selectionRange");
-    if (selection_range.type == JSON_VALUE_OBJECT) {
-        result.selection_range = parse_range(&selection_range);
-    }
-
-    JSONValue* children = json_object_get_ptr(value, "children");
-    if (children != NULL && children->type == JSON_VALUE_ARRAY) {
-        result.children_count = json_array_length(children);
-        if (result.children_count > 0) {
-            result.children = (LSTalk_DocumentSymbol*)malloc(sizeof(LSTalk_DocumentSymbol) * json_array_length(children));
-            for (size_t i = 0; i < json_array_length(children); i++) {
-                JSONValue* item = json_array_get_ptr(children, i);
-                result.children[i] = parse_document_symbol(item);
-            }
-        }
-    }
-
-    return result;
-}
-
-static LSTalk_DocumentSymbolNotification parse_document_symbol_notification(JSONValue* value) {
-    LSTalk_DocumentSymbolNotification result;
-    memset(&result, 0, sizeof(result));
-
-    if (value == NULL || value->type != JSON_VALUE_ARRAY) {
-        return result;
-    }
-
-    result.symbols_count = json_array_length(value);
-    if (result.symbols_count > 0) {
-        result.symbols = (LSTalk_DocumentSymbol*)malloc(sizeof(LSTalk_DocumentSymbol) * json_array_length(value));
-        for (size_t i = 0; i < json_array_length(value); i++) {
-            JSONValue* item = json_array_get_ptr(value, i);
-            result.symbols[i] = parse_document_symbol(item);
-        }
-    }
-
-    return result;
-}
-
-static LSTalk_ServerNotification notification_make(LSTalk_NotificationType type) {
-    LSTalk_ServerNotification result;
-    memset(&result, 0, sizeof(LSTalk_ServerNotification));
-    result.type = type;
-    return result;
+    return NULL;
 }
 
 //
@@ -6482,7 +6506,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     server.requests = vector_create(sizeof(Request));
     memset(&server.info, 0, sizeof(server.info));
     server.text_documents = vector_create(sizeof(TextDocumentItem));
-    server.notifications = vector_create(sizeof(LSTalk_ServerNotification));
+    server.notifications = vector_create(sizeof(LSTalk_Notification));
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
@@ -6567,8 +6591,8 @@ int lstalk_process_responses(LSTalk_Context* context) {
                                 remove_request = 0;
                             } else if (strcmp(method, "textDocument/documentSymbol") == 0) {
                                 JSONValue* result = json_object_get_ptr(&value, "result");
-                                LSTalk_ServerNotification notification = notification_make(LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS);
-                                notification.data.document_symbols = parse_document_symbol_notification(result);
+                                LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS);
+                                notification.data.document_symbols = document_symbol_notification_parse(result);
                                 vector_push(&server->notifications, &notification);
                             }
 
@@ -6584,7 +6608,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                     JSONValue method = json_object_get(&value, "method");
                     // This area is to handle notifications. These are sent from the server unprompted.
                     if (method.type == JSON_VALUE_STRING && strcmp(method.value.string_value, "textDocument/publishDiagnostics") == 0) {
-                        LSTalk_ServerNotification notification = notification_make(LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS);
+                        LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS);
                         JSONValue params = json_object_get(&value, "params");
                         notification.data.publish_diagnostics = publish_diagnostics_parse(&params);
                         vector_push(&server->notifications, &notification);
@@ -6597,9 +6621,9 @@ int lstalk_process_responses(LSTalk_Context* context) {
         }
 
         for (size_t i = 0; i < server->notifications.length; i++) {
-            LSTalk_ServerNotification* notification = (LSTalk_ServerNotification*)vector_get(&server->notifications, i);
+            LSTalk_Notification* notification = (LSTalk_Notification*)vector_get(&server->notifications, i);
             if (notification->polled) {
-                server_free_notification(notification);
+                notification_free(notification);
                 vector_remove(&server->notifications, i);
                 i--;
             }
@@ -6609,7 +6633,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
     return 1;
 }
 
-int lstalk_poll_notification(LSTalk_Context* context, LSTalk_ServerID id, LSTalk_ServerNotification* notification) {
+int lstalk_poll_notification(LSTalk_Context* context, LSTalk_ServerID id, LSTalk_Notification* notification) {
     if (notification == NULL) {
         return 0;
     }
@@ -6620,7 +6644,7 @@ int lstalk_poll_notification(LSTalk_Context* context, LSTalk_ServerID id, LSTalk
     }
 
     for (size_t i = 0; i < server->notifications.length; i++) {
-        LSTalk_ServerNotification* item = (LSTalk_ServerNotification*)vector_get(&server->notifications, i);
+        LSTalk_Notification* item = (LSTalk_Notification*)vector_get(&server->notifications, i);
         if (!item->polled) {
             *notification = *item;
             item->polled = 1;

@@ -50,6 +50,9 @@ typedef enum {
     LSTALK_CONNECTION_STATUS_CONNECTED,
 } LSTalk_ConnectionStatus;
 
+/**
+ * Level of verbosity with which the server systematically reports its execution
+ */
 typedef enum {
     LSTALK_TRACE_OFF,
     LSTALK_TRACE_MESSAGES,
@@ -65,6 +68,9 @@ typedef enum {
     LSTALK_DEBUGFLAGS_PRINT_RESPONSES = 1 << 1,
 } LSTalk_DebugFlags;
 
+/**
+ * Parameters to set when initially connecting to a language server.
+ */
 typedef struct LSTalk_ConnectParams {
     /**
      * The rootUri of the workspace. Is null if no folder is open.
@@ -80,7 +86,7 @@ typedef struct LSTalk_ConnectParams {
 /**
  * Forward declaraction with the defintion defined below the API.
  */
-struct LSTalk_ServerNotification;
+struct LSTalk_Notification;
 
 /**
  * Initializes a LSTalk_Context object to be used with all of the API functions.
@@ -214,7 +220,7 @@ int lstalk_process_responses(struct LSTalk_Context* context);
  * 
  * @return - A non-zero value if a notification was polled. 0 if no notification was polled.
  */
-int lstalk_poll_notification(struct LSTalk_Context* context, LSTalk_ServerID id, struct LSTalk_ServerNotification* notification);
+int lstalk_poll_notification(struct LSTalk_Context* context, LSTalk_ServerID id, struct LSTalk_Notification* notification);
 
 /**
  * A notification that should be used by the client to modify the trace setting of the server.
@@ -602,10 +608,10 @@ typedef enum {
 } LSTalk_NotificationType;
 
 /**
- * A notification from the server. The struct will contain
+ * A notification/response from the server or library. The struct will contain
  * a type and the data associated with the type.
  */
-typedef struct LSTalk_ServerNotification {
+typedef struct LSTalk_Notification {
     union {
         LSTalk_DocumentSymbolNotification document_symbols;
         LSTalk_PublishDiagnostics publish_diagnostics;
@@ -613,7 +619,7 @@ typedef struct LSTalk_ServerNotification {
 
     LSTalk_NotificationType type;
     int polled;
-} LSTalk_ServerNotification;
+} LSTalk_Notification;
 
 #ifdef LSTALK_TESTS
 void lstalk_tests();

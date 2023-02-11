@@ -274,7 +274,7 @@ int main(int argc, char** argv) {
         }
 
         if (server_id != LSTALK_INVALID_SERVER_ID) {
-            LSTalk_ServerNotification notification;
+            LSTalk_Notification notification;
             if (lstalk_poll_notification(context, server_id, &notification)) {
                 switch (notification.type) {
                     case LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS: {
