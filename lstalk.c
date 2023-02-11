@@ -4003,6 +4003,1846 @@ static JSONValue client_capabilities_make(ClientCapabilities* capabilities) {
 // End Client Capabilities
 //
 
+//
+// Begin Server Capabilities
+//
+
+static char** parse_string_array(JSONValue* value, char* key, int* count) {
+    if (value == NULL || value->type != JSON_VALUE_OBJECT || count == NULL) {
+        return NULL;
+    }
+
+    JSONValue* array = json_object_get_ptr(value, key);
+    if (array == NULL || array->type != JSON_VALUE_ARRAY) {
+        return NULL;
+    }
+
+    size_t length = json_array_length(array);
+    char** result = (char**)calloc(length, sizeof(char*));
+    for (size_t i = 0; i < length; i++) {
+        JSONValue* item = json_array_get_ptr(array, i);
+        if (item != NULL && item->type == JSON_VALUE_STRING) {
+            result[i] = json_move_string(item);
+        }
+    }
+
+    *count = length;
+    return result;
+}
+
+typedef struct WorkDoneProgressOptions {
+    int value;
+} WorkDoneProgressOptions;
+
+static WorkDoneProgressOptions work_done_progress_parse(JSONValue* value) {
+    WorkDoneProgressOptions result;
+    result.value = 0;
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue work_done_progress = json_object_get(value, "workDoneProgress");
+    if (work_done_progress.type != JSON_VALUE_BOOLEAN) {
+        return result;
+    }
+
+    result.value = work_done_progress.value.bool_value;
+    return result;
+}
+
+/**
+ * Static registration options to be returned in the initialize request.
+ */
+typedef struct StaticRegistrationOptions {
+    /**
+     * The id used to register the request. The id can be used to deregister
+     * the request again. See also Registration#id.
+     */
+    char* id;
+} StaticRegistrationOptions;
+
+static StaticRegistrationOptions static_registration_options_parse(JSONValue* value) {
+    StaticRegistrationOptions result;
+    result.id = NULL;
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue id = json_object_get(value, "id");
+    if (id.type != JSON_VALUE_STRING) {
+        return result;
+    }
+
+    result.id = json_move_string(&id);
+    return result;
+}
+
+static void static_registration_options_free(StaticRegistrationOptions* static_registration) {
+    if (static_registration == NULL || static_registration->id == NULL) {
+        return;
+    }
+
+    free(static_registration->id);
+}
+
+/**
+ * Defines how the host (editor) should sync document changes to the language
+ * server.
+ */
+typedef enum {
+    /**
+     * Documents should not be synced at all.
+     */
+    TEXTDOCUMENTSYNCKIND_NONE = 0,
+
+    /**
+     * Documents are synced by always sending the full content
+     * of the document.
+     */
+    TEXTDOCUMENTSYNCKIND_FULL = 1,
+
+    /**
+     * Documents are synced by sending the full content on open.
+     * After that only incremental updates to the document are
+     * sent.
+     */
+    TEXTDOCUMENTSYNCKIND_INCREMENTAL = 2,
+} TextDocumentSyncKind;
+
+/**
+ * Defines how text documents are synced.
+ */
+typedef struct TextDocumentSyncOptions {
+    /**
+     * Open and close notifications are sent to the server. If omitted open
+     * close notifications should not be sent.
+     */
+    int open_close;
+
+    /**
+     * Change notifications are sent to the server. See
+     * TextDocumentSyncKind.None, TextDocumentSyncKind.Full and
+     * TextDocumentSyncKind.Incremental. If omitted it defaults to
+     * TextDocumentSyncKind.None.
+     */
+    TextDocumentSyncKind change;
+} TextDocumentSyncOptions;
+
+/**
+ * A notebook document filter denotes a notebook document by
+ * different properties.
+ *
+ * @since 3.17.0
+ */
+typedef struct NotebookDocumentFilter {
+    /** The type of the enclosing notebook. */
+    char* notebook_type;
+
+    /** A Uri [scheme](#Uri.scheme), like `file` or `untitled`. */
+    char* scheme;
+
+    /** A glob pattern. */
+    char* pattern;
+} NotebookDocumentFilter;
+
+/**
+ * The notebooks to be synced
+ */
+typedef struct NotebookSelector {
+    /**
+     * The notebook to be synced. If a string
+     * value is provided it matches against the
+     * notebook type. '*' matches every notebook.
+     */
+    NotebookDocumentFilter notebook;
+
+    /**
+     * The cells of the matching notebook to be synced.
+     */
+    char** cells;
+    int cells_count;
+} NotebookSelector;
+
+/**
+ * Options specific to a notebook plus its cells
+ * to be synced to the server.
+ *
+ * If a selector provides a notebook document
+ * filter but no cell selector all cells of a
+ * matching notebook document will be synced.
+ *
+ * If a selector provides no notebook document
+ * filter but only a cell selector all notebook
+ * documents that contain at least one matching
+ * cell will be synced.
+ *
+ * @since 3.17.0
+ */
+typedef struct NotebookDocumentSyncOptions {
+    StaticRegistrationOptions static_registration;
+
+    /**
+     * The notebooks to be synced
+     */
+    NotebookSelector* notebook_selector;
+    int notebook_selector_count;
+
+    /**
+     * Whether save notification should be forwarded to
+     * the server. Will only be honored if mode === `notebook`.
+     */
+    int save;
+} NotebookDocumentSyncOptions;
+
+/**
+ * Completion options.
+ */
+typedef struct CompletionOptions {
+    WorkDoneProgressOptions work_done_progress;
+
+    /**
+     * The additional characters, beyond the defaults provided by the client (typically
+     * [a-zA-Z]), that should automatically trigger a completion request. For example
+     * `.` in JavaScript represents the beginning of an object property or method and is
+     * thus a good candidate for triggering a completion request.
+     *
+     * Most tools trigger a completion request automatically without explicitly
+     * requesting it using a keyboard shortcut (e.g. Ctrl+Space). Typically they
+     * do so when the user starts to type an identifier. For example if the user
+     * types `c` in a JavaScript file code complete will automatically pop up
+     * present `console` besides others as a completion item. Characters that
+     * make up identifiers don't need to be listed here.
+     */
+    char** trigger_characters;
+    int trigger_characters_count;
+
+    /**
+     * The list of all possible characters that commit a completion. This field
+     * can be used if clients don't support individual commit characters per
+     * completion item. See client capability
+     * `completion.completionItem.commitCharactersSupport`.
+     *
+     * If a server provides both `allCommitCharacters` and commit characters on
+     * an individual completion item the ones on the completion item win.
+     *
+     * @since 3.2.0
+     */
+    char** all_commit_characters;
+    int all_commit_characters_count;
+
+    /**
+     * The server provides support to resolve additional
+     * information for a completion item.
+     */
+    int resolve_provider;
+
+    /**
+     * The server supports the following `CompletionItem` specific
+     * capabilities.
+     *
+     * @since 3.17.0
+     *
+     * completionItem:
+     * 
+     * The server has support for completion item label
+     * details (see also `CompletionItemLabelDetails`) when receiving
+     * a completion item in a resolve call.
+     *
+     * @since 3.17.0
+     */
+    int completion_item_label_details_support;
+} CompletionOptions;
+
+typedef struct HoverOptions {
+    WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+} HoverOptions;
+
+/**
+ * The server provides signature help support.
+ */
+typedef struct SignatureHelpOptions {
+    WorkDoneProgressOptions work_done_progress;
+
+    /**
+     * The characters that trigger signature help
+     * automatically.
+     */
+    char** trigger_characters;
+    int trigger_characters_count;
+
+    /**
+     * List of characters that re-trigger signature help.
+     *
+     * These trigger characters are only active when signature help is already
+     * showing. All trigger characters are also counted as re-trigger
+     * characters.
+     *
+     * @since 3.15.0
+     */
+    char** retrigger_characters;
+    int retrigger_characters_count;
+} SignatureHelpOptions;
+
+/**
+ * A document filter denotes a document through properties like language, scheme or pattern.
+ */
+typedef struct DocumentFilter {
+    /**
+     * A language id, like `typescript`.
+     */
+    char* language;
+
+    /**
+     * A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
+     */
+    char* scheme;
+
+    /**
+     * A glob pattern, like `*.{ts,js}`.
+     *
+     * Glob patterns can have the following syntax:
+     * - `*` to match one or more characters in a path segment
+     * - `?` to match on one character in a path segment
+     * - `**` to match any number of path segments, including none
+     * - `{}` to group sub patterns into an OR expression. (e.g. `**​ / *.{ts,js}`
+     *   matches all TypeScript and JavaScript files)
+     * - `[]` to declare a range of characters to match in a path segment
+     *   (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
+     * - `[!...]` to negate a range of characters to match in a path segment
+     *   (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but
+     *   not `example.0`)
+     */
+    char* pattern;
+} DocumentFilter;
+
+/**
+ * General text document registration options.
+ */
+typedef struct TextDocumentRegistrationOptions {
+    /**
+     * A document selector to identify the scope of the registration. If set to
+     * null the document selector provided on the client side will be used.
+     */
+    DocumentFilter* document_selector;
+    int document_selector_count;
+} TextDocumentRegistrationOptions;
+
+static TextDocumentRegistrationOptions text_document_registration_options_parse(JSONValue* value) {
+    TextDocumentRegistrationOptions result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue* document_selector = json_object_get_ptr(value, "documentSelector");
+    if (document_selector != NULL && document_selector->type != JSON_VALUE_ARRAY) {
+        return result;
+    }
+
+    size_t length = json_array_length(document_selector);
+    result.document_selector_count = length;
+    result.document_selector = (DocumentFilter*)calloc(length, sizeof(DocumentFilter));
+    for (size_t i = 0; i < length; i++) {
+        JSONValue* item = json_array_get_ptr(document_selector, i);
+        DocumentFilter* filter = &result.document_selector[i];
+
+        JSONValue* language = json_object_get_ptr(item, "language");
+        if (language != NULL && language->type == JSON_VALUE_STRING) {
+            filter->language = json_move_string(language);
+        }
+
+        JSONValue* scheme = json_object_get_ptr(item, "scheme");
+        if (scheme != NULL && scheme->type == JSON_VALUE_STRING) {
+            filter->scheme = json_move_string(scheme);
+        }
+
+        JSONValue* pattern = json_object_get_ptr(item, "pattern");
+        if (pattern != NULL && pattern->type == JSON_VALUE_STRING) {
+            filter->pattern = json_move_string(pattern);
+        }
+    }
+
+    return result;
+}
+
+static void text_document_registration_options_free(TextDocumentRegistrationOptions* text_document_registration) {
+    if (text_document_registration == NULL) {
+        return;
+    }
+
+    if (text_document_registration->document_selector != NULL) {
+        for (int i = 0; i < text_document_registration->document_selector_count; i++) {
+            DocumentFilter* filter = &text_document_registration->document_selector[i];
+
+            if (filter->language != NULL) {
+                free(filter->language);
+            }
+
+            if (filter->scheme != NULL) {
+                free(filter->scheme);
+            }
+
+            if (filter->pattern != NULL) {
+                free(filter->pattern);
+            }
+        }
+
+        free(text_document_registration->document_selector);
+    }
+}
+
+/**
+ * The server provides go to declaration support.
+ *
+ * @since 3.14.0
+ */
+typedef struct DeclarationRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} DeclarationRegistrationOptions;
+
+/**
+ * The server provides goto definition support.
+ */
+typedef struct DefinitionOptions {
+    WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+} DefinitionOptions;
+
+/**
+ * The server provides goto type definition support.
+ *
+ * @since 3.6.0
+ */
+typedef struct TypeDefinitionRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} TypeDefinitionRegistrationOptions;
+
+/**
+ * The server provides goto implementation support.
+ *
+ * @since 3.6.0
+ */
+typedef struct ImplementationRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} ImplementationRegistrationOptions;
+
+/**
+ * The server provides find references support.
+ */
+typedef struct ReferenceOptions {
+    WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+} ReferenceOptions;
+
+/**
+ * The server provides document highlight support.
+ */
+typedef struct DocumentHighlightOptions {
+    WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+} DocumentHighlightOptions;
+
+/**
+ * The server provides document symbol support.
+ */
+typedef struct DocumentSymbolOptions {
+    WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+
+    /**
+     * A human-readable string that is shown when multiple outlines trees
+     * are shown for the same document.
+     *
+     * @since 3.16.0
+     */
+    char* label;
+} DocumentSymbolOptions;
+
+/**
+ * The server provides code actions. The `CodeActionOptions` return type is
+ * only valid if the client signals code action literal support via the
+ * property `textDocument.codeAction.codeActionLiteralSupport`.
+ */
+typedef struct CodeActionOptions {
+    WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+
+    /**
+     * CodeActionKinds that this server may return.
+     *
+     * The list of kinds may be generic, such as `CodeActionKind.Refactor`,
+     * or the server may list out every specific kind they provide.
+     */
+    int code_action_kinds;
+
+    /**
+     * The server provides support to resolve additional
+     * information for a code action.
+     *
+     * @since 3.16.0
+     */
+    int resolve_provider;
+} CodeActionOptions;
+
+/**
+ * The server provides code lens.
+ */
+typedef struct CodeLensOptions {
+    WorkDoneProgressOptions work_done_progress;
+
+    /**
+     * Code lens has a resolve provider as well.
+     */
+    int resolve_provider;
+} CodeLensOptions;
+
+/**
+ * The server provides document link support.
+ */
+typedef struct DocumentLinkOptions {
+    WorkDoneProgressOptions work_done_progress;
+
+    /**
+     * Document links have a resolve provider as well.
+     */
+    int resolve_provider;
+} DocumentLinkOptions;
+
+/**
+ * The server provides color provider support.
+ *
+ * @since 3.6.0
+ */
+typedef struct DocumentColorRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} DocumentColorRegistrationOptions;
+
+/**
+ * The server provides document formatting.
+ */
+typedef struct DocumentFormattingOptions {
+    WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+} DocumentFormattingOptions;
+
+/**
+ * The server provides document range formatting.
+ */
+typedef struct DocumentRangeFormattingOptions {
+    WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+} DocumentRangeFormattingOptions;
+
+/**
+ * The server provides document formatting on typing.
+ */
+typedef struct DocumentOnTypeFormattingOptions {
+    /**
+     * A character on which formatting should be triggered, like `{`.
+     */
+    char* first_trigger_character;
+
+    /**
+     * More trigger characters.
+     */
+    char** more_trigger_character;
+    int more_trigger_character_count;
+} DocumentOnTypeFormattingOptions;
+
+/**
+ * The server provides rename support. RenameOptions may only be
+ * specified if the client states that it supports
+ * `prepareSupport` in its initial `initialize` request.
+ */
+typedef struct RenameOptions {
+    WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+
+    /**
+     * Renames should be checked and tested before being executed.
+     */
+    int prepare_provider;
+} RenameOptions;
+
+/**
+ * The server provides folding provider support.
+ *
+ * @since 3.10.0
+ */
+typedef struct FoldingRangeRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} FoldingRangeRegistrationOptions;
+
+/**
+ * The server provides execute command support.
+ */
+typedef struct ExecuteCommandOptions {
+    WorkDoneProgressOptions work_done_progress;
+
+    /**
+     * The commands to be executed on the server
+     */
+    char** commands;
+    int commands_count;
+} ExecuteCommandOptions;
+
+/**
+ * The server provides selection range support.
+ *
+ * @since 3.15.0
+ */
+typedef struct SelectionRangeRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} SelectionRangeRegistrationOptions;
+
+/**
+ * The server provides linked editing range support.
+ *
+ * @since 3.16.0
+ */
+typedef struct LinkedEditingRangeRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} LinkedEditingRangeRegistrationOptions;
+
+/**
+ * The server provides call hierarchy support.
+ *
+ * @since 3.16.0
+ */
+typedef struct CallHierarchyRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} CallHierarchyRegistrationOptions;
+
+typedef struct SemanticTokensLegend {
+    /**
+     * The token types a server uses.
+     */
+    char** token_types;
+    int token_types_count;
+
+    /**
+     * The token modifiers a server uses.
+     */
+    char** token_modifiers;
+    int token_modifiers_count;
+} SemanticTokensLegend;
+
+typedef struct SemanticTokensOptions {
+    WorkDoneProgressOptions work_done_progress;
+
+    /**
+     * The legend used by the server
+     */
+    SemanticTokensLegend legend;
+
+    /**
+     * Server supports providing semantic tokens for a specific range
+     * of a document.
+     */
+    int range;
+
+    /**
+     * Server supports providing semantic tokens for a full document.
+     *
+     * full:
+     * 
+     * The server supports deltas for full documents.
+     */
+    int full_delta;
+} SemanticTokensOptions;
+
+/**
+ * The server provides semantic tokens support.
+ *
+ * @since 3.16.0
+ */
+typedef struct SemanticTokensRegistrationOptions {
+    SemanticTokensOptions semantic_tokens;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+} SemanticTokensRegistrationOptions;
+
+/**
+ * Whether server provides moniker support.
+ *
+ * @since 3.16.0
+ */
+typedef struct MonikerRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    int is_supported;
+} MonikerRegistrationOptions;
+
+/**
+ * The server provides type hierarchy support.
+ *
+ * @since 3.17.0
+ */
+typedef struct TypeHierarchyRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} TypeHierarchyRegistrationOptions;
+
+/**
+ * The server provides inline values.
+ *
+ * @since 3.17.0
+ */
+typedef struct InlineValueRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} InlineValueRegistrationOptions;
+
+/**
+ * Inlay hint options used during static or dynamic registration.
+ *
+ * @since 3.17.0
+ */
+typedef struct InlayHintRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+    int is_supported;
+} InlayHintRegistrationOptions;
+
+/**
+ * Diagnostic registration options.
+ *
+ * @since 3.17.0
+ */
+typedef struct DiagnosticRegistrationOptions {
+    WorkDoneProgressOptions work_done_progress;
+    TextDocumentRegistrationOptions text_document_registration;
+    StaticRegistrationOptions static_registration;
+
+    /**
+     * An optional identifier under which the diagnostics are
+     * managed by the client.
+     */
+    char* identifier;
+
+    /**
+     * Whether the language has inter file dependencies meaning that
+     * editing code in one file can result in a different diagnostic
+     * set in another file. Inter file dependencies are common for
+     * most programming languages and typically uncommon for linters.
+     */
+    int inter_file_dependencies;
+
+    /**
+     * The server provides support for workspace diagnostics as well.
+     */
+    int workspace_diagnostics;
+} DiagnosticRegistrationOptions;
+
+/**
+ * The server provides workspace symbol support.
+ */
+typedef struct WorkspaceSymbolOptions {
+    WorkDoneProgressOptions work_done_progress;
+    int is_supported;
+
+    /**
+     * The server provides support to resolve additional
+     * information for a workspace symbol.
+     *
+     * @since 3.17.0
+     */
+    int resolve_provider;
+} WorkspaceSymbolOptions;
+
+/**
+ * The server supports workspace folder.
+ *
+ * @since 3.6.0
+ */
+typedef struct WorkspaceFoldersServerCapabilities {
+    /**
+     * The server has support for workspace folders
+     */
+    int supported;
+
+    /**
+     * Whether the server wants to receive workspace folder
+     * change notifications.
+     *
+     * If a string is provided, the string is treated as an ID
+     * under which the notification is registered on the client
+     * side. The ID can be used to unregister for these events
+     * using the `client/unregisterCapability` request.
+     */
+    char* change_notifications;
+    int change_notifications_boolean;
+} WorkspaceFoldersServerCapabilities;
+
+/**
+ * A pattern kind describing if a glob pattern matches a file a folder or
+ * both.
+ *
+ * @since 3.16.0
+ */
+typedef enum {
+    /**
+     * The pattern matches a file only.
+     */
+    FILEOPERATIONPATTERNKIND_FILE = 1 << 0,
+
+    /**
+     * The pattern matches a folder only.
+     */
+    FILEOPERATIONPATTERNKIND_FOLDER = 1 << 1,
+} FileOperationPatternKind;
+
+/**
+ * Matching options for the file operation pattern.
+ *
+ * @since 3.16.0
+ */
+typedef struct FileOperationPatternOptions {
+    /**
+     * The pattern should be matched ignoring casing.
+     */
+    int ignore_case;
+} FileOperationPatternOptions;
+
+/**
+ * The options to register for file operations.
+ *
+ * @since 3.16.0
+ */
+typedef struct FileOperationPattern {
+    /**
+     * The glob pattern to match. Glob patterns can have the following syntax:
+     * - `*` to match one or more characters in a path segment
+     * - `?` to match on one character in a path segment
+     * - `**` to match any number of path segments, including none
+     * - `{}` to group sub patterns into an OR expression. (e.g. `**​ / *.{ts,js}`
+     *   matches all TypeScript and JavaScript files)
+     * - `[]` to declare a range of characters to match in a path segment
+     *   (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
+     * - `[!...]` to negate a range of characters to match in a path segment
+     *   (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but
+     *   not `example.0`)
+     */
+    char* glob;
+
+    /**
+     * Whether to match files or folders with this pattern.
+     *
+     * Matches both if undefined.
+     */
+    int matches;
+
+    /**
+     * Additional options used during matching.
+     */
+    FileOperationPatternOptions options;
+} FileOperationPattern;
+
+/**
+ * A filter to describe in which file operation requests or notifications
+ * the server is interested in.
+ *
+ * @since 3.16.0
+ */
+typedef struct FileOperationFilter {
+    /**
+     * A Uri like `file` or `untitled`.
+     */
+    char* scheme;
+
+    /**
+     * The actual file operation pattern.
+     */
+    FileOperationPattern pattern;
+} FileOperationFilter;
+
+/**
+ * The options to register for file operations.
+ *
+ * @since 3.16.0
+ */
+typedef struct FileOperationRegistrationOptions {
+    /**
+     * The actual filters.
+     */
+    FileOperationFilter* filters;
+    int filters_count;
+} FileOperationRegistrationOptions;
+
+static FileOperationRegistrationOptions file_operation_registration_options_parse(JSONValue* value, char* key) {
+    FileOperationRegistrationOptions result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue* operation = json_object_get_ptr(value, key);
+    if (operation != NULL && operation->type == JSON_VALUE_OBJECT) {
+        JSONValue* filters = json_object_get_ptr(operation, "filters");
+        if (filters != NULL && filters->type == JSON_VALUE_ARRAY) {
+            size_t length = json_array_length(filters);
+            result.filters_count = length;
+            result.filters = (FileOperationFilter*)calloc(length, sizeof(FileOperationFilter));
+            for (size_t i = 0; i < length; i++) {
+                JSONValue* item = json_array_get_ptr(filters, i);
+                FileOperationFilter* filter = &result.filters[i];
+
+                JSONValue* scheme = json_object_get_ptr(item, "scheme");
+                if (scheme != NULL && scheme->type == JSON_VALUE_STRING) {
+                    filter->scheme = json_move_string(scheme);
+                }
+
+                JSONValue* pattern = json_object_get_ptr(item, "pattern");
+                if (pattern != NULL && pattern->type == JSON_VALUE_OBJECT) {
+                    JSONValue* glob = json_object_get_ptr(pattern, "glob");
+                    if (glob != NULL && glob->type == JSON_VALUE_STRING) {
+                        filter->pattern.glob = json_move_string(glob);
+                    }
+
+                    JSONValue matches = json_object_get(pattern, "matches");
+                    if (matches.type == JSON_VALUE_ARRAY) {
+                        for (size_t i = 0; i < matches.value.array_value->values.length; i++) {
+                            JSONValue match_item = json_array_get(&matches, i);
+                            if (match_item.type == JSON_VALUE_STRING) {
+                                if (strcmp(match_item.value.string_value, "file") == 0) {
+                                    filter->pattern.matches |= FILEOPERATIONPATTERNKIND_FILE;
+                                } else if (strcmp(match_item.value.string_value, "folder") == 0) {
+                                    filter->pattern.matches |= FILEOPERATIONPATTERNKIND_FOLDER;
+                                }
+                            }
+                        }
+                    } else {
+                        filter->pattern.matches = (FILEOPERATIONPATTERNKIND_FILE | FILEOPERATIONPATTERNKIND_FOLDER);
+                    }
+
+                    JSONValue options = json_object_get(pattern, "options");
+                    if (options.type == JSON_VALUE_OBJECT) {
+                        JSONValue ignore_case = json_object_get(&options, "ignoreCase");
+                        if (ignore_case.type == JSON_VALUE_BOOLEAN) {
+                            filter->pattern.options.ignore_case = ignore_case.value.bool_value;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+static void file_operation_registration_options_free(FileOperationRegistrationOptions* file_operation_registration) {
+    if (file_operation_registration == NULL) {
+        return;
+    }
+
+    if (file_operation_registration->filters != NULL) {
+        for (int i = 0; i < file_operation_registration->filters_count; i++) {
+            FileOperationFilter* filter = &file_operation_registration->filters[i];
+            if (filter->scheme != NULL) {
+                free(filter->scheme);
+            }
+
+            if (filter->pattern.glob != NULL) {
+                free(filter->pattern.glob);
+            }
+        }
+
+        free(file_operation_registration->filters);
+    }
+}
+
+typedef struct FileOperationsServer {
+    /**
+     * The server is interested in receiving didCreateFiles
+     * notifications.
+     */
+    FileOperationRegistrationOptions did_create;
+
+    /**
+     * The server is interested in receiving willCreateFiles requests.
+     */
+    FileOperationRegistrationOptions will_create;
+
+    /**
+     * The server is interested in receiving didRenameFiles
+     * notifications.
+     */
+    FileOperationRegistrationOptions did_rename;
+
+    /**
+     * The server is interested in receiving willRenameFiles requests.
+     */
+    FileOperationRegistrationOptions will_rename;
+
+    /**
+     * The server is interested in receiving didDeleteFiles file
+     * notifications.
+     */
+    FileOperationRegistrationOptions did_delete;
+
+    /**
+     * The server is interested in receiving willDeleteFiles file
+     * requests.
+     */
+    FileOperationRegistrationOptions will_delete;
+} FileOperationsServer;
+
+/**
+ * Workspace specific server capabilities
+ */
+typedef struct WorkspaceServer {
+    /**
+     * The server supports workspace folder.
+     *
+     * @since 3.6.0
+     */
+    WorkspaceFoldersServerCapabilities workspace_folders;
+
+    /**
+     * The server is interested in file notifications/requests.
+     *
+     * @since 3.16.0
+     */
+    FileOperationsServer file_operations;
+} WorkspaceServer;
+
+/**
+ * The capabilities the language server provides.
+ */
+typedef struct ServerCapabilities {
+    /**
+     * The position encoding the server picked from the encodings offered
+     * by the client via the client capability `general.positionEncodings`.
+     *
+     * If the client didn't provide any position encodings the only valid
+     * value that a server can return is 'utf-16'.
+     *
+     * If omitted it defaults to 'utf-16'.
+     *
+     * @since 3.17.0
+     */
+    int position_encoding;
+
+    /**
+     * Defines how text documents are synced. Is either a detailed structure
+     * defining each notification or for backwards compatibility the
+     * TextDocumentSyncKind number. If omitted it defaults to
+     * `TextDocumentSyncKind.None`.
+     */
+    TextDocumentSyncOptions text_document_sync;
+
+    /**
+     * Defines how notebook documents are synced.
+     *
+     * @since 3.17.0
+     */
+    NotebookDocumentSyncOptions notebook_document_sync;
+
+    /**
+     * The server provides completion support.
+     */
+    CompletionOptions completion_provider;
+
+    /**
+     * The server provides hover support.
+     */
+    HoverOptions hover_provider;
+
+    /**
+     * The server provides signature help support.
+     */
+    SignatureHelpOptions signature_help_provider;
+
+    /**
+     * The server provides go to declaration support.
+     *
+     * @since 3.14.0
+     */
+    DeclarationRegistrationOptions declaration_provider;
+
+    /**
+     * The server provides goto definition support.
+     */
+    DefinitionOptions definition_provider;
+
+    /**
+     * The server provides goto type definition support.
+     *
+     * @since 3.6.0
+     */
+    TypeDefinitionRegistrationOptions type_definition_provider;
+
+    /**
+     * The server provides goto implementation support.
+     *
+     * @since 3.6.0
+     */
+    ImplementationRegistrationOptions implementation_provider;
+
+    /**
+     * The server provides find references support.
+     */
+    ReferenceOptions references_provider;
+
+    /**
+     * The server provides document highlight support.
+     */
+    DocumentHighlightOptions document_highlight_provider;
+
+    /**
+     * The server provides document symbol support.
+     */
+    DocumentSymbolOptions document_symbol_provider;
+
+    /**
+     * The server provides code actions. The `CodeActionOptions` return type is
+     * only valid if the client signals code action literal support via the
+     * property `textDocument.codeAction.codeActionLiteralSupport`.
+     */
+    CodeActionOptions code_action_provider;
+
+    /**
+     * The server provides code lens.
+     */
+    CodeLensOptions code_lens_provider;
+
+    /**
+     * The server provides document link support.
+     */
+    DocumentLinkOptions document_link_provider;
+
+    /**
+     * The server provides color provider support.
+     *
+     * @since 3.6.0
+     */
+    DocumentColorRegistrationOptions color_provider;
+
+    /**
+     * The server provides document formatting.
+     */
+    DocumentFormattingOptions document_formatting_provider;
+
+    /**
+     * The server provides document range formatting.
+     */
+    DocumentRangeFormattingOptions document_range_rormatting_provider;
+
+    /**
+     * The server provides document formatting on typing.
+     */
+    DocumentOnTypeFormattingOptions document_on_type_formatting_provider;
+
+    /**
+     * The server provides rename support. RenameOptions may only be
+     * specified if the client states that it supports
+     * `prepareSupport` in its initial `initialize` request.
+     */
+    RenameOptions rename_provider;
+
+    /**
+     * The server provides folding provider support.
+     *
+     * @since 3.10.0
+     */
+    FoldingRangeRegistrationOptions folding_range_provider;
+
+    /**
+     * The server provides execute command support.
+     */
+    ExecuteCommandOptions execute_command_provider;
+
+    /**
+     * The server provides selection range support.
+     *
+     * @since 3.15.0
+     */
+    SelectionRangeRegistrationOptions selection_range_provider;
+
+    /**
+     * The server provides linked editing range support.
+     *
+     * @since 3.16.0
+     */
+    LinkedEditingRangeRegistrationOptions linked_editing_range_provider;
+
+    /**
+     * The server provides call hierarchy support.
+     *
+     * @since 3.16.0
+     */
+    CallHierarchyRegistrationOptions call_hierarchy_provider;
+
+    /**
+     * The server provides semantic tokens support.
+     *
+     * @since 3.16.0
+     */
+    SemanticTokensRegistrationOptions semantic_tokens_provider;
+
+    /**
+     * Whether server provides moniker support.
+     *
+     * @since 3.16.0
+     */
+    MonikerRegistrationOptions moniker_provider;
+
+    /**
+     * The server provides type hierarchy support.
+     *
+     * @since 3.17.0
+     */
+    TypeHierarchyRegistrationOptions type_hierarchy_provider;
+
+    /**
+     * The server provides inline values.
+     *
+     * @since 3.17.0
+     */
+    InlineValueRegistrationOptions inline_value_provider;
+
+    /**
+     * The server provides inlay hints.
+     *
+     * @since 3.17.0
+     */
+    InlayHintRegistrationOptions inlay_hint_provider;
+
+    /**
+     * The server has support for pull model diagnostics.
+     *
+     * @since 3.17.0
+     */
+    DiagnosticRegistrationOptions diagnostic_provider;
+
+    /**
+     * The server provides workspace symbol support.
+     */
+    WorkspaceSymbolOptions workspace_symbol_provider;
+
+    /**
+     * Workspace specific server capabilities
+     */
+    WorkspaceServer workspace;
+} ServerCapabilities;
+
+static ServerCapabilities server_capabilities_parse(JSONValue* value) {
+    ServerCapabilities result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+    
+    JSONValue position_encoding = json_object_get(value, "positionEncoding");
+    if (position_encoding.type == JSON_VALUE_STRING) {
+        result.position_encoding = position_encoding_kind_parse(position_encoding.value.string_value);
+    } else {
+        result.position_encoding = POSITIONENCODINGKIND_UTF16;
+    }
+
+    JSONValue text_document_sync = json_object_get(value, "textDocumentSync");
+    if (text_document_sync.type == JSON_VALUE_INT) {
+        result.text_document_sync.change = text_document_sync.value.int_value;
+    } else if (text_document_sync.type == JSON_VALUE_OBJECT) {
+        JSONValue open_close = json_object_get(&text_document_sync, "openClose");
+        if (open_close.type == JSON_VALUE_BOOLEAN) {
+            result.text_document_sync.open_close = open_close.value.bool_value;
+        }
+
+        JSONValue change = json_object_get(&text_document_sync, "change");
+        if (change.type == JSON_VALUE_INT) {
+            result.text_document_sync.change = change.value.int_value;
+        }
+    }
+
+    JSONValue* notebook_document_sync = json_object_get_ptr(value, "notebookDocumentSync");
+    if (notebook_document_sync != NULL && notebook_document_sync->type == JSON_VALUE_OBJECT) {
+        result.notebook_document_sync.static_registration = static_registration_options_parse(notebook_document_sync);
+
+        JSONValue* notebook_selector = json_object_get_ptr(notebook_document_sync, "notebookSelector");
+        if (notebook_selector != NULL && notebook_selector->type == JSON_VALUE_ARRAY) {
+            size_t length = json_array_length(notebook_selector);
+            result.notebook_document_sync.notebook_selector_count = length;
+            if (result.notebook_document_sync.notebook_selector_count > 0) {
+                NotebookSelector* selectors = (NotebookSelector*)calloc(length, sizeof(NotebookSelector));
+                for (size_t i = 0; i < length; i++) {
+                    JSONValue* item = json_array_get_ptr(notebook_selector, i);
+                    if (item == NULL || item->type != JSON_VALUE_OBJECT) {
+                        continue;
+                    }
+                    JSONValue* notebook = json_object_get_ptr(item, "notebook");
+                    if (notebook != NULL) {
+                        if (notebook->type == JSON_VALUE_STRING) {
+                            selectors[i].notebook.notebook_type = json_move_string(notebook);
+                        } else if (notebook->type == JSON_VALUE_OBJECT) {
+                            JSONValue* notebook_type = json_object_get_ptr(notebook, "notebookType");
+                            if (notebook_type != NULL && notebook_type->type == JSON_VALUE_STRING) {
+                                selectors[i].notebook.notebook_type = json_move_string(notebook_type);
+                            }
+                            JSONValue* scheme = json_object_get_ptr(notebook, "scheme");
+                            if (scheme != NULL && scheme->type == JSON_VALUE_STRING) {
+                                selectors[i].notebook.scheme = json_move_string(scheme);
+                            }
+                            JSONValue* pattern = json_object_get_ptr(notebook, "pattern");
+                            if (pattern != NULL && pattern->type == JSON_VALUE_STRING) {
+                                selectors[i].notebook.pattern = json_move_string(pattern);
+                            }
+                        }
+                    }
+
+                    selectors[i].cells = parse_string_array(item, "cells", &selectors[i].cells_count);
+                }
+                result.notebook_document_sync.notebook_selector = selectors;
+            }
+        }
+
+        JSONValue save = json_object_get(notebook_document_sync, "save");
+        if (save.type == JSON_VALUE_BOOLEAN) {
+            result.notebook_document_sync.save = save.value.bool_value;
+        }
+    }
+
+    JSONValue* completion_provider = json_object_get_ptr(value, "completionProvider");
+    if (completion_provider != NULL && completion_provider->type == JSON_VALUE_OBJECT) {
+        result.completion_provider.work_done_progress = work_done_progress_parse(completion_provider);
+
+        result.completion_provider.trigger_characters = 
+            parse_string_array(completion_provider, "triggerCharacters", &result.completion_provider.trigger_characters_count);
+
+        result.completion_provider.all_commit_characters =
+            parse_string_array(completion_provider, "allCommitCharacters", &result.completion_provider.all_commit_characters_count);
+
+        JSONValue resolve_provider = json_object_get(completion_provider, "resolveProvider");
+        if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
+            result.completion_provider.resolve_provider = resolve_provider.value.bool_value;
+        }
+
+        JSONValue completion_item = json_object_get(completion_provider, "completionItem");
+        if (completion_item.type == JSON_VALUE_OBJECT) {
+            JSONValue label_data_support = json_object_get(&completion_item, "labelDataSupport");
+            if (label_data_support.type == JSON_VALUE_BOOLEAN) {
+                result.completion_provider.completion_item_label_details_support = label_data_support.value.bool_value;
+            }
+        }
+    }
+
+    JSONValue hover_provider = json_object_get(value, "hoverProvider");
+    if (hover_provider.type == JSON_VALUE_BOOLEAN) {
+        result.hover_provider.is_supported = hover_provider.value.bool_value;
+    } else if (hover_provider.type == JSON_VALUE_OBJECT) {
+        result.hover_provider.work_done_progress = work_done_progress_parse(&hover_provider);
+    }
+
+    JSONValue* signature_help_provider = json_object_get_ptr(value, "signatureHelpProvider");
+    if (signature_help_provider != NULL && signature_help_provider->type == JSON_VALUE_OBJECT) {
+        result.signature_help_provider.work_done_progress = work_done_progress_parse(signature_help_provider);
+        result.signature_help_provider.trigger_characters =
+            parse_string_array(signature_help_provider, "triggerCharacters", &result.signature_help_provider.trigger_characters_count);
+        result.signature_help_provider.retrigger_characters =
+            parse_string_array(signature_help_provider, "retriggerCharacters", &result.signature_help_provider.retrigger_characters_count);
+    }
+
+    JSONValue* declaration_provider = json_object_get_ptr(value, "declarationProvider");
+    if (declaration_provider != NULL) {
+        if (declaration_provider->type == JSON_VALUE_BOOLEAN) {
+            result.declaration_provider.is_supported = declaration_provider->value.bool_value;
+        } else if (declaration_provider->type == JSON_VALUE_OBJECT) {
+            result.declaration_provider.is_supported = 1;
+            result.declaration_provider.work_done_progress = work_done_progress_parse(declaration_provider);
+            result.declaration_provider.static_registration = static_registration_options_parse(declaration_provider);
+            result.declaration_provider.text_document_registration = text_document_registration_options_parse(declaration_provider);
+        }
+    }
+
+    JSONValue definition_provider = json_object_get(value, "definitionProvider");
+    if (definition_provider.type == JSON_VALUE_BOOLEAN) {
+        result.definition_provider.is_supported = definition_provider.value.bool_value;
+    } else if (definition_provider.type == JSON_VALUE_OBJECT) {
+        result.definition_provider.is_supported = 1;
+        result.definition_provider.work_done_progress = work_done_progress_parse(&definition_provider);
+    }
+
+    JSONValue* type_definition_provider = json_object_get_ptr(value, "typeDefinitionProvider");
+    if (type_definition_provider != NULL) {
+        if (type_definition_provider->type == JSON_VALUE_BOOLEAN) {
+            result.type_definition_provider.is_supported = type_definition_provider->value.bool_value;
+        } else if (type_definition_provider->type == JSON_VALUE_OBJECT) {
+            result.type_definition_provider.is_supported = 1;
+            result.type_definition_provider.work_done_progress = work_done_progress_parse(type_definition_provider);
+            result.type_definition_provider.text_document_registration = text_document_registration_options_parse(type_definition_provider);
+            result.type_definition_provider.static_registration = static_registration_options_parse(type_definition_provider);
+        }
+    }
+
+    JSONValue* implementation_provider = json_object_get_ptr(value, "implementationProvider");
+    if (implementation_provider != NULL) {
+        if (implementation_provider->type == JSON_VALUE_BOOLEAN) {
+            result.implementation_provider.is_supported = implementation_provider->value.bool_value;
+        } else if (implementation_provider->type == JSON_VALUE_OBJECT) {
+            result.implementation_provider.is_supported = 1;
+            result.implementation_provider.work_done_progress = work_done_progress_parse(implementation_provider);
+            result.implementation_provider.text_document_registration = text_document_registration_options_parse(implementation_provider);
+            result.implementation_provider.static_registration = static_registration_options_parse(implementation_provider);
+        }
+    }
+
+    JSONValue references_provider = json_object_get(value, "referencesProvider");
+    if (references_provider.type == JSON_VALUE_BOOLEAN) {
+        result.references_provider.is_supported = references_provider.value.bool_value;
+    } else if (references_provider.type == JSON_VALUE_OBJECT) {
+        result.references_provider.is_supported = 1;
+        result.references_provider.work_done_progress = work_done_progress_parse(&references_provider);
+    }
+
+    JSONValue document_highlight_provider = json_object_get(value, "documentHighlightProvider");
+    if (document_highlight_provider.type == JSON_VALUE_BOOLEAN) {
+        result.document_highlight_provider.is_supported = document_highlight_provider.value.bool_value;
+    } else if (document_highlight_provider.type == JSON_VALUE_OBJECT) {
+        result.document_highlight_provider.is_supported = 1;
+        result.document_highlight_provider.work_done_progress = work_done_progress_parse(&document_highlight_provider);
+    }
+
+    JSONValue* document_symbol_provider = json_object_get_ptr(value, "documentSymbolProvider");
+    if (document_symbol_provider != NULL) {
+        if (document_symbol_provider->type == JSON_VALUE_BOOLEAN) {
+            result.document_symbol_provider.is_supported = document_symbol_provider->value.bool_value;
+        } else if (document_symbol_provider->type == JSON_VALUE_OBJECT) {
+            result.document_symbol_provider.is_supported = 1;
+            result.document_symbol_provider.work_done_progress = work_done_progress_parse(document_symbol_provider);
+            
+            JSONValue* label = json_object_get_ptr(document_symbol_provider, "label");
+            if (label != NULL && label->type == JSON_VALUE_STRING) {
+                result.document_symbol_provider.label = json_move_string(label);
+            }
+        }
+    }
+
+    JSONValue code_action_provider = json_object_get(value, "codeActionProvider");
+    if (code_action_provider.type == JSON_VALUE_BOOLEAN) {
+        result.code_action_provider.is_supported = code_action_provider.value.bool_value;
+    } else if (code_action_provider.type == JSON_VALUE_OBJECT) {
+        result.code_action_provider.is_supported = 1;
+        result.code_action_provider.work_done_progress = work_done_progress_parse(&code_action_provider);
+
+        JSONValue code_action_kinds = json_object_get(&code_action_provider, "codeActionKinds");
+        result.code_action_provider.code_action_kinds = code_action_kind_parse(&code_action_kinds);
+
+        JSONValue resolve_provider = json_object_get(&code_action_provider, "resolveProvider");
+        if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
+            result.code_action_provider.resolve_provider = resolve_provider.value.bool_value;
+        }
+    }
+
+    JSONValue code_lens_provider = json_object_get(value, "codeLensProvider");
+    if (code_lens_provider.type == JSON_VALUE_OBJECT) {
+        result.code_lens_provider.work_done_progress = work_done_progress_parse(&code_lens_provider);
+
+        JSONValue resolve_provider = json_object_get(&code_lens_provider, "resolveProvider");
+        if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
+            result.code_lens_provider.resolve_provider = resolve_provider.value.bool_value;
+        }
+    }
+
+    JSONValue document_link_provider = json_object_get(value, "documentLinkProvider");
+    if (document_link_provider.type == JSON_VALUE_OBJECT) {
+        result.document_link_provider.work_done_progress = work_done_progress_parse(&document_link_provider);
+
+        JSONValue resolve_provider = json_object_get(&document_link_provider, "resolveProvider");
+        if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
+            result.document_link_provider.resolve_provider = resolve_provider.value.bool_value;
+        }
+    }
+
+    JSONValue* color_provider = json_object_get_ptr(value, "colorProvider");
+    if (color_provider != NULL) {
+        if (color_provider->type == JSON_VALUE_BOOLEAN) {
+            result.color_provider.is_supported = color_provider->value.bool_value;
+        } else if (color_provider->type == JSON_VALUE_OBJECT) {
+            result.color_provider.is_supported = 1;
+            result.color_provider.work_done_progress = work_done_progress_parse(color_provider);
+            result.color_provider.text_document_registration = text_document_registration_options_parse(color_provider);
+            result.color_provider.static_registration = static_registration_options_parse(color_provider);
+        }
+    }
+
+    JSONValue document_formatting_provider = json_object_get(value, "documentFormattingProvider");
+    if (document_formatting_provider.type == JSON_VALUE_BOOLEAN) {
+        result.document_formatting_provider.is_supported = document_formatting_provider.value.bool_value;
+    } else if (document_formatting_provider.type == JSON_VALUE_OBJECT) {
+        result.document_formatting_provider.is_supported = 1;
+        result.document_formatting_provider.work_done_progress = work_done_progress_parse(&document_formatting_provider);
+    }
+
+    JSONValue document_range_formatting_provider = json_object_get(value, "documentRangeFormattingProvider");
+    if (document_range_formatting_provider.type == JSON_VALUE_BOOLEAN) {
+        result.document_range_rormatting_provider.is_supported = document_range_formatting_provider.value.bool_value;
+    } else if (document_range_formatting_provider.type == JSON_VALUE_OBJECT) {
+        result.document_range_rormatting_provider.is_supported = 1;
+        result.document_range_rormatting_provider.work_done_progress = work_done_progress_parse(&document_range_formatting_provider);
+    }
+
+    JSONValue* document_on_type_formatting_provider = json_object_get_ptr(value, "documentOnTypeFormattingProvider");
+    if (document_on_type_formatting_provider != NULL && document_on_type_formatting_provider->type == JSON_VALUE_OBJECT) {
+        JSONValue* first_trigger_character = json_object_get_ptr(document_on_type_formatting_provider, "firstTriggerCharacter");
+        if (first_trigger_character != NULL && first_trigger_character->type == JSON_VALUE_STRING) {
+            result.document_on_type_formatting_provider.first_trigger_character = json_move_string(first_trigger_character);
+        }
+
+        result.document_on_type_formatting_provider.more_trigger_character =
+            parse_string_array(document_on_type_formatting_provider, "moreTriggerCharacters", &result.document_on_type_formatting_provider.more_trigger_character_count);
+    }
+
+    JSONValue rename_provider = json_object_get(value, "renameProvider");
+    if (rename_provider.type == JSON_VALUE_BOOLEAN) {
+        result.rename_provider.is_supported = rename_provider.value.bool_value;
+    } else if (rename_provider.type == JSON_VALUE_OBJECT) {
+        result.rename_provider.is_supported = 1;
+        result.rename_provider.work_done_progress = work_done_progress_parse(&rename_provider);
+        
+        JSONValue prepare_provider = json_object_get(&rename_provider, "renameProvider");
+        if (prepare_provider.type == JSON_VALUE_BOOLEAN) {
+            result.rename_provider.prepare_provider = prepare_provider.value.bool_value;
+        }
+    }
+
+    JSONValue* folding_range_provider = json_object_get_ptr(value, "foldingRangeProvider");
+    if (folding_range_provider != NULL) {
+        if (folding_range_provider->type == JSON_VALUE_BOOLEAN) {
+            result.folding_range_provider.is_supported = folding_range_provider->value.bool_value;
+        } else if (folding_range_provider->type == JSON_VALUE_OBJECT) {
+            result.folding_range_provider.is_supported = 1;
+            result.folding_range_provider.work_done_progress = work_done_progress_parse(folding_range_provider);
+            result.folding_range_provider.text_document_registration = text_document_registration_options_parse(folding_range_provider);
+            result.folding_range_provider.static_registration = static_registration_options_parse(folding_range_provider);
+        }
+    }
+
+    JSONValue* execute_command_provider = json_object_get_ptr(value, "executeCommandProvider");
+    if (execute_command_provider != NULL && execute_command_provider->type == JSON_VALUE_OBJECT) {
+        result.execute_command_provider.work_done_progress = work_done_progress_parse(execute_command_provider);
+        result.execute_command_provider.commands =
+            parse_string_array(execute_command_provider, "commands", &result.execute_command_provider.commands_count);
+    }
+
+    JSONValue* selection_range_provider = json_object_get_ptr(value, "selectionRangeProvider");
+    if (selection_range_provider != NULL) {
+        if (selection_range_provider->type == JSON_VALUE_BOOLEAN) {
+            result.selection_range_provider.is_supported = selection_range_provider->value.bool_value;
+        } else if (selection_range_provider->type == JSON_VALUE_OBJECT) {
+            result.selection_range_provider.is_supported = 1;
+            result.selection_range_provider.work_done_progress = work_done_progress_parse(selection_range_provider);
+            result.selection_range_provider.text_document_registration = text_document_registration_options_parse(selection_range_provider);
+            result.selection_range_provider.static_registration = static_registration_options_parse(selection_range_provider);
+        }
+    }
+
+    JSONValue* linked_editing_range_provider = json_object_get_ptr(value, "linkedEditingRangeProvider");
+    if (linked_editing_range_provider != NULL) {
+        if (linked_editing_range_provider->type == JSON_VALUE_BOOLEAN) {
+            result.linked_editing_range_provider.is_supported = linked_editing_range_provider->value.bool_value;
+        } else if (linked_editing_range_provider->type == JSON_VALUE_OBJECT) {
+            result.linked_editing_range_provider.is_supported = 1;
+            result.linked_editing_range_provider.work_done_progress = work_done_progress_parse(linked_editing_range_provider);
+            result.linked_editing_range_provider.text_document_registration = text_document_registration_options_parse(linked_editing_range_provider);
+            result.linked_editing_range_provider.static_registration = static_registration_options_parse(linked_editing_range_provider);
+        }
+    }
+
+    JSONValue* call_hierarchy_provider = json_object_get_ptr(value, "callHierarchyProvider");
+    if (call_hierarchy_provider != NULL) {
+        if (call_hierarchy_provider->type == JSON_VALUE_BOOLEAN) {
+            result.call_hierarchy_provider.is_supported = call_hierarchy_provider->value.bool_value;
+        } else if (call_hierarchy_provider->type == JSON_VALUE_OBJECT) {
+            result.call_hierarchy_provider.is_supported = 1;
+            result.call_hierarchy_provider.work_done_progress = work_done_progress_parse(call_hierarchy_provider);
+            result.call_hierarchy_provider.text_document_registration = text_document_registration_options_parse(call_hierarchy_provider);
+            result.call_hierarchy_provider.static_registration = static_registration_options_parse(call_hierarchy_provider);
+        }
+    }
+
+    JSONValue* semantic_tokens_provider = json_object_get_ptr(value, "semanticTokensProvider");
+    if (semantic_tokens_provider != NULL && semantic_tokens_provider->type == JSON_VALUE_OBJECT) {
+        result.semantic_tokens_provider.semantic_tokens.work_done_progress = work_done_progress_parse(semantic_tokens_provider);
+        result.semantic_tokens_provider.text_document_registration = text_document_registration_options_parse(semantic_tokens_provider);
+        result.semantic_tokens_provider.static_registration = static_registration_options_parse(semantic_tokens_provider);
+
+        JSONValue* legend = json_object_get_ptr(semantic_tokens_provider, "legend");
+        if (legend != NULL && legend->type == JSON_VALUE_OBJECT) {
+            result.semantic_tokens_provider.semantic_tokens.legend.token_types =
+                parse_string_array(legend, "tokenTypes", &result.semantic_tokens_provider.semantic_tokens.legend.token_types_count);
+            result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers =
+                parse_string_array(legend, "tokenModifiers", &result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count);
+        }
+
+        JSONValue range = json_object_get(semantic_tokens_provider, "range");
+        if (range.type == JSON_VALUE_BOOLEAN) {
+            result.semantic_tokens_provider.semantic_tokens.range = range.value.bool_value;
+        }
+
+        JSONValue full = json_object_get(semantic_tokens_provider, "full");
+        if (full.type == JSON_VALUE_OBJECT) {
+            JSONValue delta = json_object_get(&full, "delta");
+            if (delta.type == JSON_VALUE_BOOLEAN) {
+                result.semantic_tokens_provider.semantic_tokens.full_delta = delta.value.bool_value;
+            }
+        }
+    }
+
+    JSONValue* moniker_provider = json_object_get_ptr(value, "monikerProvider");
+    if (moniker_provider != NULL) {
+        if (moniker_provider->type == JSON_VALUE_BOOLEAN) {
+            result.moniker_provider.is_supported = moniker_provider->value.bool_value;
+        } else if (moniker_provider->type == JSON_VALUE_OBJECT) {
+            result.moniker_provider.is_supported = 1;
+            result.moniker_provider.work_done_progress = work_done_progress_parse(moniker_provider);
+            result.moniker_provider.text_document_registration = text_document_registration_options_parse(moniker_provider);
+        }
+    }
+
+    JSONValue* type_hierarchy_provider = json_object_get_ptr(value, "typeHierarchyProvider");
+    if (type_hierarchy_provider != NULL) {
+        if (type_hierarchy_provider->type == JSON_VALUE_BOOLEAN) {
+            result.type_hierarchy_provider.is_supported = type_hierarchy_provider->value.bool_value;
+        } else if (type_hierarchy_provider->type == JSON_VALUE_OBJECT) {
+            result.type_hierarchy_provider.is_supported = 1;
+            result.type_hierarchy_provider.work_done_progress = work_done_progress_parse(type_hierarchy_provider);
+            result.type_definition_provider.text_document_registration = text_document_registration_options_parse(type_hierarchy_provider);
+            result.type_definition_provider.static_registration = static_registration_options_parse(type_hierarchy_provider);
+        }
+    }
+
+    JSONValue* inline_value_provider = json_object_get_ptr(value, "inlineValueProvider");
+    if (inline_value_provider != NULL) {
+        if (inline_value_provider->type == JSON_VALUE_BOOLEAN) {
+            result.inline_value_provider.is_supported = inline_value_provider->value.bool_value;
+        } else if (inline_value_provider->type == JSON_VALUE_OBJECT) {
+            result.inline_value_provider.is_supported = 1;
+            result.inline_value_provider.work_done_progress = work_done_progress_parse(inline_value_provider);
+            result.inline_value_provider.text_document_registration = text_document_registration_options_parse(inline_value_provider);
+            result.inline_value_provider.static_registration = static_registration_options_parse(inline_value_provider);
+        }
+    }
+
+    JSONValue* inlay_hint_provider = json_object_get_ptr(value, "inlayHintProvider");
+    if (inlay_hint_provider != NULL) {
+        if (inlay_hint_provider->type == JSON_VALUE_BOOLEAN) {
+            result.inlay_hint_provider.is_supported = inlay_hint_provider->value.bool_value;
+        } else if (inlay_hint_provider->type == JSON_VALUE_OBJECT) {
+            result.inlay_hint_provider.is_supported = 1;
+            result.inlay_hint_provider.work_done_progress = work_done_progress_parse(inlay_hint_provider);
+            result.inlay_hint_provider.text_document_registration = text_document_registration_options_parse(inlay_hint_provider);
+            result.inlay_hint_provider.static_registration = static_registration_options_parse(inlay_hint_provider);
+        }
+    }
+
+    JSONValue* diagnostic_provider = json_object_get_ptr(value, "diagnosticProvider");
+    if (diagnostic_provider != NULL && diagnostic_provider->type == JSON_VALUE_OBJECT) {
+        result.diagnostic_provider.work_done_progress = work_done_progress_parse(diagnostic_provider);
+        result.diagnostic_provider.text_document_registration = text_document_registration_options_parse(diagnostic_provider);
+        result.diagnostic_provider.static_registration = static_registration_options_parse(diagnostic_provider);
+
+        JSONValue* identifier = json_object_get_ptr(diagnostic_provider, "identifier");
+        if (identifier != NULL && identifier->type == JSON_VALUE_STRING) {
+            result.diagnostic_provider.identifier = json_move_string(identifier);
+        }
+
+        JSONValue inter_file_dependencies = json_object_get(diagnostic_provider, "interFileDependencies");
+        if (inter_file_dependencies.type == JSON_VALUE_BOOLEAN) {
+            result.diagnostic_provider.inter_file_dependencies = inter_file_dependencies.value.bool_value;
+        }
+
+        JSONValue workspace_diagnostics = json_object_get(diagnostic_provider, "workspaceDiagnostics");
+        if (workspace_diagnostics.type == JSON_VALUE_BOOLEAN) {
+            result.diagnostic_provider.workspace_diagnostics = workspace_diagnostics.value.bool_value;
+        }
+    }
+
+    JSONValue workspace_symbol_provider = json_object_get(value, "workspaceSymbolProvider");
+    if (workspace_symbol_provider.type == JSON_VALUE_BOOLEAN) {
+        result.workspace_symbol_provider.is_supported = workspace_symbol_provider.value.bool_value;
+    } else if (workspace_symbol_provider.type == JSON_VALUE_OBJECT) {
+        result.workspace_symbol_provider.is_supported = 1;
+        result.workspace_symbol_provider.work_done_progress = work_done_progress_parse(&workspace_symbol_provider);
+
+        JSONValue resolve_provider = json_object_get(&workspace_symbol_provider, "resolveProvider");
+        if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
+            result.workspace_symbol_provider.resolve_provider = resolve_provider.value.bool_value;
+        }
+    }
+
+    JSONValue* workspace = json_object_get_ptr(value, "workspace");
+    if (workspace != NULL && workspace->type == JSON_VALUE_OBJECT) {
+        JSONValue* workspace_folders = json_object_get_ptr(workspace, "workspaceFolders");
+        if (workspace_folders != NULL && workspace_folders->type == JSON_VALUE_OBJECT) {
+            JSONValue supported = json_object_get(workspace_folders, "supported");
+            if (supported.type == JSON_VALUE_BOOLEAN) {
+                result.workspace.workspace_folders.supported = supported.value.bool_value;
+            }
+
+            JSONValue* change_notifications = json_object_get_ptr(workspace_folders, "changeNotifications");
+            if (change_notifications != NULL) {
+                if (change_notifications->type == JSON_VALUE_BOOLEAN) {
+                    result.workspace.workspace_folders.change_notifications_boolean = change_notifications->value.bool_value;
+                    result.workspace.workspace_folders.change_notifications = NULL;
+                } else if (change_notifications->type == JSON_VALUE_STRING) {
+                    result.workspace.workspace_folders.change_notifications_boolean = 1;
+                    result.workspace.workspace_folders.change_notifications = json_move_string(change_notifications);
+                }
+            }
+        }
+
+        JSONValue* file_operations = json_object_get_ptr(workspace, "fileOperations");
+        if (file_operations != NULL && file_operations->type == JSON_VALUE_OBJECT) {
+            result.workspace.file_operations.did_create = file_operation_registration_options_parse(file_operations, "didCreate");
+            result.workspace.file_operations.will_create = file_operation_registration_options_parse(file_operations, "will_create");
+            result.workspace.file_operations.did_rename = file_operation_registration_options_parse(file_operations, "didRename");
+            result.workspace.file_operations.will_rename = file_operation_registration_options_parse(file_operations, "willRename");
+            result.workspace.file_operations.did_delete = file_operation_registration_options_parse(file_operations, "didDelete");
+            result.workspace.file_operations.will_delete = file_operation_registration_options_parse(file_operations, "willDelete");
+        }
+    }
+
+    return result;
+}
+
+static void server_capabilities_free(ServerCapabilities* capabilities) {
+    for (int i = 0; i < capabilities->notebook_document_sync.notebook_selector_count; i++) {
+        NotebookSelector* selector = &capabilities->notebook_document_sync.notebook_selector[i];
+
+        if (selector->notebook.notebook_type != NULL) {
+            free(selector->notebook.notebook_type);
+        }
+
+        if (selector->notebook.scheme != NULL) {
+            free(selector->notebook.scheme);
+        }
+
+        if (selector->notebook.pattern != NULL) {
+            free(selector->notebook.pattern);
+        }
+
+        string_free_array(selector->cells, selector->cells_count);
+    }
+
+    static_registration_options_free(&capabilities->notebook_document_sync.static_registration);
+
+    if (capabilities->notebook_document_sync.notebook_selector != NULL) {
+        free(capabilities->notebook_document_sync.notebook_selector);
+    }
+
+    string_free_array(capabilities->completion_provider.trigger_characters, capabilities->completion_provider.trigger_characters_count);
+    string_free_array(capabilities->completion_provider.all_commit_characters, capabilities->completion_provider.all_commit_characters_count);
+    string_free_array(capabilities->signature_help_provider.trigger_characters, capabilities->signature_help_provider.trigger_characters_count);
+    string_free_array(capabilities->signature_help_provider.retrigger_characters, capabilities->signature_help_provider.retrigger_characters_count);
+
+    static_registration_options_free(&capabilities->declaration_provider.static_registration);
+    text_document_registration_options_free(&capabilities->declaration_provider.text_document_registration);
+
+    static_registration_options_free(&capabilities->type_definition_provider.static_registration);
+    text_document_registration_options_free(&capabilities->type_definition_provider.text_document_registration);
+
+    static_registration_options_free(&capabilities->implementation_provider.static_registration);
+    text_document_registration_options_free(&capabilities->implementation_provider.text_document_registration);
+
+    if (capabilities->document_symbol_provider.label != NULL) {
+        free(capabilities->document_symbol_provider.label);
+    }
+
+    static_registration_options_free(&capabilities->color_provider.static_registration);
+    text_document_registration_options_free(&capabilities->color_provider.text_document_registration);
+
+    if (capabilities->document_on_type_formatting_provider.first_trigger_character != NULL) {
+        free(capabilities->document_on_type_formatting_provider.first_trigger_character);
+    }
+
+    string_free_array(capabilities->document_on_type_formatting_provider.more_trigger_character, capabilities->document_on_type_formatting_provider.more_trigger_character_count);
+
+    static_registration_options_free(&capabilities->folding_range_provider.static_registration);
+    text_document_registration_options_free(&capabilities->folding_range_provider.text_document_registration);
+
+    string_free_array(capabilities->execute_command_provider.commands, capabilities->execute_command_provider.commands_count);
+
+    static_registration_options_free(&capabilities->selection_range_provider.static_registration);
+    text_document_registration_options_free(&capabilities->selection_range_provider.text_document_registration);
+
+    static_registration_options_free(&capabilities->linked_editing_range_provider.static_registration);
+    text_document_registration_options_free(&capabilities->linked_editing_range_provider.text_document_registration);
+
+    static_registration_options_free(&capabilities->call_hierarchy_provider.static_registration);
+    text_document_registration_options_free(&capabilities->call_hierarchy_provider.text_document_registration);
+
+    string_free_array(capabilities->semantic_tokens_provider.semantic_tokens.legend.token_types,
+        capabilities->semantic_tokens_provider.semantic_tokens.legend.token_types_count);
+    string_free_array(capabilities->semantic_tokens_provider.semantic_tokens.legend.token_modifiers,
+        capabilities->semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count);
+    static_registration_options_free(&capabilities->semantic_tokens_provider.static_registration);
+    text_document_registration_options_free(&capabilities->semantic_tokens_provider.text_document_registration);
+
+    text_document_registration_options_free(&capabilities->moniker_provider.text_document_registration);
+
+    static_registration_options_free(&capabilities->type_hierarchy_provider.static_registration);
+    text_document_registration_options_free(&capabilities->type_hierarchy_provider.text_document_registration);
+
+    static_registration_options_free(&capabilities->inline_value_provider.static_registration);
+    text_document_registration_options_free(&capabilities->inline_value_provider.text_document_registration);
+
+    static_registration_options_free(&capabilities->inlay_hint_provider.static_registration);
+    text_document_registration_options_free(&capabilities->inlay_hint_provider.text_document_registration);
+
+    if (capabilities->diagnostic_provider.identifier != NULL) {
+        free(capabilities->diagnostic_provider.identifier);
+    }
+
+    static_registration_options_free(&capabilities->diagnostic_provider.static_registration);
+    text_document_registration_options_free(&capabilities->diagnostic_provider.text_document_registration);
+
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.did_create);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.will_create);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.did_rename);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.will_rename);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.did_delete);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.will_delete);
+}
+
+//
+// End Server Capabilities
+//
+
 typedef struct TextDocumentItem {
     /**
      * The text document's URI.
@@ -4033,6 +5873,7 @@ typedef struct Server {
     Vector requests;
     int request_id;
     LSTalk_ServerInfo info;
+    ServerCapabilities capabilities;
     Vector text_documents;
     Vector notifications;
 } Server;
@@ -4089,160 +5930,6 @@ static Server* context_get_server(LSTalk_Context* context, LSTalk_ServerID id) {
     }
 
     return NULL;
-}
-
-static void server_free_static_registration(LSTalk_StaticRegistrationOptions* static_registration) {
-    if (static_registration == NULL || static_registration->id == NULL) {
-        return;
-    }
-
-    free(static_registration->id);
-}
-
-static void server_free_text_document_registration(LSTalk_TextDocumentRegistrationOptions* text_document_registration) {
-    if (text_document_registration == NULL) {
-        return;
-    }
-
-    if (text_document_registration->document_selector != NULL) {
-        for (int i = 0; i < text_document_registration->document_selector_count; i++) {
-            LSTalk_DocumentFilter* filter = &text_document_registration->document_selector[i];
-
-            if (filter->language != NULL) {
-                free(filter->language);
-            }
-
-            if (filter->scheme != NULL) {
-                free(filter->scheme);
-            }
-
-            if (filter->pattern != NULL) {
-                free(filter->pattern);
-            }
-        }
-
-        free(text_document_registration->document_selector);
-    }
-}
-
-static void server_free_file_operation_registration(LSTalk_FileOperationRegistrationOptions* file_operation_registration) {
-    if (file_operation_registration == NULL) {
-        return;
-    }
-
-    if (file_operation_registration->filters != NULL) {
-        for (int i = 0; i < file_operation_registration->filters_count; i++) {
-            LSTalk_FileOperationFilter* filter = &file_operation_registration->filters[i];
-            if (filter->scheme != NULL) {
-                free(filter->scheme);
-            }
-
-            if (filter->pattern.glob != NULL) {
-                free(filter->pattern.glob);
-            }
-        }
-
-        free(file_operation_registration->filters);
-    }
-}
-
-static void server_free_capabilities(LSTalk_ServerCapabilities* capabilities) {
-    for (int i = 0; i < capabilities->notebook_document_sync.notebook_selector_count; i++) {
-        LSTalk_NotebookSelector* selector = &capabilities->notebook_document_sync.notebook_selector[i];
-
-        if (selector->notebook.notebook_type != NULL) {
-            free(selector->notebook.notebook_type);
-        }
-
-        if (selector->notebook.scheme != NULL) {
-            free(selector->notebook.scheme);
-        }
-
-        if (selector->notebook.pattern != NULL) {
-            free(selector->notebook.pattern);
-        }
-
-        string_free_array(selector->cells, selector->cells_count);
-    }
-
-    server_free_static_registration(&capabilities->notebook_document_sync.static_registration);
-
-    if (capabilities->notebook_document_sync.notebook_selector != NULL) {
-        free(capabilities->notebook_document_sync.notebook_selector);
-    }
-
-    string_free_array(capabilities->completion_provider.trigger_characters, capabilities->completion_provider.trigger_characters_count);
-    string_free_array(capabilities->completion_provider.all_commit_characters, capabilities->completion_provider.all_commit_characters_count);
-    string_free_array(capabilities->signature_help_provider.trigger_characters, capabilities->signature_help_provider.trigger_characters_count);
-    string_free_array(capabilities->signature_help_provider.retrigger_characters, capabilities->signature_help_provider.retrigger_characters_count);
-
-    server_free_static_registration(&capabilities->declaration_provider.static_registration);
-    server_free_text_document_registration(&capabilities->declaration_provider.text_document_registration);
-
-    server_free_static_registration(&capabilities->type_definition_provider.static_registration);
-    server_free_text_document_registration(&capabilities->type_definition_provider.text_document_registration);
-
-    server_free_static_registration(&capabilities->implementation_provider.static_registration);
-    server_free_text_document_registration(&capabilities->implementation_provider.text_document_registration);
-
-    if (capabilities->document_symbol_provider.label != NULL) {
-        free(capabilities->document_symbol_provider.label);
-    }
-
-    server_free_static_registration(&capabilities->color_provider.static_registration);
-    server_free_text_document_registration(&capabilities->color_provider.text_document_registration);
-
-    if (capabilities->document_on_type_formatting_provider.first_trigger_character != NULL) {
-        free(capabilities->document_on_type_formatting_provider.first_trigger_character);
-    }
-
-    string_free_array(capabilities->document_on_type_formatting_provider.more_trigger_character, capabilities->document_on_type_formatting_provider.more_trigger_character_count);
-
-    server_free_static_registration(&capabilities->folding_range_provider.static_registration);
-    server_free_text_document_registration(&capabilities->folding_range_provider.text_document_registration);
-
-    string_free_array(capabilities->execute_command_provider.commands, capabilities->execute_command_provider.commands_count);
-
-    server_free_static_registration(&capabilities->selection_range_provider.static_registration);
-    server_free_text_document_registration(&capabilities->selection_range_provider.text_document_registration);
-
-    server_free_static_registration(&capabilities->linked_editing_range_provider.static_registration);
-    server_free_text_document_registration(&capabilities->linked_editing_range_provider.text_document_registration);
-
-    server_free_static_registration(&capabilities->call_hierarchy_provider.static_registration);
-    server_free_text_document_registration(&capabilities->call_hierarchy_provider.text_document_registration);
-
-    string_free_array(capabilities->semantic_tokens_provider.semantic_tokens.legend.token_types,
-        capabilities->semantic_tokens_provider.semantic_tokens.legend.token_types_count);
-    string_free_array(capabilities->semantic_tokens_provider.semantic_tokens.legend.token_modifiers,
-        capabilities->semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count);
-    server_free_static_registration(&capabilities->semantic_tokens_provider.static_registration);
-    server_free_text_document_registration(&capabilities->semantic_tokens_provider.text_document_registration);
-
-    server_free_text_document_registration(&capabilities->moniker_provider.text_document_registration);
-
-    server_free_static_registration(&capabilities->type_hierarchy_provider.static_registration);
-    server_free_text_document_registration(&capabilities->type_hierarchy_provider.text_document_registration);
-
-    server_free_static_registration(&capabilities->inline_value_provider.static_registration);
-    server_free_text_document_registration(&capabilities->inline_value_provider.text_document_registration);
-
-    server_free_static_registration(&capabilities->inlay_hint_provider.static_registration);
-    server_free_text_document_registration(&capabilities->inlay_hint_provider.text_document_registration);
-
-    if (capabilities->diagnostic_provider.identifier != NULL) {
-        free(capabilities->diagnostic_provider.identifier);
-    }
-
-    server_free_static_registration(&capabilities->diagnostic_provider.static_registration);
-    server_free_text_document_registration(&capabilities->diagnostic_provider.text_document_registration);
-
-    server_free_file_operation_registration(&capabilities->workspace.file_operations.did_create);
-    server_free_file_operation_registration(&capabilities->workspace.file_operations.will_create);
-    server_free_file_operation_registration(&capabilities->workspace.file_operations.did_rename);
-    server_free_file_operation_registration(&capabilities->workspace.file_operations.will_rename);
-    server_free_file_operation_registration(&capabilities->workspace.file_operations.did_delete);
-    server_free_file_operation_registration(&capabilities->workspace.file_operations.will_delete);
 }
 
 static void notification_free_publish_diagnostics(LSTalk_PublishDiagnostics* publish_diagnostics) {
@@ -4372,7 +6059,7 @@ static void server_close(Server* server) {
         free(server->info.version);
     }
 
-    server_free_capabilities(&server->info.capabilities);
+    server_capabilities_free(&server->capabilities);
 
     for (size_t i = 0; i < server->text_documents.length; i++) {
         TextDocumentItem* item = (TextDocumentItem*)vector_get(&server->text_documents, i);
@@ -4414,628 +6101,40 @@ static void server_make_and_send_request(LSTalk_Context* context, Server* server
     vector_push(&server->requests, &request);
 }
 
-static char** parse_string_array(JSONValue* value, char* key, int* count) {
-    if (value == NULL || value->type != JSON_VALUE_OBJECT || count == NULL) {
-        return NULL;
-    }
-
-    JSONValue array = json_object_get(value, key);
-    if (array.type != JSON_VALUE_ARRAY) {
-        return NULL;
-    }
-
-    size_t length = json_array_length(&array);
-    char** result = (char**)calloc(length, sizeof(char*));
-    for (size_t i = 0; i < length; i++) {
-        JSONValue item = json_array_get(&array, i);
-        if (item.type == JSON_VALUE_STRING) {
-            result[i] = string_alloc_copy(item.value.string_value);
-        }
-    }
-
-    *count = length;
-    return result;
-}
-
-static LSTalk_WorkDoneProgressOptions parse_work_done_progress(JSONValue* value) {
-    LSTalk_WorkDoneProgressOptions result;
-    result.work_done_progress = 0;
-
-    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
-        return result;
-    }
-
-    JSONValue work_done_progress = json_object_get(value, "workDoneProgress");
-    if (work_done_progress.type != JSON_VALUE_BOOLEAN) {
-        return result;
-    }
-
-    result.work_done_progress = work_done_progress.value.bool_value;
-    return result;
-}
-
-static LSTalk_StaticRegistrationOptions parse_static_registration(JSONValue* value) {
-    LSTalk_StaticRegistrationOptions result;
-    result.id = NULL;
-
-    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
-        return result;
-    }
-
-    JSONValue id = json_object_get(value, "id");
-    if (id.type != JSON_VALUE_STRING) {
-        return result;
-    }
-
-    result.id = string_alloc_copy(id.value.string_value);
-    return result;
-}
-
-static LSTalk_TextDocumentRegistrationOptions parse_text_document_registration(JSONValue* value) {
-    LSTalk_TextDocumentRegistrationOptions result;
-    memset(&result, 0, sizeof(result));
-
-    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
-        return result;
-    }
-
-    JSONValue document_selector = json_object_get(value, "documentSelector");
-    if (document_selector.type != JSON_VALUE_ARRAY) {
-        return result;
-    }
-
-    result.document_selector_count = document_selector.value.array_value->values.length;
-    result.document_selector = (LSTalk_DocumentFilter*)calloc(document_selector.value.array_value->values.length, sizeof(LSTalk_DocumentFilter));
-    for (size_t i = 0; i < document_selector.value.array_value->values.length; i++) {
-        JSONValue item = json_array_get(&document_selector, i);
-        LSTalk_DocumentFilter* filter = &result.document_selector[i];
-
-        JSONValue language = json_object_get(&item, "language");
-        if (language.type == JSON_VALUE_STRING) {
-            filter->language = string_alloc_copy(language.value.string_value);
-        }
-
-        JSONValue scheme = json_object_get(&item, "scheme");
-        if (scheme.type == JSON_VALUE_STRING) {
-            filter->scheme = string_alloc_copy(scheme.value.string_value);
-        }
-
-        JSONValue pattern = json_object_get(&item, "pattern");
-        if (pattern.type == JSON_VALUE_STRING) {
-            filter->pattern = string_alloc_copy(pattern.value.string_value);
-        }
-    }
-
-    return result;
-}
-
-static LSTalk_FileOperationRegistrationOptions parse_file_operation_registration(JSONValue* value, char* key) {
-    LSTalk_FileOperationRegistrationOptions result;
-    memset(&result, 0, sizeof(result));
-
-    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
-        return result;
-    }
-
-    JSONValue operation = json_object_get(value, key);
-    if (operation.type == JSON_VALUE_OBJECT) {
-        JSONValue filters = json_object_get(&operation, "filters");
-        if (filters.type == JSON_VALUE_ARRAY) {
-            result.filters_count = filters.value.array_value->values.length;
-            result.filters = (LSTalk_FileOperationFilter*)calloc(filters.value.array_value->values.length, sizeof(LSTalk_FileOperationFilter));
-            for (size_t i = 0; i < filters.value.array_value->values.length; i++) {
-                JSONValue item = json_array_get(&filters, i);
-                LSTalk_FileOperationFilter* filter = &result.filters[i];
-
-                JSONValue scheme = json_object_get(&item, "scheme");
-                if (scheme.type == JSON_VALUE_STRING) {
-                    filter->scheme = string_alloc_copy(scheme.value.string_value);
-                }
-
-                JSONValue pattern = json_object_get(&item, "pattern");
-                if (pattern.type == JSON_VALUE_OBJECT) {
-                    JSONValue glob = json_object_get(&pattern, "glob");
-                    if (glob.type == JSON_VALUE_STRING) {
-                        filter->pattern.glob = string_alloc_copy(glob.value.string_value);
-                    }
-
-                    JSONValue matches = json_object_get(&pattern, "matches");
-                    if (matches.type == JSON_VALUE_ARRAY) {
-                        for (size_t i = 0; i < matches.value.array_value->values.length; i++) {
-                            JSONValue match_item = json_array_get(&matches, i);
-                            if (match_item.type == JSON_VALUE_STRING) {
-                                if (strcmp(match_item.value.string_value, "file") == 0) {
-                                    filter->pattern.matches |= LSTALK_FILEOPERATIONPATTERNKIND_FILE;
-                                } else if (strcmp(match_item.value.string_value, "folder") == 0) {
-                                    filter->pattern.matches |= LSTALK_FILEOPERATIONPATTERNKIND_FOLDER;
-                                }
-                            }
-                        }
-                    } else {
-                        filter->pattern.matches = (LSTALK_FILEOPERATIONPATTERNKIND_FILE | LSTALK_FILEOPERATIONPATTERNKIND_FOLDER);
-                    }
-
-                    JSONValue options = json_object_get(&pattern, "options");
-                    if (options.type == JSON_VALUE_OBJECT) {
-                        JSONValue ignore_case = json_object_get(&options, "ignoreCase");
-                        if (ignore_case.type == JSON_VALUE_BOOLEAN) {
-                            filter->pattern.options.ignore_case = ignore_case.value.bool_value;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    return result;
-}
-
-static LSTalk_ServerInfo server_parse_initialized(JSONValue* value) {
+static LSTalk_ServerInfo server_info_parse(JSONValue* value) {
     LSTalk_ServerInfo info;
     memset(&info, 0, sizeof(info));
 
-    if (value == NULL) {
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
         return info;
     }
 
-    JSONValue result = json_object_get(value, "result");
-    if (result.type == JSON_VALUE_OBJECT) {
-        JSONValue capabilities = json_object_get(&result, "capabilities");
-        if (capabilities.type == JSON_VALUE_OBJECT) {
-            JSONValue position_encoding = json_object_get(&capabilities, "positionEncoding");
-            if (position_encoding.type == JSON_VALUE_STRING) {
-                info.capabilities.position_encoding = position_encoding_kind_parse(position_encoding.value.string_value);
-            } else {
-                info.capabilities.position_encoding = POSITIONENCODINGKIND_UTF16;
-            }
+    JSONValue* name = json_object_get_ptr(value, "name");
+    if (name != NULL && name->type == JSON_VALUE_STRING) {
+        info.name = json_move_string(name);
+    }
 
-            JSONValue text_document_sync = json_object_get(&capabilities, "textDocumentSync");
-            if (text_document_sync.type == JSON_VALUE_INT) {
-                info.capabilities.text_document_sync.change = text_document_sync.value.int_value;
-            } else if (text_document_sync.type == JSON_VALUE_OBJECT) {
-                JSONValue open_close = json_object_get(&text_document_sync, "openClose");
-                if (open_close.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.text_document_sync.open_close = open_close.value.bool_value;
-                }
-
-                JSONValue change = json_object_get(&text_document_sync, "change");
-                if (change.type == JSON_VALUE_INT) {
-                    info.capabilities.text_document_sync.change = change.value.int_value;
-                }
-            }
-
-            JSONValue notebook_document_sync = json_object_get(&capabilities, "notebookDocumentSync");
-            if (notebook_document_sync.type == JSON_VALUE_OBJECT) {
-                info.capabilities.notebook_document_sync.static_registration = parse_static_registration(&notebook_document_sync);
-
-                JSONValue notebook_selector = json_object_get(&notebook_document_sync, "notebookSelector");
-                if (notebook_selector.type == JSON_VALUE_ARRAY) {
-                    info.capabilities.notebook_document_sync.notebook_selector_count = notebook_selector.value.array_value->values.length;
-                    if (info.capabilities.notebook_document_sync.notebook_selector_count > 0) {
-                        LSTalk_NotebookSelector* selectors = (LSTalk_NotebookSelector*)calloc(info.capabilities.notebook_document_sync.notebook_selector_count, sizeof(LSTalk_NotebookSelector));
-                        for (size_t i = 0; i < notebook_selector.value.array_value->values.length; i++) {
-                            JSONValue item = json_array_get(&notebook_selector, i);
-                            if (item.type != JSON_VALUE_OBJECT) {
-                                continue;
-                            }
-                            JSONValue notebook = json_object_get(&item, "notebook");
-                            if (notebook.type == JSON_VALUE_STRING) {
-                                selectors[i].notebook.notebook_type = string_alloc_copy(notebook.value.string_value);
-                            } else if (notebook.type == JSON_VALUE_OBJECT) {
-                                JSONValue notebook_type = json_object_get(&notebook, "notebookType");
-                                if (notebook_type.type == JSON_VALUE_STRING) {
-                                    selectors[i].notebook.notebook_type = string_alloc_copy(notebook_type.value.string_value);
-                                }
-                                JSONValue scheme = json_object_get(&notebook, "scheme");
-                                if (scheme.type == JSON_VALUE_STRING) {
-                                    selectors[i].notebook.scheme = string_alloc_copy(scheme.value.string_value);
-                                }
-                                JSONValue pattern = json_object_get(&notebook, "pattern");
-                                if (pattern.type == JSON_VALUE_STRING) {
-                                    selectors[i].notebook.pattern = string_alloc_copy(pattern.value.string_value);
-                                }
-                            }
-
-                            selectors[i].cells = parse_string_array(&item, "cells", &selectors[i].cells_count);
-                        }
-                        info.capabilities.notebook_document_sync.notebook_selector = selectors;
-                    }
-                }
-
-                JSONValue save = json_object_get(&notebook_document_sync, "save");
-                if (save.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.notebook_document_sync.save = save.value.bool_value;
-                }
-            }
-
-            JSONValue completion_provider = json_object_get(&capabilities, "completionProvider");
-            if (completion_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.completion_provider.work_done_progress = parse_work_done_progress(&completion_provider);
-
-                info.capabilities.completion_provider.trigger_characters = 
-                    parse_string_array(&completion_provider, "triggerCharacters", &info.capabilities.completion_provider.trigger_characters_count);
-
-                info.capabilities.completion_provider.all_commit_characters =
-                    parse_string_array(&completion_provider, "allCommitCharacters", &info.capabilities.completion_provider.all_commit_characters_count);
-
-                JSONValue resolve_provider = json_object_get(&completion_provider, "resolveProvider");
-                if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.completion_provider.resolve_provider = resolve_provider.value.bool_value;
-                }
-
-                JSONValue completion_item = json_object_get(&completion_provider, "completionItem");
-                if (completion_item.type == JSON_VALUE_OBJECT) {
-                    JSONValue label_data_support = json_object_get(&completion_item, "labelDataSupport");
-                    if (label_data_support.type == JSON_VALUE_BOOLEAN) {
-                        info.capabilities.completion_provider.completion_item_label_details_support = label_data_support.value.bool_value;
-                    }
-                }
-            }
-
-            JSONValue hover_provider = json_object_get(&capabilities, "hoverProvider");
-            if (hover_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.hover_provider.is_supported = hover_provider.value.bool_value;
-            } else if (hover_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.hover_provider.work_done_progress = parse_work_done_progress(&hover_provider);
-            }
-
-            JSONValue signature_help_provider = json_object_get(&capabilities, "signatureHelpProvider");
-            if (signature_help_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.signature_help_provider.work_done_progress = parse_work_done_progress(&signature_help_provider);
-                info.capabilities.signature_help_provider.trigger_characters =
-                    parse_string_array(&signature_help_provider, "triggerCharacters", &info.capabilities.signature_help_provider.trigger_characters_count);
-                info.capabilities.signature_help_provider.retrigger_characters =
-                    parse_string_array(&signature_help_provider, "retriggerCharacters", &info.capabilities.signature_help_provider.retrigger_characters_count);
-            }
-
-            JSONValue declaration_provider = json_object_get(&capabilities, "declarationProvider");
-            if (declaration_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.declaration_provider.is_supported = declaration_provider.value.bool_value;
-            } else if (declaration_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.declaration_provider.is_supported = 1;
-                info.capabilities.declaration_provider.work_done_progress = parse_work_done_progress(&declaration_provider);
-                info.capabilities.declaration_provider.static_registration = parse_static_registration(&declaration_provider);
-                info.capabilities.declaration_provider.text_document_registration = parse_text_document_registration(&declaration_provider);
-            }
-
-            JSONValue definition_provider = json_object_get(&capabilities, "definitionProvider");
-            if (definition_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.definition_provider.is_supported = 1;
-            } else if (definition_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.definition_provider.is_supported = 1;
-                info.capabilities.definition_provider.work_done_progress = parse_work_done_progress(&definition_provider);
-            }
-
-            JSONValue type_definition_provider = json_object_get(&capabilities, "typeDefinitionProvider");
-            if (type_definition_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.type_definition_provider.is_supported = 1;
-            } else if (type_definition_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.type_definition_provider.is_supported = 1;
-                info.capabilities.type_definition_provider.work_done_progress = parse_work_done_progress(&type_definition_provider);
-                info.capabilities.type_definition_provider.text_document_registration = parse_text_document_registration(&type_definition_provider);
-                info.capabilities.type_definition_provider.static_registration = parse_static_registration(&type_definition_provider);
-            }
-
-            JSONValue implementation_provider = json_object_get(&capabilities, "implementationProvider");
-            if (implementation_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.implementation_provider.is_supported = 1;
-            } else if (implementation_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.implementation_provider.is_supported = 1;
-                info.capabilities.implementation_provider.work_done_progress = parse_work_done_progress(&implementation_provider);
-                info.capabilities.implementation_provider.text_document_registration = parse_text_document_registration(&implementation_provider);
-                info.capabilities.implementation_provider.static_registration = parse_static_registration(&implementation_provider);
-            }
-
-            JSONValue references_provider = json_object_get(&capabilities, "referencesProvider");
-            if (references_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.references_provider.is_supported = 1;
-            } else if (references_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.references_provider.is_supported = 1;
-                info.capabilities.references_provider.work_done_progress = parse_work_done_progress(&references_provider);
-            }
-
-            JSONValue document_highlight_provider = json_object_get(&capabilities, "documentHighlightProvider");
-            if (document_highlight_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.document_highlight_provider.is_supported = 1;
-            } else if (document_highlight_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.document_highlight_provider.is_supported = 1;
-                info.capabilities.document_highlight_provider.work_done_progress = parse_work_done_progress(&document_highlight_provider);
-            }
-
-            JSONValue document_symbol_provider = json_object_get(&capabilities, "documentSymbolProvider");
-            if (document_symbol_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.document_symbol_provider.is_supported = 1;
-            } else if (document_highlight_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.document_symbol_provider.is_supported = 1;
-                info.capabilities.document_symbol_provider.work_done_progress = parse_work_done_progress(&document_symbol_provider);
-                
-                JSONValue label = json_object_get(&document_symbol_provider, "label");
-                if (label.type == JSON_VALUE_STRING) {
-                    info.capabilities.document_symbol_provider.label = string_alloc_copy(label.value.string_value);
-                }
-            }
-
-            JSONValue code_action_provider = json_object_get(&capabilities, "codeActionProvider");
-            if (code_action_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.code_action_provider.is_supported = 1;
-            } else if (code_action_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.code_action_provider.is_supported = 1;
-                info.capabilities.code_action_provider.work_done_progress = parse_work_done_progress(&code_action_provider);
-
-                JSONValue code_action_kinds = json_object_get(&code_action_provider, "codeActionKinds");
-                info.capabilities.code_action_provider.code_action_kinds = code_action_kind_parse(&code_action_kinds);
-
-                JSONValue resolve_provider = json_object_get(&code_action_provider, "resolveProvider");
-                if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.code_action_provider.resolve_provider = resolve_provider.value.bool_value;
-                }
-            }
-
-            JSONValue code_lens_provider = json_object_get(&capabilities, "codeLensProvider");
-            if (code_lens_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.code_lens_provider.work_done_progress = parse_work_done_progress(&code_lens_provider);
-
-                JSONValue resolve_provider = json_object_get(&code_lens_provider, "resolveProvider");
-                if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.code_lens_provider.resolve_provider = resolve_provider.value.bool_value;
-                }
-            }
-
-            JSONValue document_link_provider = json_object_get(&capabilities, "documentLinkProvider");
-            if (document_link_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.document_link_provider.work_done_progress = parse_work_done_progress(&document_link_provider);
-
-                JSONValue resolve_provider = json_object_get(&document_link_provider, "resolveProvider");
-                if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.document_link_provider.resolve_provider = resolve_provider.value.bool_value;
-                }
-            }
-
-            JSONValue color_provider = json_object_get(&capabilities, "colorProvider");
-            if (color_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.color_provider.is_supported = 1;
-            } else if (color_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.color_provider.is_supported = 1;
-                info.capabilities.color_provider.work_done_progress = parse_work_done_progress(&color_provider);
-                info.capabilities.color_provider.text_document_registration = parse_text_document_registration(&color_provider);
-                info.capabilities.color_provider.static_registration = parse_static_registration(&color_provider);
-            }
-
-            JSONValue document_formatting_provider = json_object_get(&capabilities, "documentFormattingProvider");
-            if (document_formatting_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.document_formatting_provider.is_supported = 1;
-            } else if (document_formatting_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.document_formatting_provider.is_supported = 1;
-                info.capabilities.document_formatting_provider.work_done_progress = parse_work_done_progress(&document_formatting_provider);
-            }
-
-            JSONValue document_range_formatting_provider = json_object_get(&capabilities, "documentRangeFormattingProvider");
-            if (document_range_formatting_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.document_range_rormatting_provider.is_supported = 1;
-            } else if (document_range_formatting_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.document_range_rormatting_provider.is_supported = 1;
-                info.capabilities.document_range_rormatting_provider.work_done_progress = parse_work_done_progress(&document_range_formatting_provider);
-            }
-
-            JSONValue document_on_type_formatting_provider = json_object_get(&capabilities, "documentOnTypeFormattingProvider");
-            if (document_on_type_formatting_provider.type == JSON_VALUE_OBJECT) {
-                JSONValue first_trigger_character = json_object_get(&document_on_type_formatting_provider, "firstTriggerCharacter");
-                if (first_trigger_character.type == JSON_VALUE_STRING) {
-                    info.capabilities.document_on_type_formatting_provider.first_trigger_character = string_alloc_copy(first_trigger_character.value.string_value);
-                }
-
-                info.capabilities.document_on_type_formatting_provider.more_trigger_character =
-                    parse_string_array(&document_on_type_formatting_provider, "moreTriggerCharacters", &info.capabilities.document_on_type_formatting_provider.more_trigger_character_count);
-            }
-
-            JSONValue rename_provider = json_object_get(&capabilities, "renameProvider");
-            if (rename_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.rename_provider.is_supported = 1;
-            } else if (rename_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.rename_provider.is_supported = 1;
-                info.capabilities.rename_provider.work_done_progress = parse_work_done_progress(&rename_provider);
-                
-                JSONValue prepare_provider = json_object_get(&rename_provider, "renameProvider");
-                if (prepare_provider.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.rename_provider.prepare_provider = prepare_provider.value.bool_value;
-                }
-            }
-
-            JSONValue folding_range_provider = json_object_get(&capabilities, "foldingRangeProvider");
-            if (folding_range_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.folding_range_provider.is_supported = 1;
-            } else if (folding_range_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.folding_range_provider.is_supported = 1;
-                info.capabilities.folding_range_provider.work_done_progress = parse_work_done_progress(&folding_range_provider);
-                info.capabilities.folding_range_provider.text_document_registration = parse_text_document_registration(&folding_range_provider);
-                info.capabilities.folding_range_provider.static_registration = parse_static_registration(&folding_range_provider);
-            }
-
-            JSONValue execute_command_provider = json_object_get(&capabilities, "executeCommandProvider");
-            if (execute_command_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.execute_command_provider.work_done_progress = parse_work_done_progress(&execute_command_provider);
-                info.capabilities.execute_command_provider.commands =
-                    parse_string_array(&execute_command_provider, "commands", &info.capabilities.execute_command_provider.commands_count);
-            }
-
-            JSONValue selection_range_provider = json_object_get(&capabilities, "selectionRangeProvider");
-            if (selection_range_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.selection_range_provider.is_supported = 1;
-            } else if (selection_range_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.selection_range_provider.is_supported = 1;
-                info.capabilities.selection_range_provider.work_done_progress = parse_work_done_progress(&selection_range_provider);
-                info.capabilities.selection_range_provider.text_document_registration = parse_text_document_registration(&selection_range_provider);
-                info.capabilities.selection_range_provider.static_registration = parse_static_registration(&selection_range_provider);
-            }
-
-            JSONValue linked_editing_range_provider = json_object_get(&capabilities, "linkedEditingRangeProvider");
-            if (linked_editing_range_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.linked_editing_range_provider.is_supported = 1;
-            } else if (linked_editing_range_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.linked_editing_range_provider.is_supported = 1;
-                info.capabilities.linked_editing_range_provider.work_done_progress = parse_work_done_progress(&linked_editing_range_provider);
-                info.capabilities.linked_editing_range_provider.text_document_registration = parse_text_document_registration(&linked_editing_range_provider);
-                info.capabilities.linked_editing_range_provider.static_registration = parse_static_registration(&linked_editing_range_provider);
-            }
-
-            JSONValue call_hierarchy_provider = json_object_get(&capabilities, "callHierarchyProvider");
-            if (call_hierarchy_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.call_hierarchy_provider.is_supported = 1;
-            } else if (call_hierarchy_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.call_hierarchy_provider.is_supported = 1;
-                info.capabilities.call_hierarchy_provider.work_done_progress = parse_work_done_progress(&call_hierarchy_provider);
-                info.capabilities.call_hierarchy_provider.text_document_registration = parse_text_document_registration(&call_hierarchy_provider);
-                info.capabilities.call_hierarchy_provider.static_registration = parse_static_registration(&call_hierarchy_provider);
-            }
-
-            JSONValue semantic_tokens_provider = json_object_get(&capabilities, "semanticTokensProvider");
-            if (semantic_tokens_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.semantic_tokens_provider.semantic_tokens.work_done_progress = parse_work_done_progress(&semantic_tokens_provider);
-                info.capabilities.semantic_tokens_provider.text_document_registration = parse_text_document_registration(&semantic_tokens_provider);
-                info.capabilities.semantic_tokens_provider.static_registration = parse_static_registration(&semantic_tokens_provider);
-
-                JSONValue* legend = json_object_get_ptr(&semantic_tokens_provider, "legend");
-                if (legend != NULL && legend->type == JSON_VALUE_OBJECT) {
-                    info.capabilities.semantic_tokens_provider.semantic_tokens.legend.token_types =
-                        parse_string_array(legend, "tokenTypes", &info.capabilities.semantic_tokens_provider.semantic_tokens.legend.token_types_count);
-                    info.capabilities.semantic_tokens_provider.semantic_tokens.legend.token_modifiers =
-                        parse_string_array(legend, "tokenModifiers", &info.capabilities.semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count);
-                }
-
-                JSONValue range = json_object_get(&semantic_tokens_provider, "range");
-                if (range.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.semantic_tokens_provider.semantic_tokens.range = range.value.bool_value;
-                }
-
-                JSONValue full = json_object_get(&semantic_tokens_provider, "full");
-                if (full.type == JSON_VALUE_OBJECT) {
-                    JSONValue delta = json_object_get(&full, "delta");
-                    if (delta.type == JSON_VALUE_BOOLEAN) {
-                        info.capabilities.semantic_tokens_provider.semantic_tokens.full_delta = delta.value.bool_value;
-                    }
-                }
-            }
-
-            JSONValue moniker_provider = json_object_get(&capabilities, "monikerProvider");
-            if (moniker_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.moniker_provider.is_supported = 1;
-            } else if (moniker_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.moniker_provider.is_supported = 1;
-                info.capabilities.moniker_provider.work_done_progress = parse_work_done_progress(&moniker_provider);
-                info.capabilities.moniker_provider.text_document_registration = parse_text_document_registration(&moniker_provider);
-            }
-
-            JSONValue type_hierarchy_provider = json_object_get(&capabilities, "typeHierarchyProvider");
-            if (type_hierarchy_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.type_hierarchy_provider.is_supported = 1;
-            } else if (type_hierarchy_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.type_hierarchy_provider.is_supported = 1;
-                info.capabilities.type_hierarchy_provider.work_done_progress = parse_work_done_progress(&type_hierarchy_provider);
-                info.capabilities.type_definition_provider.text_document_registration = parse_text_document_registration(&type_hierarchy_provider);
-                info.capabilities.type_definition_provider.static_registration = parse_static_registration(&type_hierarchy_provider);
-            }
-
-            JSONValue inline_value_provider = json_object_get(&capabilities, "inlineValueProvider");
-            if (inline_value_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.inline_value_provider.is_supported = 1;
-            } else if (inline_value_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.inline_value_provider.is_supported = 1;
-                info.capabilities.inline_value_provider.work_done_progress = parse_work_done_progress(&inline_value_provider);
-                info.capabilities.inline_value_provider.text_document_registration = parse_text_document_registration(&inline_value_provider);
-                info.capabilities.inline_value_provider.static_registration = parse_static_registration(&inline_value_provider);
-            }
-
-            JSONValue inlay_hint_provider = json_object_get(&capabilities, "inlayHintProvider");
-            if (inlay_hint_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.inlay_hint_provider.is_supported = 1;
-            } else if (inlay_hint_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.inlay_hint_provider.is_supported = 1;
-                info.capabilities.inlay_hint_provider.work_done_progress = parse_work_done_progress(&inlay_hint_provider);
-                info.capabilities.inlay_hint_provider.text_document_registration = parse_text_document_registration(&inlay_hint_provider);
-                info.capabilities.inlay_hint_provider.static_registration = parse_static_registration(&inlay_hint_provider);
-            }
-
-            JSONValue diagnostic_provider = json_object_get(&capabilities, "diagnosticProvider");
-            if (diagnostic_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.diagnostic_provider.work_done_progress = parse_work_done_progress(&diagnostic_provider);
-                info.capabilities.diagnostic_provider.text_document_registration = parse_text_document_registration(&diagnostic_provider);
-                info.capabilities.diagnostic_provider.static_registration = parse_static_registration(&diagnostic_provider);
-
-                JSONValue identifier = json_object_get(&diagnostic_provider, "identifier");
-                if (identifier.type == JSON_VALUE_STRING) {
-                    info.capabilities.diagnostic_provider.identifier = string_alloc_copy(identifier.value.string_value);
-                }
-
-                JSONValue inter_file_dependencies = json_object_get(&diagnostic_provider, "interFileDependencies");
-                if (inter_file_dependencies.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.diagnostic_provider.inter_file_dependencies = inter_file_dependencies.value.bool_value;
-                }
-
-                JSONValue workspace_diagnostics = json_object_get(&diagnostic_provider, "workspaceDiagnostics");
-                if (workspace_diagnostics.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.diagnostic_provider.workspace_diagnostics = workspace_diagnostics.value.bool_value;
-                }
-            }
-
-            JSONValue workspace_symbol_provider = json_object_get(&capabilities, "workspaceSymbolProvider");
-            if (workspace_symbol_provider.type == JSON_VALUE_BOOLEAN) {
-                info.capabilities.workspace_symbol_provider.is_supported = 1;
-            } else if (workspace_symbol_provider.type == JSON_VALUE_OBJECT) {
-                info.capabilities.workspace_symbol_provider.is_supported = 1;
-                info.capabilities.workspace_symbol_provider.work_done_progress = parse_work_done_progress(&workspace_symbol_provider);
-
-                JSONValue resolve_provider = json_object_get(&workspace_symbol_provider, "resolveProvider");
-                if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
-                    info.capabilities.workspace_symbol_provider.resolve_provider = resolve_provider.value.bool_value;
-                }
-            }
-
-            JSONValue workspace = json_object_get(&capabilities, "workspace");
-            if (workspace.type == JSON_VALUE_OBJECT) {
-                JSONValue workspace_folders = json_object_get(&workspace, "workspaceFolders");
-                if (workspace_folders.type == JSON_VALUE_OBJECT) {
-                    JSONValue supported = json_object_get(&workspace_folders, "supported");
-                    if (supported.type == JSON_VALUE_BOOLEAN) {
-                        info.capabilities.workspace.workspace_folders.supported = supported.value.bool_value;
-                    }
-
-                    JSONValue change_notifications = json_object_get(&workspace_folders, "changeNotifications");
-                    if (change_notifications.type == JSON_VALUE_BOOLEAN) {
-                        info.capabilities.workspace.workspace_folders.change_notifications_boolean = 1;
-                        info.capabilities.workspace.workspace_folders.change_notifications = NULL;
-                    } else if (change_notifications.type == JSON_VALUE_STRING) {
-                        info.capabilities.workspace.workspace_folders.change_notifications_boolean = 1;
-                        info.capabilities.workspace.workspace_folders.change_notifications = string_alloc_copy(change_notifications.value.string_value);
-                    }
-                }
-
-                JSONValue file_operations = json_object_get(&workspace, "fileOperations");
-                if (file_operations.type == JSON_VALUE_OBJECT) {
-                    info.capabilities.workspace.file_operations.did_create = parse_file_operation_registration(&file_operations, "didCreate");
-                    info.capabilities.workspace.file_operations.will_create = parse_file_operation_registration(&file_operations, "will_create");
-                    info.capabilities.workspace.file_operations.did_rename = parse_file_operation_registration(&file_operations, "didRename");
-                    info.capabilities.workspace.file_operations.will_rename = parse_file_operation_registration(&file_operations, "willRename");
-                    info.capabilities.workspace.file_operations.did_delete = parse_file_operation_registration(&file_operations, "didDelete");
-                    info.capabilities.workspace.file_operations.will_delete = parse_file_operation_registration(&file_operations, "willDelete");
-                }
-            }
-        }
-
-        JSONValue server_info = json_object_get(&result, "serverInfo");
-        if (server_info.type == JSON_VALUE_OBJECT) {
-            JSONValue name = json_object_get(&server_info, "name");
-            if (name.type == JSON_VALUE_STRING) {
-                info.name = string_alloc_copy(name.value.string_value);
-            }
-
-            JSONValue version = json_object_get(&server_info, "version");
-            if (version.type == JSON_VALUE_STRING) {
-                info.version = string_alloc_copy(version.value.string_value);
-            }
-        }
+    JSONValue* version = json_object_get_ptr(value, "version");
+    if (version != NULL && version->type == JSON_VALUE_STRING) {
+        info.version = json_move_string(version);
     }
 
     return info;
+}
+
+static void server_parse_initialized(Server* server, JSONValue* value) {
+    if (server == NULL || value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return;
+    }
+
+    JSONValue* result = json_object_get_ptr(value, "result");
+    if (result != NULL && result->type == JSON_VALUE_OBJECT) {
+        JSONValue* capabilities = json_object_get_ptr(result, "capabilities");
+        server->capabilities = server_capabilities_parse(capabilities);
+
+        JSONValue* server_info = json_object_get_ptr(result, "serverInfo");
+        server->info = server_info_parse(server_info);
+    }
 }
 
 static LSTalk_Position parse_position(JSONValue* value) {
@@ -5454,7 +6553,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                             char* method = rpc_get_method(request);
                             if (strcmp(method, "initialize") == 0) {
                                 server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
-                                server->info = server_parse_initialized(&value);
+                                server_parse_initialized(server, &value);
                                 server_make_and_send_notification(context, server, "initialized", json_make_null());
                             } else if (strcmp(method, "shutdown") == 0) {
                                 server_make_and_send_notification(context, server, "exit", json_make_null());
