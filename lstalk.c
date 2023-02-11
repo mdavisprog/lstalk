@@ -5843,6 +5843,10 @@ static void server_capabilities_free(ServerCapabilities* capabilities) {
 // End Server Capabilities
 //
 
+//
+// Server
+//
+
 typedef struct TextDocumentItem {
     /**
      * The text document's URI.
@@ -5877,6 +5881,46 @@ typedef struct Server {
     Vector text_documents;
     Vector notifications;
 } Server;
+
+static LSTalk_ServerInfo server_info_parse(JSONValue* value) {
+    LSTalk_ServerInfo info;
+    memset(&info, 0, sizeof(info));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return info;
+    }
+
+    JSONValue* name = json_object_get_ptr(value, "name");
+    if (name != NULL && name->type == JSON_VALUE_STRING) {
+        info.name = json_move_string(name);
+    }
+
+    JSONValue* version = json_object_get_ptr(value, "version");
+    if (version != NULL && version->type == JSON_VALUE_STRING) {
+        info.version = json_move_string(version);
+    }
+
+    return info;
+}
+
+static void server_initialized_parse(Server* server, JSONValue* value) {
+    if (server == NULL || value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return;
+    }
+
+    JSONValue* result = json_object_get_ptr(value, "result");
+    if (result != NULL && result->type == JSON_VALUE_OBJECT) {
+        JSONValue* capabilities = json_object_get_ptr(result, "capabilities");
+        server->capabilities = server_capabilities_parse(capabilities);
+
+        JSONValue* server_info = json_object_get_ptr(result, "serverInfo");
+        server->info = server_info_parse(server_info);
+    }
+}
+
+static void server_send_request(Server* server, Request* request, int debug_flags) {
+    rpc_send_request(server->process, request, debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
+}
 
 typedef struct ClientInfo {
     char* name;
@@ -5916,6 +5960,18 @@ typedef struct LSTalk_Context {
     ClientCapabilities client_capabilities;
     int debug_flags;
 } LSTalk_Context;
+
+static void server_make_and_send_notification(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
+    Request request = rpc_make_notification(method, params);
+    server_send_request(server, &request, context->debug_flags);
+    rpc_close_request(&request);
+}
+
+static void server_make_and_send_request(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
+    Request request = rpc_make_request(&server->request_id, method, params);
+    server_send_request(server, &request, context->debug_flags);
+    vector_push(&server->requests, &request);
+}
 
 static Server* context_get_server(LSTalk_Context* context, LSTalk_ServerID id) {
     if (context == NULL || id == LSTALK_INVALID_SERVER_ID) {
@@ -6085,58 +6141,6 @@ static void server_close(Server* server) {
     vector_destroy(&server->notifications);
 }
 
-static void server_send_request(LSTalk_Context* context, Server* server, Request* request) {
-    rpc_send_request(server->process, request, context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
-}
-
-static void server_make_and_send_notification(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
-    Request request = rpc_make_notification(method, params);
-    server_send_request(context, server, &request);
-    rpc_close_request(&request);
-}
-
-static void server_make_and_send_request(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
-    Request request = rpc_make_request(&server->request_id, method, params);
-    server_send_request(context, server, &request);
-    vector_push(&server->requests, &request);
-}
-
-static LSTalk_ServerInfo server_info_parse(JSONValue* value) {
-    LSTalk_ServerInfo info;
-    memset(&info, 0, sizeof(info));
-
-    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
-        return info;
-    }
-
-    JSONValue* name = json_object_get_ptr(value, "name");
-    if (name != NULL && name->type == JSON_VALUE_STRING) {
-        info.name = json_move_string(name);
-    }
-
-    JSONValue* version = json_object_get_ptr(value, "version");
-    if (version != NULL && version->type == JSON_VALUE_STRING) {
-        info.version = json_move_string(version);
-    }
-
-    return info;
-}
-
-static void server_parse_initialized(Server* server, JSONValue* value) {
-    if (server == NULL || value == NULL || value->type != JSON_VALUE_OBJECT) {
-        return;
-    }
-
-    JSONValue* result = json_object_get_ptr(value, "result");
-    if (result != NULL && result->type == JSON_VALUE_OBJECT) {
-        JSONValue* capabilities = json_object_get_ptr(result, "capabilities");
-        server->capabilities = server_capabilities_parse(capabilities);
-
-        JSONValue* server_info = json_object_get_ptr(result, "serverInfo");
-        server->info = server_info_parse(server_info);
-    }
-}
-
 static LSTalk_Position parse_position(JSONValue* value) {
     LSTalk_Position result;
     memset(&result, 0, sizeof(LSTalk_Position));
@@ -6200,7 +6204,7 @@ static LSTalk_Location parse_location(JSONValue* value) {
     return result;
 }
 
-static LSTalk_PublishDiagnostics server_parse_publish_diagnostics(JSONValue* value) {
+static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
     LSTalk_PublishDiagnostics result;
     memset(&result, 0, sizeof(LSTalk_PublishDiagnostics));
 
@@ -6553,7 +6557,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                             char* method = rpc_get_method(request);
                             if (strcmp(method, "initialize") == 0) {
                                 server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
-                                server_parse_initialized(server, &value);
+                                server_initialized_parse(server, &value);
                                 server_make_and_send_notification(context, server, "initialized", json_make_null());
                             } else if (strcmp(method, "shutdown") == 0) {
                                 server_make_and_send_notification(context, server, "exit", json_make_null());
@@ -6582,7 +6586,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                     if (method.type == JSON_VALUE_STRING && strcmp(method.value.string_value, "textDocument/publishDiagnostics") == 0) {
                         LSTalk_ServerNotification notification = notification_make(LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS);
                         JSONValue params = json_object_get(&value, "params");
-                        notification.data.publish_diagnostics = server_parse_publish_diagnostics(&params);
+                        notification.data.publish_diagnostics = publish_diagnostics_parse(&params);
                         vector_push(&server->notifications, &notification);
                     }
 

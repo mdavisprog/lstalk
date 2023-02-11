@@ -80,7 +80,6 @@ typedef struct LSTalk_ConnectParams {
 /**
  * Forward declaraction with the defintion defined below the API.
  */
-struct LSTalk_ServerInfo;
 struct LSTalk_ServerNotification;
 
 /**
@@ -158,6 +157,23 @@ LSTalk_ServerID lstalk_connect(struct LSTalk_Context* context, const char* uri, 
 LSTalk_ConnectionStatus lstalk_get_connection_status(struct LSTalk_Context* context, LSTalk_ServerID id);
 
 /**
+ * Information about the server.
+ *
+ * @since 3.15.0
+ */
+typedef struct LSTalk_ServerInfo {
+    /**
+     * The name of the server as defined by the server.
+     */
+    char* name;
+
+    /**
+     * The server's version as defined by the server.
+     */
+    char* version;
+} LSTalk_ServerInfo;
+
+/**
  * Retrieve the server information given a LSTalker_ServerID.
  * 
  * @param context - An initialized LSTalk_Context object.
@@ -165,7 +181,7 @@ LSTalk_ConnectionStatus lstalk_get_connection_status(struct LSTalk_Context* cont
  * 
  * @return - The LSTalk_ServerInfo containing information about the server.
  */
-struct LSTalk_ServerInfo* lstalk_get_server_info(struct LSTalk_Context* context, LSTalk_ServerID id);
+LSTalk_ServerInfo* lstalk_get_server_info(struct LSTalk_Context* context, LSTalk_ServerID id);
 
 /**
  * Requests to close a connection to a connected language server given the LSTalk_ServerID.
@@ -331,23 +347,6 @@ typedef enum {
 typedef enum {
     LSTALK_SYMBOLTAG_DEPRECATED = 1 << 0,
 } LSTalk_SymbolTag;
-
-/**
- * Information about the server.
- *
- * @since 3.15.0
- */
-typedef struct LSTalk_ServerInfo {
-    /**
-     * The name of the server as defined by the server.
-     */
-    char* name;
-
-    /**
-     * The server's version as defined by the server.
-     */
-    char* version;
-} LSTalk_ServerInfo;
 
 /**
  * Position in a text document expressed as zero-based line and zero-based
