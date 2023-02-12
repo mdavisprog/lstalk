@@ -16,7 +16,7 @@ if(BUILD_SHARED_LIBS)
         lstalk
         PUBLIC LSTALK_EXPORT
     )
-elseif(BUILD_STATIC_LIBS)
+else()
     target_compile_definitions(
         lstalk
         PUBLIC LSTALK_STATIC
