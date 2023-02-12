@@ -31,15 +31,28 @@ if(NOT WIN32)
     )
 endif()
 
-add_executable(
-    lstalk_console
-    console.c
-)
+if(NO_LIB)
+    add_executable(
+        lstalk_console
+        console.c
+        lstalk.c
+    )
 
-target_link_libraries(
-    lstalk_console
-    lstalk
-)
+    target_compile_definitions(
+        lstalk_console
+        PUBLIC LSTALK_STATIC
+    )
+else()
+    add_executable(
+        lstalk_console
+        console.c
+    )
+
+    target_link_libraries(
+        lstalk_console
+        lstalk
+    )
+endif()
 
 set_target_properties(
     lstalk_console
@@ -68,10 +81,23 @@ target_compile_definitions(
 )
 endif()
 
-add_executable(
-    lstalk_tests
-    tests.c
-)
+if(NO_LIB)
+    add_executable(
+        lstalk_tests
+        lstalk.c
+        tests.c
+    )
+
+    target_compile_definitions(
+        lstalk_tests
+        PUBLIC LSTALK_STATIC
+    )
+else()
+    add_executable(
+        lstalk_tests
+        tests.c
+    )
+endif()
 
 set_target_properties(
     lstalk_tests
