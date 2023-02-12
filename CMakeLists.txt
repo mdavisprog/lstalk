@@ -50,6 +50,16 @@ set_target_properties(
     RUNTIME_OUTPUT_DIRECTORY_RELEASE ${BIN_DIR}
 )
 
+if(BUILD_SHARED_LIBS)
+    add_custom_command(
+        TARGET lstalk_console
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        $<TARGET_FILE:lstalk>
+        $<TARGET_FILE_DIR:lstalk_console>
+    )
+endif()
+
 if(WITH_TESTS)
 target_compile_definitions(
     lstalk
@@ -76,4 +86,3 @@ target_link_libraries(
     lstalk_tests
     lstalk
 )
-
