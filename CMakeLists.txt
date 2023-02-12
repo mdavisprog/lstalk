@@ -11,6 +11,18 @@ add_library(
     lstalk.c
 )
 
+if(BUILD_SHARED_LIBS)
+    target_compile_definitions(
+        lstalk
+        PUBLIC LSTALK_EXPORT
+    )
+elseif(BUILD_STATIC_LIBS)
+    target_compile_definitions(
+        lstalk
+        PUBLIC LSTALK_STATIC
+    )
+endif()
+
 if(NOT WIN32)
     target_link_libraries(
         lstalk
