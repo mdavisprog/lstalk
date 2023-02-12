@@ -28,6 +28,22 @@ SOFTWARE.
 #ifndef __LSTALK_H__
 #define __LSTALK_H__
 
+#if LSTALK_STATIC
+    #define LSTALK_API
+#else
+    #ifndef LSTALK_API
+        #if defined(_WIN32) || defined(_WIN64)
+            #if LSTALK_EXPORT
+                #define LSTALK_API __declspec(dllexport)
+            #else
+                #define LSTALK_API __declspec(dllimport)
+            #endif
+        #else
+            #define LSTALK_API
+        #endif
+    #endif
+#endif
+
 /**
  * Data container for a LSTalk session. Must be created using lstalk_init
  * and destroyed with lstalk_shutdown.
@@ -93,7 +109,7 @@ struct LSTalk_Notification;
  * 
  * @return A heap-allocated LSTalk_Context object. Must be freed with lstalk_shutdown.
  */
-struct LSTalk_Context* lstalk_init();
+LSTALK_API struct LSTalk_Context* lstalk_init();
 
 /**
  * Cleans up a LSTalk_Context object. This will close any existing connections to servers
@@ -101,7 +117,7 @@ struct LSTalk_Context* lstalk_init();
  * 
  * @param context - The context object to shutdown.
  */
-void lstalk_shutdown(struct LSTalk_Context* context);
+LSTALK_API void lstalk_shutdown(struct LSTalk_Context* context);
 
 /**
  * Retrieves the current version number for the LSTalk library.
@@ -110,7 +126,7 @@ void lstalk_shutdown(struct LSTalk_Context* context);
  * @param minor - A pointer to store the minor version number.
  * @param revision - A pointer to store the revision number.
  */
-void lstalk_version(int* major, int* minor, int* revision);
+LSTALK_API void lstalk_version(int* major, int* minor, int* revision);
 
 /**
  * Sets the client information for the given LSTalk_Context object. The default
@@ -122,7 +138,7 @@ void lstalk_version(int* major, int* minor, int* revision);
  * @param version - A pointer to the version of the client. This function will
  *                  allocate its own copy of the string.
  */
-void lstalk_set_client_info(struct LSTalk_Context* context, char* name, char* version);
+LSTALK_API void lstalk_set_client_info(struct LSTalk_Context* context, char* name, char* version);
 
 /**
  * Sets the locale of the client. The default value is 'en'.
@@ -130,7 +146,7 @@ void lstalk_set_client_info(struct LSTalk_Context* context, char* name, char* ve
  * @param context - An initialized LSTalk_Context object.
  * @param locale - This is an IETF tag. The string is copied.
  */
-void lstalk_set_locale(struct LSTalk_Context* context, char* locale);
+LSTALK_API void lstalk_set_locale(struct LSTalk_Context* context, char* locale);
 
 /**
  * Sets debug flags for the given context object.
@@ -138,7 +154,7 @@ void lstalk_set_locale(struct LSTalk_Context* context, char* locale);
  * @param context - An initialized LSTalk_Context object.
  * @param flags - Bitwise flags set from LSTalk_DebugFlags.
  */
-void lstalk_set_debug_flags(struct LSTalk_Context* context, int flags);
+LSTALK_API void lstalk_set_debug_flags(struct LSTalk_Context* context, int flags);
 
 /**
  * Attempts to connect to a language server at the given URI. This should be a path on the machine to an
@@ -150,7 +166,7 @@ void lstalk_set_debug_flags(struct LSTalk_Context* context, int flags);
  * @return - Server ID representing a connection to the language server. Will be LSTALK_INVALID_SERVER_ID if
  *           no connection can be made.
  */
-LSTalk_ServerID lstalk_connect(struct LSTalk_Context* context, const char* uri, LSTalk_ConnectParams connect_params);
+LSTALK_API LSTalk_ServerID lstalk_connect(struct LSTalk_Context* context, const char* uri, LSTalk_ConnectParams connect_params);
 
 /**
  * Retrieve the current connection status given a Server ID.
@@ -160,7 +176,7 @@ LSTalk_ServerID lstalk_connect(struct LSTalk_Context* context, const char* uri, 
  * 
  * @return - The LSTalk_ConnectionStatus of the given server ID.
  */
-LSTalk_ConnectionStatus lstalk_get_connection_status(struct LSTalk_Context* context, LSTalk_ServerID id);
+LSTALK_API LSTalk_ConnectionStatus lstalk_get_connection_status(struct LSTalk_Context* context, LSTalk_ServerID id);
 
 /**
  * Information about the server.
@@ -187,7 +203,7 @@ typedef struct LSTalk_ServerInfo {
  * 
  * @return - The LSTalk_ServerInfo containing information about the server.
  */
-LSTalk_ServerInfo* lstalk_get_server_info(struct LSTalk_Context* context, LSTalk_ServerID id);
+LSTALK_API LSTalk_ServerInfo* lstalk_get_server_info(struct LSTalk_Context* context, LSTalk_ServerID id);
 
 /**
  * Requests to close a connection to a connected language server given the LSTalk_ServerID.
@@ -197,7 +213,7 @@ LSTalk_ServerInfo* lstalk_get_server_info(struct LSTalk_Context* context, LSTalk
  * 
  * @return - A non-zero value if closed successfully. 0 if there was an error.
  */
-int lstalk_close(struct LSTalk_Context* context, LSTalk_ServerID id);
+LSTALK_API int lstalk_close(struct LSTalk_Context* context, LSTalk_ServerID id);
 
 /**
  * Process responses for all connected server.
@@ -206,7 +222,7 @@ int lstalk_close(struct LSTalk_Context* context, LSTalk_ServerID id);
  * 
  * @return - A non-zero value if response were processed. 0 if nothing was processed.
  */
-int lstalk_process_responses(struct LSTalk_Context* context);
+LSTALK_API int lstalk_process_responses(struct LSTalk_Context* context);
 
 /**
  * Polls for any notifications received from the given server. The context will hol any
@@ -220,7 +236,7 @@ int lstalk_process_responses(struct LSTalk_Context* context);
  * 
  * @return - A non-zero value if a notification was polled. 0 if no notification was polled.
  */
-int lstalk_poll_notification(struct LSTalk_Context* context, LSTalk_ServerID id, struct LSTalk_Notification* notification);
+LSTALK_API int lstalk_poll_notification(struct LSTalk_Context* context, LSTalk_ServerID id, struct LSTalk_Notification* notification);
 
 /**
  * A notification that should be used by the client to modify the trace setting of the server.
@@ -231,7 +247,7 @@ int lstalk_poll_notification(struct LSTalk_Context* context, LSTalk_ServerID id,
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
-int lstalk_set_trace(struct LSTalk_Context* context, LSTalk_ServerID id, LSTalk_Trace trace);
+LSTALK_API int lstalk_set_trace(struct LSTalk_Context* context, LSTalk_ServerID id, LSTalk_Trace trace);
 
 /**
  * Calls lstalk_set_trace by converting the string into an LSTalk_Trace value.
@@ -242,7 +258,7 @@ int lstalk_set_trace(struct LSTalk_Context* context, LSTalk_ServerID id, LSTalk_
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
-int lstalk_set_trace_from_string(struct LSTalk_Context* context, LSTalk_ServerID id, char* trace);
+LSTALK_API int lstalk_set_trace_from_string(struct LSTalk_Context* context, LSTalk_ServerID id, char* trace);
 
 /**
  * The document open notification is sent from the client to the server to
@@ -256,7 +272,7 @@ int lstalk_set_trace_from_string(struct LSTalk_Context* context, LSTalk_ServerID
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
-int lstalk_text_document_did_open(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
+LSTALK_API int lstalk_text_document_did_open(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
 
 /**
  * The document close notification is sent from the client to the server
@@ -268,7 +284,7 @@ int lstalk_text_document_did_open(struct LSTalk_Context* context, LSTalk_ServerI
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
-int lstalk_text_document_did_close(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
+LSTALK_API int lstalk_text_document_did_close(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
 
 /**
  * Retrieves all symbols for a given document.
@@ -279,7 +295,7 @@ int lstalk_text_document_did_close(struct LSTalk_Context* context, LSTalk_Server
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
-int lstalk_text_document_document_symbol(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
+LSTALK_API int lstalk_text_document_document_symbol(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
 
 //
 // The section below contains the definitions of interfaces used in communicating
@@ -622,7 +638,7 @@ typedef struct LSTalk_Notification {
 } LSTalk_Notification;
 
 #ifdef LSTALK_TESTS
-void lstalk_tests();
+LSTALK_API void lstalk_tests();
 #endif
 
 #endif
