@@ -5,10 +5,16 @@ project(lstalk)
 set(CMAKE_C_STANDARD 99)
 
 set(BIN_DIR ${PROJECT_SOURCE_DIR}/bin)
+set(LIB_DIR ${PROJECT_SOURCE_DIR}/lib)
 
 add_library(
     lstalk
     lstalk.c
+)
+
+set_target_properties(
+    lstalk
+    PROPERTIES PUBLIC_HEADER lstalk.h
 )
 
 if(BUILD_SHARED_LIBS)
@@ -30,6 +36,11 @@ if(NOT WIN32)
         m
     )
 endif()
+
+install(
+    TARGETS lstalk
+    DESTINATION ${LIB_DIR}
+)
 
 if(NO_LIB)
     add_executable(
