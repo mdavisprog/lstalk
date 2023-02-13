@@ -6720,7 +6720,7 @@ int lstalk_text_document_did_close(LSTalk_Context* context, LSTalk_ServerID id, 
     return 1;
 }
 
-int lstalk_text_document_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, char* path) {
+int lstalk_text_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, char* path) {
     Server* server = context_get_server(context, id);
     if (server == NULL) {
         return 0;

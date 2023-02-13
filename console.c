@@ -249,7 +249,7 @@ int main(int argc, char** argv) {
                 }
             } else if (is_command(cmd, "doc_symbols")) {
                 if (arg_count == 2) {
-                    lstalk_text_document_document_symbol(context, server_id, args[1].data);
+                    lstalk_text_document_symbol(context, server_id, args[1].data);
                 } else {
                     printf("usage: doc_symbols [PATH]\n");
                 }

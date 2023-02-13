@@ -295,7 +295,7 @@ LSTALK_API int lstalk_text_document_did_close(struct LSTalk_Context* context, LS
  * 
  * @return - Non-zero if the request was sent. 0 if it failed.
  */
-LSTALK_API int lstalk_text_document_document_symbol(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
+LSTALK_API int lstalk_text_document_symbol(struct LSTalk_Context* context, LSTalk_ServerID id, char* path);
 
 //
 // The section below contains the definitions of interfaces used in communicating
