@@ -148,4 +148,10 @@ add_program(
     example_basic
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/basic.c
 )
+
+add_program(
+    example_document_symbols
+    example_document_symbols
+    ${CMAKE_CURRENT_SOURCE_DIR}/examples/document_symbols.c
+)
 endif()
