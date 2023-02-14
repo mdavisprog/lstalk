@@ -6728,10 +6728,12 @@ int lstalk_text_document_did_open(LSTalk_Context* context, LSTalk_ServerID id, c
     }
 
     TextDocumentItem item;
-    item.uri = file_uri(path);
+    char* uri = file_uri(path);
+    item.uri = json_escape_string(uri);
     item.language_id = file_extension(path);
     item.version = 1;
     item.text = json_escape_string(contents);
+    free(uri);
     free(contents);
 
     JSONValue text_document = json_make_object();
@@ -6756,7 +6758,8 @@ int lstalk_text_document_did_close(LSTalk_Context* context, LSTalk_ServerID id, 
 
     char* uri = file_uri(path);
     JSONValue text_document_identifier = json_make_object();
-    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(uri));
+    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(json_escape_string(uri)));
+    free(uri);
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "textDocument", text_document_identifier);
@@ -6773,7 +6776,8 @@ int lstalk_text_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, cha
 
     char* uri = file_uri(path);
     JSONValue text_document_identifier = json_make_object();
-    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(uri));
+    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(json_escape_string(uri)));
+    free(uri);
 
     JSONValue params = json_make_object();
     json_object_const_key_set(&params, "textDocument", text_document_identifier);
