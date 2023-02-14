@@ -44,6 +44,10 @@ SOFTWARE.
     #endif
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /**
  * Data container for a LSTalk session. Must be created using lstalk_init
  * and destroyed with lstalk_shutdown.
@@ -639,6 +643,10 @@ typedef struct LSTalk_Notification {
 
 #ifdef LSTALK_TESTS
 LSTALK_API void lstalk_tests();
+#endif
+
+#if defined(__cplusplus)
+}
 #endif
 
 #endif
