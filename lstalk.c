@@ -304,7 +304,7 @@ typedef struct Process {
     PROCESS_INFORMATION info;
 } Process;
 
-static Process* process_create_windows(const char* path) {
+static Process* process_create_windows(const char* path, int seek_path_env) {
     StdHandles handles;
     handles.child_stdin_read = NULL;
     handles.child_stdin_write = NULL;
@@ -449,7 +449,7 @@ typedef struct Process {
     pid_t pid;
 } Process;
 
-static Process* process_create_posix(const char* path) {
+static Process* process_create_posix(const char* path, int seek_path_env) {
     struct stat info;
     if (stat(path, &info) != 0) {
         return NULL;
@@ -580,11 +580,11 @@ static int process_get_current_id_posix() {
 // Process Management functions
 //
 
-static Process* process_create(const char* path) {
+static Process* process_create(const char* path, int seek_path_env) {
 #if LSTALK_WINDOWS
-    return process_create_windows(path);
+    return process_create_windows(path, seek_path_env);
 #elif LSTALK_POSIX
-    return process_create_posix(path);
+    return process_create_posix(path, seek_path_env);
 #else
     #error "Current platform does not implement create_process"
 #endif
@@ -6490,8 +6490,8 @@ void lstalk_set_debug_flags(LSTalk_Context* context, int flags) {
     context->debug_flags = flags;
 }
 
-LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_ConnectParams connect_params) {
-    if (context == NULL || uri == NULL) {
+LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_ConnectParams* connect_params) {
+    if (context == NULL || uri == NULL || connect_params == NULL) {
         return LSTALK_INVALID_SERVER_ID;
     }
 
@@ -6512,9 +6512,9 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
     json_object_const_key_set(&params, "clientInfo", client_info(&context->client_info));
     json_object_const_key_set(&params, "locale", json_make_string_const(context->locale));
-    json_object_const_key_set(&params, "rootUri", json_make_string(connect_params.root_uri));
+    json_object_const_key_set(&params, "rootUri", json_make_string(connect_params->root_uri));
     json_object_const_key_set(&params, "clientCapabilities", client_capabilities_make(&context->client_capabilities));
-    json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params.trace)));
+    json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params->trace)));
 
     server_make_and_send_request(context, &server, "initialize", params);
     server.connection_status = LSTALK_CONNECTION_STATUS_CONNECTING;

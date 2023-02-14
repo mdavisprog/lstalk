@@ -240,7 +240,7 @@ int main(int argc, char** argv) {
             } else if (is_command(cmd, "open")) {
                 if (arg_count == 2) {
                     if (server_id == LSTALK_INVALID_SERVER_ID) {
-                        pending_id = lstalk_connect(context, args[1].data, params);
+                        pending_id = lstalk_connect(context, args[1].data, &params);
                     } else {
                         printf("Already connected to a language server!\n");
                     }

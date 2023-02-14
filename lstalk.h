@@ -170,7 +170,7 @@ LSTALK_API void lstalk_set_debug_flags(struct LSTalk_Context* context, int flags
  * @return - Server ID representing a connection to the language server. Will be LSTALK_INVALID_SERVER_ID if
  *           no connection can be made.
  */
-LSTALK_API LSTalk_ServerID lstalk_connect(struct LSTalk_Context* context, const char* uri, LSTalk_ConnectParams connect_params);
+LSTALK_API LSTalk_ServerID lstalk_connect(struct LSTalk_Context* context, const char* uri, LSTalk_ConnectParams* connect_params);
 
 /**
  * Retrieve the current connection status given a Server ID.
