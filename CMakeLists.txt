@@ -7,6 +7,34 @@ set(CMAKE_C_STANDARD 99)
 set(BIN_DIR ${PROJECT_SOURCE_DIR}/bin)
 set(LIB_DIR ${PROJECT_SOURCE_DIR}/lib)
 
+function(set_output_properties TARGET_NAME OUTPUT_NAME)
+    set_target_properties(
+        ${TARGET_NAME}
+        PROPERTIES
+        RUNTIME_OUTPUT_NAME ${OUTPUT_NAME}
+        RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG ${BIN_DIR}
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE ${BIN_DIR}
+    )
+endfunction()
+
+function(add_program TARGET_NAME OUTPUT_NAME SOURCES)
+    add_executable(
+        ${TARGET_NAME}
+        ${SOURCES}
+    )
+
+    set_output_properties(
+        ${TARGET_NAME}
+        ${OUTPUT_NAME}
+    )
+
+    target_link_libraries(
+        ${TARGET_NAME}
+        lstalk
+    )
+endfunction()
+
 add_library(
     lstalk
     lstalk.c
@@ -53,15 +81,16 @@ if(NO_LIB)
         lstalk_console
         PUBLIC LSTALK_STATIC
     )
-else()
-    add_executable(
-        lstalk_console
-        console.c
-    )
 
-    target_link_libraries(
+    set_output_properties(
         lstalk_console
-        lstalk
+        console
+    )
+else()
+    add_program(
+        lstalk_console
+        console
+        console.c
     )
 endif()
 
@@ -69,9 +98,6 @@ set_target_properties(
     lstalk_console
     PROPERTIES
     RUNTIME_OUTPUT_NAME console
-    RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR}
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG ${BIN_DIR}
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${BIN_DIR}
 )
 
 if(BUILD_SHARED_LIBS)
@@ -103,23 +129,23 @@ if(NO_LIB)
         lstalk_tests
         PUBLIC LSTALK_STATIC
     )
-else()
-    add_executable(
+
+    set_output_properties(
         lstalk_tests
+        tests
+    )
+else()
+    add_program(
+        lstalk_tests
+        tests
         tests.c
     )
 endif()
 
-set_target_properties(
-    lstalk_tests
-    PROPERTIES
-    RUNTIME_OUTPUT_NAME tests
-    RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR}
-    RUNTIME_OUTPUT_DIRECTORY_DEBUG ${BIN_DIR}
-    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${BIN_DIR}
+if(WITH_EXAMPLES)
+add_program(
+    example_basic
+    example_basic
+    ${CMAKE_CURRENT_SOURCE_DIR}/examples/basic.c
 )
-
-target_link_libraries(
-    lstalk_tests
-    lstalk
-)
+endif()
