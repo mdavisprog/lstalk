@@ -101,6 +101,12 @@ typedef struct LSTalk_ConnectParams {
      * The initial trace setting. If omitted trace is disabled ('off').
      */
     LSTalk_Trace trace;
+
+    /**
+     * Will seek through the PATH environment variable that fits the
+     * given URI in lstalk_connect.
+     */
+    int seek_path_env;
 } LSTalk_ConnectParams;
 
 /**

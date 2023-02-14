@@ -269,6 +269,21 @@ static char* file_extension(char* path) {
     return result;
 }
 
+#if LSTALK_WINDOWS
+int file_exists(wchar_t* path) {
+    if (path == NULL) {
+        return 0;
+    }
+
+    DWORD attributes = GetFileAttributesW(path);
+    if (attributes == INVALID_FILE_ATTRIBUTES) {
+        return 0;
+    }
+
+    return !(attributes & FILE_ATTRIBUTE_DIRECTORY);
+}
+#endif
+
 //
 // Process Management
 //
@@ -316,6 +331,40 @@ static Process* process_create_windows(const char* path, int seek_path_env) {
     security_attr.bInheritHandle = TRUE;
     security_attr.lpSecurityDescriptor = NULL;
 
+    // CreateProcessW does not accept a path larger than 32767.
+    wchar_t wpath[PATH_MAX];
+    mbstowcs(wpath, path, PATH_MAX);
+
+    if (seek_path_env) {
+        wchar_t path_var[PATH_MAX];
+        GetEnvironmentVariableW(L"PATH", path_var, PATH_MAX);
+        wchar_t* anchor = path_var;
+        while (anchor != NULL) {
+            wchar_t item[PATH_MAX];
+            wchar_t* end = wcschr(anchor, L';');
+            if (end != NULL) {
+                size_t length = end - anchor;
+                wcsncpy(item, anchor, length);
+                item[length] = 0;
+                anchor = end + 1;
+            } else {
+                wcscpy(item, anchor);
+                anchor = end;
+            }
+
+            wchar_t full_path[PATH_MAX];
+            full_path[0] = 0;
+            wcscat(full_path, item);
+            wcscat(full_path, L"\\");
+            wcscat(full_path, wpath);
+
+            if (file_exists(full_path)) {
+                wcscpy(wpath, full_path);
+                break;
+            }
+        }
+    }
+
     if (!CreatePipe(&handles.child_stdout_read, &handles.child_stdout_write, &security_attr, 0)) {
         printf("Failed to create stdout pipe!\n");
         return NULL;
@@ -346,10 +395,6 @@ static Process* process_create_windows(const char* path, int seek_path_env) {
 
     PROCESS_INFORMATION process_info;
     ZeroMemory(&process_info, sizeof(process_info));
-
-    // CreateProcessW does not accept a path larger than 32767.
-    wchar_t wpath[PATH_MAX];
-    mbstowcs(wpath, path, PATH_MAX);
 
     BOOL result = CreateProcessW(wpath, NULL, NULL, NULL, TRUE, 0, NULL, NULL, &startup_info, &process_info);
     if (!result) {
@@ -6496,7 +6541,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     }
 
     Server server;
-    server.process = process_create(uri);
+    server.process = process_create(uri, connect_params->seek_path_env);
     if (server.process == NULL) {
         return LSTALK_INVALID_SERVER_ID;
     }
