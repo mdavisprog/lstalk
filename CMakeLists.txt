@@ -45,6 +45,11 @@ set_target_properties(
     PROPERTIES PUBLIC_HEADER lstalk.h
 )
 
+target_compile_definitions(
+    lstalk
+    PRIVATE LSTALK_LIB
+)
+
 if(BUILD_SHARED_LIBS)
     target_compile_definitions(
         lstalk
@@ -75,11 +80,6 @@ if(NO_LIB)
         lstalk_console
         console.c
         lstalk.c
-    )
-
-    target_compile_definitions(
-        lstalk_console
-        PUBLIC LSTALK_STATIC
     )
 
     set_output_properties(
@@ -123,11 +123,6 @@ if(NO_LIB)
         lstalk_tests
         lstalk.c
         tests.c
-    )
-
-    target_compile_definitions(
-        lstalk_tests
-        PUBLIC LSTALK_STATIC
     )
 
     set_output_properties(
