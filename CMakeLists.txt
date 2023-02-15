@@ -62,14 +62,6 @@ else()
     )
 endif()
 
-if(NOT WIN32)
-    target_link_libraries(
-        lstalk
-        PRIVATE
-        m
-    )
-endif()
-
 install(
     TARGETS lstalk
     DESTINATION ${LIB_DIR}

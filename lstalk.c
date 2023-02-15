@@ -5994,12 +5994,9 @@ static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
                     if (code->type == JSON_VALUE_STRING) {
                         diagnostic->code = json_move_string(code);
                     } else if (code->type == JSON_VALUE_INT) {
-                        size_t length = code->value.int_value == 0 ? 1 : (size_t)log10((double)code->value.int_value) + 1;
-                        if (code->value.int_value < 0) {
-                            length++;
-                        }
-                        diagnostic->code = (char*)malloc(sizeof(char) * length);
-                        sprintf(diagnostic->code, "%d", code->value.int_value);
+                        char buffer[40] = "";
+                        sprintf(buffer, "%d", code->value.int_value);
+                        diagnostic->code = string_alloc_copy(buffer);
                     }
                 }
 
