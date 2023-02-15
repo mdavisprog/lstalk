@@ -403,9 +403,6 @@ static Process* process_create_windows(const char* path, int seek_path_env) {
         return NULL;
     }
 
-    // This is temporary to allow child process to startup.
-    Sleep(500);
-
     Process* process = (Process*)malloc(sizeof(Process));
     process->std_handles = handles;
     process->info = process_info;
@@ -557,8 +554,6 @@ static Process* process_create_posix(const char* path, int seek_path_env) {
     Process* process = (Process*)malloc(sizeof(Process));
     process->pipes = pipes;
     process->pid = pid;
-
-    sleep(1);
 
     return process;
 }
