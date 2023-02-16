@@ -6650,7 +6650,10 @@ int lstalk_process_responses(LSTalk_Context* context) {
 
                 char* content_start = strstr(content_length, "{");
                 if (content_start != NULL) {
-                    JSONValue value = json_decode(content_start);
+                    char* content = (char*)malloc(sizeof(char) * length + 1);
+                    strncpy(content, content_start, length);
+                    content[length] = 0;
+                    JSONValue value = json_decode(content);
                     JSONValue id = json_object_get(&value, "id");
 
                     // Find the associated request for this response.
@@ -6695,6 +6698,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                     }
 
                     json_destroy_value(&value);
+                    free(content);
                 }
             }
             free(response);
