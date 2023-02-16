@@ -16,13 +16,14 @@
 #include <string.h>
 
 static void utility_get_directory(char* path, char* out, size_t out_size) {
-    char* anchor = strchr(path, '\\');
-    while (anchor != NULL) {
-        char* next = strchr(anchor, '\\');
-        if (next == NULL) {
-            break;
+    char* anchor = path;
+    char* ptr = anchor;
+    while (*ptr != 0) {
+        char ch = *ptr;
+        if (ch == '\\' || ch == '/') {
+            anchor = ptr;
         }
-        anchor = next + 1;
+        ptr++;
     }
 
     size_t length = anchor - path;
