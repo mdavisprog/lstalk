@@ -21,13 +21,17 @@ int main(int argc, char** argv) {
     printf("LSTalk version %d.%d.%d\n", major, minor, revision);
     printf("Document symbols examples\n");
 
-    char directory[255];
-    utility_get_directory(argv[0], directory, sizeof(directory));
+    // TODO: Need to get absolute path of executable on Linux.
+    char exe_path[PATH_MAX] = "";
+    utility_absolute_path(argv[0], exe_path, sizeof(exe_path));
 
-    char file_path[255] = "";
+    char directory[PATH_MAX] = "";
+    utility_get_directory(exe_path, directory, sizeof(directory));
+
+    char file_path[PATH_MAX] = "";
     strcat(file_path, directory);
-    strcat(file_path, "\\");
-    strcat(file_path, "..\\examples\\document_symbols.c");
+    strcat(file_path, "/");
+    strcat(file_path, "../examples/document_symbols.c");
 
     LSTalk_ConnectParams params;
     params.root_uri = NULL;
