@@ -2,6 +2,12 @@
 #include "utility.h"
 #include <stdio.h>
 
+#if WINDOWS
+    #define CLANGD "clangd.exe"
+#else
+    #define CLANGD "clangd"
+#endif
+
 int main(int argc, char** argv) {
     struct LSTalk_Context* context = lstalk_init();
     if (context == NULL) {
@@ -27,7 +33,7 @@ int main(int argc, char** argv) {
     params.root_uri = NULL;
     params.trace = LSTALK_TRACE_VERBOSE;
     params.seek_path_env = 1;
-    LSTalk_ServerID server = lstalk_connect(context, "clangd.exe", &params);
+    LSTalk_ServerID server = lstalk_connect(context, CLANGD, &params);
     if (server != LSTALK_INVALID_SERVER_ID) {
         printf("Connecting to server...");
 
