@@ -282,6 +282,23 @@ int file_exists(wchar_t* path) {
 
     return !(attributes & FILE_ATTRIBUTE_DIRECTORY);
 }
+#elif LSTALK_POSIX
+int file_exists(char* path) {
+    if (path == NULL) {
+        return 0;
+    }
+
+    struct stat info;
+    if (stat(path, &info) != 0) {
+        return 0;
+    }
+
+    if (!(info.st_mode & S_IFREG)) {
+        return 0;
+    }
+
+    return 1;
+}
 #endif
 
 //
@@ -492,12 +509,38 @@ typedef struct Process {
 } Process;
 
 static Process* process_create_posix(const char* path, int seek_path_env) {
-    struct stat info;
-    if (stat(path, &info) != 0) {
-        return NULL;
+    char final_path[PATH_MAX];
+    strcpy(final_path, path);
+
+    if (seek_path_env) {
+        char* path_var = getenv("PATH");
+        char* anchor = path_var;
+        while (anchor != NULL) {
+            char item[PATH_MAX];
+            char* end = strchr(anchor, ':');
+            if (end != NULL) {
+                size_t length = end - anchor;
+                strncpy(item, anchor, length);
+                item[length] = 0;
+                anchor = end + 1;
+            } else {
+                strcpy(item, anchor);
+                anchor = end;
+            }
+
+            char full_path[PATH_MAX] = "";
+            strcat(full_path, item);
+            strcat(full_path, "/");
+            strcat(full_path, path);
+
+            if (file_exists(full_path)) {
+                strcpy(final_path, full_path);
+                break;
+            }
+        }
     }
 
-    if (!(info.st_mode & S_IFREG)) {
+    if (!file_exists(final_path)) {
         return NULL;
     }
 
@@ -536,7 +579,7 @@ static Process* process_create_posix(const char* path, int seek_path_env) {
         process_close_pipes(&pipes);
 
         char** args = NULL;
-        int error = execv(path, args);
+        int error = execv(final_path, args);
         if (error == -1) {
             printf("Failed to execv child process!\n");
             exit(-1);
