@@ -13,6 +13,8 @@
     #include <unistd.h>
 #endif
 
+#include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 
 static void utility_get_directory(char* path, char* out, size_t out_size) {
@@ -34,6 +36,22 @@ static void utility_get_directory(char* path, char* out, size_t out_size) {
     length = length > out_size ? out_size : length;
     strncpy(out, path, length);
     out[length] = 0;
+}
+
+static void utility_absolute_path(char* relative_path, char* out, size_t out_size) {
+    if (out == NULL) {
+        return;
+    }
+
+    if (relative_path == NULL) {
+        out[0] = 0;
+    }
+
+#if WINDOWS
+    #error("utility_absolute_path not implemented for Windows!")
+#else
+    realpath(relative_path, out);
+#endif
 }
 
 static void utility_sleep(unsigned int ms) {
