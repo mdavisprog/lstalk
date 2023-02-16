@@ -8,6 +8,9 @@
 #if WINDOWS
     #define WIN32_LEAN_AND_MEAN
     #include <windows.h>
+    #define PATH_MAX MAX_PATH
+#else
+    #include <unistd.h>
 #endif
 
 #include <string.h>
@@ -36,7 +39,7 @@ static void utility_sleep(unsigned int ms) {
 #if WINDOWS
     Sleep(ms);
 #else
-    #error("utility_sleep is not implemented for this platform.")
+    usleep(1000L * ms);
 #endif
 }
 
