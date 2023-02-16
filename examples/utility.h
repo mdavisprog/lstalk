@@ -48,7 +48,7 @@ static void utility_absolute_path(char* relative_path, char* out, size_t out_siz
     }
 
 #if WINDOWS
-    #error("utility_absolute_path not implemented for Windows!")
+    GetFullPathNameA(relative_path, out_size, out, NULL);
 #else
     realpath(relative_path, out);
 #endif
