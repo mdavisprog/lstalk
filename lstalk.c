@@ -6323,6 +6323,8 @@ typedef struct Server {
     ServerCapabilities capabilities;
     Vector text_documents;
     Vector notifications;
+    char* pending_content_response;
+    size_t pending_content_length;
 } Server;
 
 static LSTalk_ServerInfo server_info_parse(JSONValue* value) {
@@ -6410,6 +6412,10 @@ static void server_close(Server* server) {
         notification_free(notification);
     }
     vector_destroy(&server->notifications);
+
+    if (server->pending_content_response != NULL) {
+        free(server->pending_content_response);
+    }
 }
 
 typedef struct ClientInfo {
@@ -6576,6 +6582,7 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
     }
 
     Server server;
+    memset(&server, 0, sizeof(server));
     server.process = process_create(uri, connect_params->seek_path_env);
     if (server.process == NULL) {
         return LSTALK_INVALID_SERVER_ID;
@@ -6646,70 +6653,120 @@ int lstalk_process_responses(LSTalk_Context* context) {
 
             char* anchor = response;
             while (anchor != NULL) {
-                char* content_length = strstr(anchor, "Content-Length");
-                if (content_length != NULL) {
-                    int length = 0;
-                    sscanf(content_length, "Content-Length: %d", &length);
+                JSONValue value = json_make_null();
 
-                    char* content_start = strstr(content_length, "{");
-                    if (content_start != NULL) {
-                        char* content = (char*)malloc(sizeof(char) * length + 1);
-                        strncpy(content, content_start, length);
-                        content[length] = 0;
-                        JSONValue value = json_decode(content);
-                        JSONValue id = json_object_get(&value, "id");
-
-                        // Find the associated request for this response.
-                        for (size_t request_index = 0; request_index < server->requests.length; request_index++) {
-                            Request* request = (Request*)vector_get(&server->requests, request_index);
-                            if (request->id == id.value.int_value) {
-                                int remove_request = 1;
-                                char* method = rpc_get_method(request);
-                                if (strcmp(method, "initialize") == 0) {
-                                    server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
-                                    server_initialized_parse(server, &value);
-                                    server_make_and_send_notification(context, server, "initialized", json_make_null());
-                                } else if (strcmp(method, "shutdown") == 0) {
-                                    server_make_and_send_notification(context, server, "exit", json_make_null());
-                                    server_close(server);
-                                    vector_remove(&context->servers, i);
-                                    i--;
-                                    remove_request = 0;
-                                } else if (strcmp(method, "textDocument/documentSymbol") == 0) {
-                                    JSONValue* result = json_object_get_ptr(&value, "result");
-                                    LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS);
-                                    notification.data.document_symbols = document_symbol_notification_parse(result);
-                                    vector_push(&server->notifications, &notification);
-                                }
-
-                                if (remove_request) {
-                                    rpc_close_request(request);
-                                    vector_remove(&server->requests, request_index);
-                                    request_index--;
-                                }
-                                break;
-                            }
-                        }
-
-                        JSONValue method = json_object_get(&value, "method");
-                        // This area is to handle notifications. These are sent from the server unprompted.
-                        if (method.type == JSON_VALUE_STRING && strcmp(method.value.string_value, "textDocument/publishDiagnostics") == 0) {
-                            LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS);
-                            JSONValue params = json_object_get(&value, "params");
-                            notification.data.publish_diagnostics = publish_diagnostics_parse(&params);
-                            vector_push(&server->notifications, &notification);
-                        }
-
-                        json_destroy_value(&value);
-                        free(content);
-                        anchor = content_start + length + 1;
-                    } else {
-                        // Found 'Content-Length' but not the start of the content buffer.
+                if (server->pending_content_response != NULL && server->pending_content_length > 0) {
+                    // Currently have a response that is waiting for more data.
+                    size_t pending_length = strlen(server->pending_content_response);
+                    size_t anchor_length = strlen(anchor);
+                    if (pending_length + anchor_length < server->pending_content_length) {
+                        // Still not enough data. Store the rest of this response into the current
+                        // pending buffer and continue waiting.
+                        size_t new_size = pending_length + anchor_length;
+                        server->pending_content_response = (char*)realloc(server->pending_content_response, new_size + 1);
+                        strncpy(server->pending_content_response + pending_length, anchor, anchor_length);
+                        server->pending_content_response[new_size] = 0;
                         anchor = NULL;
+                    } else {
+                        // The data has arrived. Parse the contents into a JSON object.
+                        size_t remaining = server->pending_content_length - pending_length;
+                        char* content = (char*)malloc(sizeof(char) * server->pending_content_length + 1);
+                        strncpy(content, server->pending_content_response, pending_length);
+                        strncpy(content + pending_length - 1, anchor, remaining);
+                        content[server->pending_content_length] = 0;
+                        value = json_decode(content);
+                        anchor += remaining + 1;
+                        free(content);
+                        free(server->pending_content_response);
+                        server->pending_content_response = NULL;
+                        server->pending_content_length = 0;
                     }
                 } else {
-                    // Did not find 'Content-Length' in the given response.
-                    anchor = NULL;
+                    // Find the next response to parse.
+                    char* content_length = strstr(anchor, "Content-Length");
+                    if (content_length != NULL) {
+                        // Retrieve the length of the response.
+                        size_t length = 0;
+                        sscanf(content_length, "Content-Length: %zu", &length);
+
+                        // Find the start of the JSON string.
+                        char* content_start = strchr(content_length, '{');
+                        if (content_start != NULL) {
+                            size_t remaining = strlen(content_start);
+                            if (remaining < length) {
+                                // The full content string is not part of this read. Store for the
+                                // next read.
+                                server->pending_content_length = length;
+                                server->pending_content_response = string_alloc_copy(content_start);
+                                anchor = NULL;
+                            } else {
+                                // The full content is available. Decode the response into a JSON object.
+                                char* content = (char*)malloc(sizeof(char) * length + 1);
+                                strncpy(content, content_start, length);
+                                content[length] = 0;
+                                value = json_decode(content);
+                                free(content);
+                                anchor = content_start + length + 1;
+                            }
+                        } else {
+                            // The length may have been parsed, but the content hasn't been parsed.
+                            // Store the length to be used on the next read.
+                            if (length > 0) {
+                                server->pending_content_length = length;
+                            }
+
+                            anchor = NULL;
+                        }
+                    } else {
+                        anchor = NULL;
+                    }
+                }
+
+                if (value.type == JSON_VALUE_OBJECT) {
+                    JSONValue id = json_object_get(&value, "id");
+
+                    // Find the associated request for this response.
+                    for (size_t request_index = 0; request_index < server->requests.length; request_index++) {
+                        Request* request = (Request*)vector_get(&server->requests, request_index);
+                        if (request->id == id.value.int_value) {
+                            int remove_request = 1;
+                            char* method = rpc_get_method(request);
+                            if (strcmp(method, "initialize") == 0) {
+                                server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
+                                server_initialized_parse(server, &value);
+                                server_make_and_send_notification(context, server, "initialized", json_make_null());
+                            } else if (strcmp(method, "shutdown") == 0) {
+                                server_make_and_send_notification(context, server, "exit", json_make_null());
+                                server_close(server);
+                                vector_remove(&context->servers, i);
+                                i--;
+                                remove_request = 0;
+                            } else if (strcmp(method, "textDocument/documentSymbol") == 0) {
+                                JSONValue* result = json_object_get_ptr(&value, "result");
+                                LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS);
+                                notification.data.document_symbols = document_symbol_notification_parse(result);
+                                vector_push(&server->notifications, &notification);
+                            }
+
+                            if (remove_request) {
+                                rpc_close_request(request);
+                                vector_remove(&server->requests, request_index);
+                                request_index--;
+                            }
+                            break;
+                        }
+                    }
+
+                    JSONValue method = json_object_get(&value, "method");
+                    // This area is to handle notifications. These are sent from the server unprompted.
+                    if (method.type == JSON_VALUE_STRING && strcmp(method.value.string_value, "textDocument/publishDiagnostics") == 0) {
+                        LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS);
+                        JSONValue params = json_object_get(&value, "params");
+                        notification.data.publish_diagnostics = publish_diagnostics_parse(&params);
+                        vector_push(&server->notifications, &notification);
+                    }
+
+                    json_destroy_value(&value);
                 }
             }
             free(response);
@@ -6732,6 +6789,8 @@ int lstalk_poll_notification(LSTalk_Context* context, LSTalk_ServerID id, LSTalk
     if (notification == NULL) {
         return 0;
     }
+
+    memset(notification, 0, sizeof(*notification));
 
     Server* server = context_get_server(context, id);
     if (server == NULL) {
