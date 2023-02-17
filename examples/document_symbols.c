@@ -56,16 +56,18 @@ int main(int argc, char** argv) {
 
         printf("Retrieving symbols...\n");
         lstalk_text_document_symbol(context, server, file_path);
-        utility_sleep(1000);
-        lstalk_process_responses(context);
 
-        LSTalk_Notification notification;
-        while (lstalk_poll_notification(context, server, &notification)) {
+        while (1) {
+            lstalk_process_responses(context);
+
+            LSTalk_Notification notification;
+            lstalk_poll_notification(context, server, &notification);
             if (notification.type == LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS) {
                 printf("Document symbols count: %d\n", notification.data.document_symbols.symbols_count);
                 for (int i = 0; i < notification.data.document_symbols.symbols_count; i++) {
                     printf("   %s\n", notification.data.document_symbols.symbols[i].name);
                 }
+                break;
             }
         }
 
