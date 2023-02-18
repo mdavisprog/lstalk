@@ -6895,6 +6895,41 @@ int lstalk_text_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, cha
     return 1;
 }
 
+char* lstalk_symbol_kind_to_string(LSTalk_SymbolKind kind) {
+    switch (kind) {
+        case LSTALK_SYMBOLKIND_FILE: return "file";
+        case LSTALK_SYMBOLKIND_MODULE: return "module";
+        case LSTALK_SYMBOLKIND_NAMESPACE: return "namespace";
+        case LSTALK_SYMBOLKIND_PACKAGE: return "package";
+        case LSTALK_SYMBOLKIND_CLASS: return "class";
+        case LSTALK_SYMBOLKIND_METHOD: return "method";
+        case LSTALK_SYMBOLKIND_PROPERTY: return "property";
+        case LSTALK_SYMBOLKIND_FIELD: return "field";
+        case LSTALK_SYMBOLKIND_CONSTRUCTOR: return "constructor";
+        case LSTALK_SYMBOLKIND_ENUM: return "enum";
+        case LSTALK_SYMBOLKIND_INTERFACE: return "interface";
+        case LSTALK_SYMBOLKIND_FUNCTION: return "function";
+        case LSTALK_SYMBOLKIND_VARIABLE: return "variable";
+        case LSTALK_SYMBOLKIND_CONSTANT: return "constant";
+        case LSTALK_SYMBOLKIND_STRING: return "string";
+        case LSTALK_SYMBOLKIND_NUMBER: return "number";
+        case LSTALK_SYMBOLKIND_BOOLEAN: return "boolean";
+        case LSTALK_SYMBOLKIND_ARRAY: return "array";
+        case LSTALK_SYMBOLKIND_OBJECT: return "object";
+        case LSTALK_SYMBOLKIND_KEY: return "key";
+        case LSTALK_SYMBOLKIND_NULL: return "null";
+        case LSTALK_SYMBOLKIND_ENUMMEMBER: return "enummember";
+        case LSTALK_SYMBOLKIND_STRUCT: return "struct";
+        case LSTALK_SYMBOLKIND_EVENT: return "event";
+        case LSTALK_SYMBOLKIND_OPERATOR: return "operator";
+        case LSTALK_SYMBOLKIND_TYPEPARAMETER: return "typeparameter";
+        case LSTALK_SYMBOLKIND_NONE:
+        default: break;
+    }
+
+    return "none";
+}
+
 #ifdef LSTALK_TESTS
 
 //

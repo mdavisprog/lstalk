@@ -376,6 +376,15 @@ typedef enum {
 } LSTalk_SymbolKind;
 
 /**
+ * Returns a string representation of a given symbol kind.
+ * 
+ * @param kind - The kind of symbol to return as a string.
+ * 
+ * @return - String representing the given symbol kind.
+ */
+LSTALK_API char* lstalk_symbol_kind_to_string(LSTalk_SymbolKind kind);
+
+/**
  * Symbol tags are extra annotations that tweak the rendering of a symbol.
  *
  * @since 3.16
