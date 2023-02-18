@@ -162,7 +162,7 @@ static int vector_remove(Vector* vector, size_t index) {
 
     char* start = vector->data + index * vector->element_size;
     char* end = start + vector->element_size;
-    size_t count = vector->length - index + 1;
+    size_t count = vector->length - (index + 1);
     size_t size = count * vector->element_size;
     memmove(start, end, size);
     vector->length--;
