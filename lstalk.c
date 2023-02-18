@@ -6017,7 +6017,7 @@ static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
     if (diagnostics != NULL && diagnostics->type == JSON_VALUE_ARRAY) {
         result.diagnostics_count = json_array_length(diagnostics);
         if (result.diagnostics_count > 0) {
-            result.diagnostics = (LSTalk_Diagnostic*)malloc(sizeof(LSTalk_Diagnostic) * result.diagnostics_count);
+            result.diagnostics = (LSTalk_Diagnostic*)calloc(result.diagnostics_count, sizeof(LSTalk_Diagnostic));
             for (size_t i = 0; i < (size_t)result.diagnostics_count; i++) {
                 JSONValue* item = json_array_get_ptr(diagnostics, i);
                 LSTalk_Diagnostic* diagnostic = &result.diagnostics[i];
@@ -6184,7 +6184,7 @@ static LSTalk_DocumentSymbol document_symbol_parse(JSONValue* value) {
     if (children != NULL && children->type == JSON_VALUE_ARRAY) {
         result.children_count = json_array_length(children);
         if (result.children_count > 0) {
-            result.children = (LSTalk_DocumentSymbol*)malloc(sizeof(LSTalk_DocumentSymbol) * json_array_length(children));
+            result.children = (LSTalk_DocumentSymbol*)calloc(json_array_length(children), sizeof(LSTalk_DocumentSymbol));
             for (size_t i = 0; i < json_array_length(children); i++) {
                 JSONValue* item = json_array_get_ptr(children, i);
                 result.children[i] = document_symbol_parse(item);
@@ -6231,7 +6231,7 @@ static LSTalk_DocumentSymbolNotification document_symbol_notification_parse(JSON
 
     result.symbols_count = json_array_length(value);
     if (result.symbols_count > 0) {
-        result.symbols = (LSTalk_DocumentSymbol*)malloc(sizeof(LSTalk_DocumentSymbol) * json_array_length(value));
+        result.symbols = (LSTalk_DocumentSymbol*)calloc(json_array_length(value), sizeof(LSTalk_DocumentSymbol));
         for (size_t i = 0; i < json_array_length(value); i++) {
             JSONValue* item = json_array_get_ptr(value, i);
             result.symbols[i] = document_symbol_parse(item);
