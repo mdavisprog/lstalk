@@ -21,7 +21,6 @@ int main(int argc, char** argv) {
     printf("LSTalk version %d.%d.%d\n", major, minor, revision);
     printf("Document symbols examples\n");
 
-    // TODO: Need to get absolute path of executable on Linux.
     char exe_path[PATH_MAX] = "";
     utility_absolute_path(argv[0], exe_path, sizeof(exe_path));
 
