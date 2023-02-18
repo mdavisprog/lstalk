@@ -6706,7 +6706,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                                 content[length] = 0;
                                 value = json_decode(content);
                                 free(content);
-                                anchor = content_start + length + 1;
+                                anchor = content_start + length;
                             }
                         } else {
                             // The length may have been parsed, but the content hasn't been parsed.
