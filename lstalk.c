@@ -6672,7 +6672,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                         size_t remaining = server->pending_content_length - pending_length;
                         char* content = (char*)malloc(sizeof(char) * server->pending_content_length + 1);
                         strncpy(content, server->pending_content_response, pending_length);
-                        strncpy(content + pending_length - 1, anchor, remaining);
+                        strncpy(content + pending_length, anchor, remaining);
                         content[server->pending_content_length] = 0;
                         value = json_decode(content);
                         anchor += remaining + 1;
