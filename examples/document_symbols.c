@@ -39,10 +39,6 @@ int main(int argc, char** argv) {
     LSTalk_ServerID server = lstalk_connect(context, CLANGD, &params);
     if (server != LSTALK_INVALID_SERVER_ID) {
         printf("Connecting to server...");
-
-        // TODO: Remove sleep calls when proper buffering of responses is implemented.
-        utility_sleep(50);
-
         while (lstalk_get_connection_status(context, server) != LSTALK_CONNECTION_STATUS_CONNECTED) {
             lstalk_process_responses(context);
         }
@@ -50,8 +46,6 @@ int main(int argc, char** argv) {
 
         printf("Opening text document: %s...\n", file_path);
         lstalk_text_document_did_open(context, server, file_path);
-        utility_sleep(1000);
-        lstalk_process_responses(context);
 
         printf("Retrieving symbols...\n");
         lstalk_text_document_symbol(context, server, file_path);
