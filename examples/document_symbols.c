@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
     char file_path[PATH_MAX] = "";
     strcat(file_path, directory);
     strcat(file_path, "/");
-    strcat(file_path, "../examples/document_symbols.c");
+    strcat(file_path, "../examples/example.cpp");
 
     LSTalk_ConnectParams params;
     params.root_uri = NULL;
