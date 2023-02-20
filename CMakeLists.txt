@@ -3,6 +3,13 @@ cmake_minimum_required(VERSION 3.21)
 project(lstalk)
 
 set(CMAKE_C_STANDARD 99)
+if(MSVC)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
+else()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+endif()
+
+message("Building with configuration: ${CMAKE_BUILD_TYPE}")
 
 set(BIN_DIR ${PROJECT_SOURCE_DIR}/bin)
 set(LIB_DIR ${PROJECT_SOURCE_DIR}/lib)

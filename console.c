@@ -74,7 +74,8 @@ int read_input_windows(char* buffer, size_t size) {
 
             const wchar_t* ptr = &user_input_buffer[0];
             mbstate_t state;
-            wcsrtombs(buffer, &ptr, size, &state);
+            size_t retval = 0;
+            wcsrtombs_s(&retval, buffer, size, &ptr, size, &state);
 
             user_input_index = 0;
             user_input_buffer[user_input_index] = L'\0';
@@ -101,6 +102,18 @@ int read_input_windows(char* buffer, size_t size) {
 #include <sys/select.h>
 #include <sys/time.h>
 #include <unistd.h>
+
+static int strncpy_s(char* restrict dest, size_t destsz, const char* restrict src, size_t count) {
+    (void)destsz;
+    strncpy(dest, src, count);
+    return 0;
+}
+
+static int strcpy_s(char* restrict dest, size_t destsz, const char* restrict src) {
+    (void)destsz;
+    strcpy(dest, src);
+    return 0;
+}
 
 int read_input_posix(char* buffer, size_t size) {
     fd_set set;
@@ -158,11 +171,11 @@ int parse_args(char* command, Argument* arguments) {
         end = strchr(ptr, ' ');
         if (end != NULL) {
             size_t count = end - ptr;
-            strncpy(arguments[index].data, ptr, count);
+            strncpy_s(arguments[index].data, sizeof(arguments[index].data), ptr, count);
             arguments[index].data[count] = '\0';
             ptr = end + 1;
         } else {
-            strcpy(arguments[index].data, ptr);
+            strcpy_s(arguments[index].data, sizeof(arguments[index].data), ptr);
             ptr = NULL;
         }
         index++;
@@ -172,6 +185,8 @@ int parse_args(char* command, Argument* arguments) {
 }
 
 int main(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
     struct LSTalk_Context* context = lstalk_init();
     if (context == NULL) {
         return -1;

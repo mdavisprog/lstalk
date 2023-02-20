@@ -17,6 +17,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if !WINDOWS && __STDC_VERSION__ <= 199901L
+static int strncpy_s(char* restrict dest, size_t destsz, const char* restrict src, size_t count) {
+    (void)destsz;
+    strncpy(dest, src, count);
+    return 0;
+}
+
+static int strcat_s(char* restrict dest, size_t destsz, const char* restrict src) {
+    (void)destsz;
+    strcat(dest, src);
+    return 0;
+}
+#endif
+
 static void utility_get_directory(char* path, char* out, size_t out_size) {
     char* anchor = path;
     char* ptr = anchor;
@@ -34,7 +48,7 @@ static void utility_get_directory(char* path, char* out, size_t out_size) {
     }
 
     length = length > out_size ? out_size : length;
-    strncpy(out, path, length);
+    strncpy_s(out, out_size, path, length);
     out[length] = 0;
 }
 
@@ -48,12 +62,14 @@ static void utility_absolute_path(char* relative_path, char* out, size_t out_siz
     }
 
 #if WINDOWS
-    GetFullPathNameA(relative_path, out_size, out, NULL);
+    GetFullPathNameA(relative_path, (DWORD)out_size, out, NULL);
 #else
+    (void)out_size;
     realpath(relative_path, out);
 #endif
 }
 
+#if DEFINE_SLEEP
 static void utility_sleep(unsigned int ms) {
 #if WINDOWS
     Sleep(ms);
@@ -61,5 +77,6 @@ static void utility_sleep(unsigned int ms) {
     usleep(1000L * ms);
 #endif
 }
+#endif
 
 #endif

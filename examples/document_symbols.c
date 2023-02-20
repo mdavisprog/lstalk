@@ -9,6 +9,8 @@
 #endif
 
 int main(int argc, char** argv) {
+    (void)argc;
+
     struct LSTalk_Context* context = lstalk_init();
     if (context == NULL) {
         return -1;
@@ -28,9 +30,9 @@ int main(int argc, char** argv) {
     utility_get_directory(exe_path, directory, sizeof(directory));
 
     char file_path[PATH_MAX] = "";
-    strcat(file_path, directory);
-    strcat(file_path, "/");
-    strcat(file_path, "../examples/example.cpp");
+    strcat_s(file_path, sizeof(file_path), directory);
+    strcat_s(file_path, sizeof(file_path), "/");
+    strcat_s(file_path, sizeof(file_path), "../examples/example.cpp");
 
     LSTalk_ConnectParams params;
     params.root_uri = NULL;

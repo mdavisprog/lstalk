@@ -67,10 +67,49 @@ SOFTWARE.
     #define WIN32_LEAN_AND_MEAN
     #include <Windows.h>
 #elif LSTALK_POSIX
+    #include <errno.h>
     #include <fcntl.h>
     #include <signal.h>
     #include <sys/stat.h>
     #include <unistd.h>
+#endif
+
+//
+// C Standard compliant functions.
+//
+// MSVC provides secure functions in the C99 standard that other
+// compilers do not. These functions will be defined here for
+// operability with these platforms.
+
+#if !LSTALK_WINDOWS && __STDC_VERSION <= 199901L
+static int strcpy_s(char* restrict dest, size_t destsz, const char* restrict src) {
+    (void)destsz;
+    char* result = strcpy(dest, src);
+    if (result != dest) {
+        return EINVAL;
+    }
+    return EXIT_SUCCESS;
+}
+
+static int strncpy_s(char* restrict dest, size_t destsz, const char* src, size_t count) {
+    (void)destsz;
+    char* result = strncpy(dest, src, count);
+    if (result != dest) {
+        return EINVAL;
+    }
+    return EXIT_SUCCESS;
+}
+
+static int fopen_s(FILE* restrict* restrict streamptr, const char* restrict filename, const char* restrict mode) {
+    *streamptr = fopen(filename, mode);
+    if (*streamptr == NULL) {
+        return EINVAL;
+    }
+    return EXIT_SUCCESS;
+}
+
+#define sprintf_s(dest, bufsz, format, ...) sprintf(dest, format, __VA_ARGS__)
+#define sscanf_s(buffer, format, ...) sscanf(buffer, format, __VA_ARGS__)
 #endif
 
 //
@@ -185,7 +224,7 @@ static char* vector_get(Vector* vector, size_t index) {
 static char* string_alloc_copy(const char* source) {
     size_t length = strlen(source);
     char* result = (char*)malloc(length + 1);
-    strcpy(result, source);
+    strcpy_s(result, length + 1, source);
     return result;
 }
 
@@ -213,7 +252,8 @@ static char* file_get_contents(char* path) {
         return NULL;
     }
 
-    FILE* file = fopen(path, "rb");
+    FILE* file = NULL;
+    fopen_s(&file, path, "rb");
     if (file == NULL) {
         return NULL;
     }
@@ -229,7 +269,7 @@ static char* file_get_contents(char* path) {
 
     char* result = (char*)malloc(sizeof(char) * size + 1);
     size_t read = fread(result, sizeof(char), size, file);
-    result[size] = '\0';
+    result[read] = '\0';
     fclose(file);
 
     return result;
@@ -350,7 +390,8 @@ static Process* process_create_windows(const char* path, int seek_path_env) {
 
     // CreateProcessW does not accept a path larger than 32767.
     wchar_t wpath[PATH_MAX];
-    mbstowcs(wpath, path, PATH_MAX);
+    size_t retval = 0;
+    mbstowcs_s(&retval, wpath, PATH_MAX, path, PATH_MAX);
 
     if (seek_path_env) {
         wchar_t path_var[PATH_MAX];
@@ -361,22 +402,22 @@ static Process* process_create_windows(const char* path, int seek_path_env) {
             wchar_t* end = wcschr(anchor, L';');
             if (end != NULL) {
                 size_t length = end - anchor;
-                wcsncpy(item, anchor, length);
+                wcsncpy_s(item, PATH_MAX, anchor, length);
                 item[length] = 0;
                 anchor = end + 1;
             } else {
-                wcscpy(item, anchor);
+                wcscpy_s(item, PATH_MAX, anchor);
                 anchor = end;
             }
 
             wchar_t full_path[PATH_MAX];
             full_path[0] = 0;
-            wcscat(full_path, item);
-            wcscat(full_path, L"\\");
-            wcscat(full_path, wpath);
+            wcscat_s(full_path, PATH_MAX, item);
+            wcscat_s(full_path, PATH_MAX, L"\\");
+            wcscat_s(full_path, PATH_MAX, wpath);
 
             if (file_exists(full_path)) {
-                wcscpy(wpath, full_path);
+                wcscpy_s(wpath, PATH_MAX, full_path);
                 break;
             }
         }
@@ -469,7 +510,7 @@ static void process_write_windows(Process* process, const char* request) {
     }
 
     DWORD written = 0;
-    if (!WriteFile(process->std_handles.child_stdin_write, (void*)request, strlen(request), &written, NULL)) {
+    if (!WriteFile(process->std_handles.child_stdin_write, (void*)request, (DWORD)strlen(request), &written, NULL)) {
         printf("Failed to write to process stdin.\n");
     }
 }
@@ -716,13 +757,13 @@ static int process_get_current_id() {
 }
 
 static void process_request(Process* process, const char* request) {
-    const char* content_length = "Content-Length:";
     size_t length = strlen(request);
 
     // Temporary buffer length.
     // TODO: Is there a way to eliminate this heap allocation?
-    char* buffer = (char*)malloc(length + 40);
-    sprintf(buffer, "Content-Length: %zu\r\n\r\n%s", length, request);
+    size_t buffer_size = length + 40;
+    char* buffer = (char*)malloc(buffer_size);
+    sprintf_s(buffer, buffer_size, "Content-Length: %zu\r\n\r\n%s", length, request);
     process_write(process, buffer);
     free(buffer);
 }
@@ -744,22 +785,6 @@ typedef enum {
     JSON_VALUE_OBJECT,
     JSON_VALUE_ARRAY,
 } JSON_VALUE_TYPE;
-
-static const char* json_type_to_string(JSON_VALUE_TYPE type) {
-    switch (type) {
-        case JSON_VALUE_BOOLEAN: return "BOOLEAN";
-        case JSON_VALUE_INT: return "INT";
-        case JSON_VALUE_FLOAT: return "FLOAT";
-        case JSON_VALUE_STRING: return "STRING";
-        case JSON_VALUE_STRING_CONST: return "STRING CONST";
-        case JSON_VALUE_OBJECT: return "OBJECT";
-        case JSON_VALUE_ARRAY: return "ARRAY";
-        case JSON_VALUE_NULL:
-        default: break;
-    }
-
-    return "NULL";
-}
 
 static char* json_escape_string(char* source) {
     if (source == NULL) {
@@ -808,7 +833,7 @@ static char* json_escape_string(char* source) {
     char* result = NULL;
     if (array.length > 0) {
         result = (char*)malloc(sizeof(char) * length + 1);
-        strncpy(result, array.data, length);
+        strncpy_s(result, length + 1, array.data, length);
         result[length] = '\0';
     }
 
@@ -904,13 +929,13 @@ static void json_to_string(JSONValue* value, Vector* vector) {
 
         case JSON_VALUE_INT: {
             char buffer[40];
-            sprintf(buffer, "%d", value->value.int_value);
+            sprintf_s(buffer, sizeof(buffer), "%d", value->value.int_value);
             vector_append(vector, (void*)buffer, strlen(buffer));
         } break;
 
         case JSON_VALUE_FLOAT: {
             char buffer[40];
-            sprintf(buffer, "%f", value->value.float_value);
+            sprintf_s(buffer, sizeof(buffer), "%f", value->value.float_value);
             vector_append(vector, (void*)buffer, strlen(buffer));
         } break;
 
@@ -988,10 +1013,10 @@ static JSONValue json_make_null() {
     return result;
 }
 
-static JSONValue json_make_boolean(char value) {
+static JSONValue json_make_boolean(int value) {
     JSONValue result;
     result.type = JSON_VALUE_BOOLEAN;
-    result.value.bool_value = value;
+    result.value.bool_value = value == 0 ? 0 : 1;
     return result;
 }
 
@@ -1124,10 +1149,6 @@ static void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
     }
 }
 
-static void json_object_key_set(JSONValue* object, char* key, JSONValue value) {
-    json_object_set(object, json_make_string(key), value);
-}
-
 static void json_object_const_key_set(JSONValue* object, char* key, JSONValue value) {
     json_object_set(object, json_make_string_const(key), value);
 }
@@ -1197,16 +1218,6 @@ static void json_destroy_encoder(JSONEncoder* encoder) {
     vector_destroy(&encoder->string);
 }
 
-static void json_print(JSONValue* value) {
-    if (value == NULL) {
-        return;
-    }
-
-    JSONEncoder encoder  = json_encode(value);
-    printf("%s\n", encoder.string.data);
-    json_destroy_encoder(&encoder);
-}
-
 //
 // JSON Parsing Functions
 //
@@ -1258,8 +1269,9 @@ static char* token_make_string(Token* token) {
     for (size_t i = 0; i < token->length; i++) {
         if (token->ptr[i] == '\\') {
             if (!is_escaped) {
+                size_t dest_size = length - (dest - result);
                 size_t count = (token->ptr + i) - ptr;
-                strncpy(dest, ptr, count);
+                strncpy_s(dest, dest_size, ptr, count);
                 dest += count;
                 ptr += count + 1;
             }
@@ -1268,16 +1280,9 @@ static char* token_make_string(Token* token) {
             is_escaped = 0;
         }
     }
-    strncpy(dest, ptr, (token->ptr + token->length) - ptr);
+    size_t dest_size = length - (dest - result);
+    strncpy_s(dest, dest_size, ptr, (token->ptr + token->length) - ptr);
     result[length - 1] = 0;
-    return result;
-}
-
-static Lexer lexer_init(char* buffer, char* delimiters) {
-    Lexer result;
-    result.buffer = buffer;
-    result.delimiters = delimiters;
-    result.ptr = buffer;
     return result;
 }
 
@@ -1286,7 +1291,7 @@ static Token lexer_get_token(Lexer* lexer) {
     result.ptr = NULL;
     result.length = 0;
 
-    int length = 0;
+    size_t length = 0;
     char* ptr = lexer->ptr;
     while (*ptr != 0) {
         char ch = *ptr;
@@ -1311,7 +1316,7 @@ static Token lexer_get_token(Lexer* lexer) {
         char* delimiter = lexer->delimiters;
         while (*delimiter != 0) {
             if (ch == *delimiter) {
-                int length = ptr - lexer->ptr;
+                length = ptr - lexer->ptr;
                 // If there is enough to create a separate token, then adjust the pointer to remove
                 // the delimiter and apply that on the next token.
                 if (length > 1) {
@@ -1839,26 +1844,6 @@ static JSONValue symbol_tags_make_array(int value) {
     JSONValue result = json_make_array();
 
     if (value & LSTALK_SYMBOLTAG_DEPRECATED) { json_array_push(&result, json_make_int(SYMBOLTAG_Deprecated)); }
-
-    return result;
-}
-
-static int symbol_tags_parse(JSONValue* value) {
-    int result = 0;
-
-    if (value != NULL || value->type != JSON_VALUE_ARRAY) {
-        return result;
-    }
-
-    for (size_t i = 0; i < json_array_length(value); i++) {
-        JSONValue item = json_array_get(value, i);
-        if (item.type == JSON_VALUE_INT) {
-            switch (item.value.int_value) {
-                case SYMBOLTAG_Deprecated: result |= LSTALK_SYMBOLTAG_DEPRECATED; break;
-                default: break;
-            }
-        }
-    }
 
     return result;
 }
@@ -4109,7 +4094,7 @@ static char** parse_string_array(JSONValue* value, char* key, int* count) {
         }
     }
 
-    *count = length;
+    *count = (int)length;
     return result;
 }
 
@@ -4427,7 +4412,7 @@ static TextDocumentRegistrationOptions text_document_registration_options_parse(
     }
 
     size_t length = json_array_length(document_selector);
-    result.document_selector_count = length;
+    result.document_selector_count = (int)length;
     result.document_selector = (DocumentFilter*)calloc(length, sizeof(DocumentFilter));
     for (size_t i = 0; i < length; i++) {
         JSONValue* item = json_array_get_ptr(document_selector, i);
@@ -4998,7 +4983,7 @@ static FileOperationRegistrationOptions file_operation_registration_options_pars
         JSONValue* filters = json_object_get_ptr(operation, "filters");
         if (filters != NULL && filters->type == JSON_VALUE_ARRAY) {
             size_t length = json_array_length(filters);
-            result.filters_count = length;
+            result.filters_count = (int)length;
             result.filters = (FileOperationFilter*)calloc(length, sizeof(FileOperationFilter));
             for (size_t i = 0; i < length; i++) {
                 JSONValue* item = json_array_get_ptr(filters, i);
@@ -5018,8 +5003,8 @@ static FileOperationRegistrationOptions file_operation_registration_options_pars
 
                     JSONValue matches = json_object_get(pattern, "matches");
                     if (matches.type == JSON_VALUE_ARRAY) {
-                        for (size_t i = 0; i < matches.value.array_value->values.length; i++) {
-                            JSONValue match_item = json_array_get(&matches, i);
+                        for (size_t j = 0; j < json_array_length(&matches); j++) {
+                            JSONValue match_item = json_array_get(&matches, j);
                             if (match_item.type == JSON_VALUE_STRING) {
                                 if (strcmp(match_item.value.string_value, "file") == 0) {
                                     filter->pattern.matches |= FILEOPERATIONPATTERNKIND_FILE;
@@ -5380,7 +5365,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         JSONValue* notebook_selector = json_object_get_ptr(notebook_document_sync, "notebookSelector");
         if (notebook_selector != NULL && notebook_selector->type == JSON_VALUE_ARRAY) {
             size_t length = json_array_length(notebook_selector);
-            result.notebook_document_sync.notebook_selector_count = length;
+            result.notebook_document_sync.notebook_selector_count = (int)length;
             if (result.notebook_document_sync.notebook_selector_count > 0) {
                 NotebookSelector* selectors = (NotebookSelector*)calloc(length, sizeof(NotebookSelector));
                 for (size_t i = 0; i < length; i++) {
@@ -6015,7 +6000,7 @@ static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
 
     JSONValue* diagnostics = json_object_get_ptr(value, "diagnostics");
     if (diagnostics != NULL && diagnostics->type == JSON_VALUE_ARRAY) {
-        result.diagnostics_count = json_array_length(diagnostics);
+        result.diagnostics_count = (int)json_array_length(diagnostics);
         if (result.diagnostics_count > 0) {
             result.diagnostics = (LSTalk_Diagnostic*)calloc(result.diagnostics_count, sizeof(LSTalk_Diagnostic));
             for (size_t i = 0; i < (size_t)result.diagnostics_count; i++) {
@@ -6038,7 +6023,7 @@ static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
                         diagnostic->code = json_move_string(code);
                     } else if (code->type == JSON_VALUE_INT) {
                         char buffer[40] = "";
-                        sprintf(buffer, "%d", code->value.int_value);
+                        sprintf_s(buffer, sizeof(buffer), "%d", code->value.int_value);
                         diagnostic->code = string_alloc_copy(buffer);
                     }
                 }
@@ -6068,11 +6053,11 @@ static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
 
                 JSONValue* related_information = json_object_get_ptr(item, "relatedInformation");
                 if (related_information != NULL && related_information->type == JSON_VALUE_ARRAY) {
-                    diagnostic->related_information_count = json_array_length(related_information);
+                    diagnostic->related_information_count = (int)json_array_length(related_information);
                     if (diagnostic->related_information_count > 0) {
                         size_t size = sizeof(LSTalk_DiagnosticRelatedInformation) * diagnostic->related_information_count;
                         diagnostic->related_information = (LSTalk_DiagnosticRelatedInformation*)malloc(size);
-                        for (size_t j = 0; j < diagnostic->related_information_count; j++) {
+                        for (size_t j = 0; j < (size_t)diagnostic->related_information_count; j++) {
                             JSONValue* related_information_item = json_array_get_ptr(related_information, j);
                             LSTalk_DiagnosticRelatedInformation* diagnostic_related_information = &diagnostic->related_information[i];
                             
@@ -6081,9 +6066,9 @@ static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
                                 diagnostic_related_information->location = location_parse(location);
                             }
 
-                            JSONValue* message = json_object_get_ptr(related_information_item, "message");
-                            if (message != NULL && message->type == JSON_VALUE_STRING) {
-                                diagnostic_related_information->message = json_move_string(message);
+                            JSONValue* message_str = json_object_get_ptr(related_information_item, "message");
+                            if (message_str != NULL && message_str->type == JSON_VALUE_STRING) {
+                                diagnostic_related_information->message = json_move_string(message_str);
                             }
                         }
                     }
@@ -6123,7 +6108,7 @@ static void publish_diagnostics_free(LSTalk_PublishDiagnostics* publish_diagnost
             free(diagnostics->message);
         }
 
-        for (size_t j = 0; j < diagnostics->related_information_count; j++) {
+        for (size_t j = 0; j < (size_t)diagnostics->related_information_count; j++) {
             LSTalk_DiagnosticRelatedInformation* related_information = &diagnostics->related_information[j];
 
             if (related_information->location.uri != NULL) {
@@ -6182,7 +6167,7 @@ static LSTalk_DocumentSymbol document_symbol_parse(JSONValue* value) {
 
     JSONValue* children = json_object_get_ptr(value, "children");
     if (children != NULL && children->type == JSON_VALUE_ARRAY) {
-        result.children_count = json_array_length(children);
+        result.children_count = (int)json_array_length(children);
         if (result.children_count > 0) {
             result.children = (LSTalk_DocumentSymbol*)calloc(json_array_length(children), sizeof(LSTalk_DocumentSymbol));
             for (size_t i = 0; i < json_array_length(children); i++) {
@@ -6229,7 +6214,7 @@ static LSTalk_DocumentSymbolNotification document_symbol_notification_parse(JSON
         return result;
     }
 
-    result.symbols_count = json_array_length(value);
+    result.symbols_count = (int)json_array_length(value);
     if (result.symbols_count > 0) {
         result.symbols = (LSTalk_DocumentSymbol*)calloc(json_array_length(value), sizeof(LSTalk_DocumentSymbol));
         for (size_t i = 0; i < json_array_length(value); i++) {
@@ -6247,7 +6232,7 @@ static void document_symbol_notification_free(LSTalk_DocumentSymbolNotification*
     }
 
     if (notification->symbols != NULL) {
-        for (size_t i = 0; i < notification->symbols_count; i++) {
+        for (size_t i = 0; i < (size_t)notification->symbols_count; i++) {
             document_symbol_free(&notification->symbols[i]);
         }
 
@@ -6498,7 +6483,7 @@ LSTalk_Context* lstalk_init() {
     result->servers = vector_create(sizeof(Server));
     result->server_id = 1;
     char buffer[40];
-    sprintf(buffer, "%d.%d.%d", LSTALK_MAJOR, LSTALK_MINOR, LSTALK_REVISION);
+    sprintf_s(buffer, sizeof(buffer), "%d.%d.%d", LSTALK_MAJOR, LSTALK_MINOR, LSTALK_REVISION);
     result->client_info.name = string_alloc_copy("lstalk");
     result->client_info.version = string_alloc_copy(buffer);
     result->locale = string_alloc_copy("en");
@@ -6664,15 +6649,16 @@ int lstalk_process_responses(LSTalk_Context* context) {
                         // pending buffer and continue waiting.
                         size_t new_size = pending_length + anchor_length;
                         server->pending_content_response = (char*)realloc(server->pending_content_response, new_size + 1);
-                        strncpy(server->pending_content_response + pending_length, anchor, anchor_length);
+                        strncpy_s(server->pending_content_response + pending_length, new_size + 1, anchor, anchor_length);
                         server->pending_content_response[new_size] = 0;
                         anchor = NULL;
                     } else {
                         // The data has arrived. Parse the contents into a JSON object.
                         size_t remaining = server->pending_content_length - pending_length;
-                        char* content = (char*)malloc(sizeof(char) * server->pending_content_length + 1);
-                        strncpy(content, server->pending_content_response, pending_length);
-                        strncpy(content + pending_length, anchor, remaining);
+                        size_t content_size = server->pending_content_length + 1;
+                        char* content = (char*)malloc(sizeof(char) * content_size);
+                        strncpy_s(content, content_size, server->pending_content_response, pending_length);
+                        strncpy_s(content + pending_length, content_size - pending_length, anchor, remaining);
                         content[server->pending_content_length] = 0;
                         value = json_decode(content);
                         anchor += remaining + 1;
@@ -6687,7 +6673,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                     if (content_length != NULL) {
                         // Retrieve the length of the response.
                         size_t length = 0;
-                        sscanf(content_length, "Content-Length: %zu", &length);
+                        sscanf_s(content_length, "Content-Length: %zu", &length);
 
                         // Find the start of the JSON string.
                         char* content_start = strchr(content_length, '{');
@@ -6702,7 +6688,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                             } else {
                                 // The full content is available. Decode the response into a JSON object.
                                 char* content = (char*)malloc(sizeof(char) * length + 1);
-                                strncpy(content, content_start, length);
+                                strncpy_s(content, length + 1, content_start, length);
                                 content[length] = 0;
                                 value = json_decode(content);
                                 free(content);
@@ -6772,12 +6758,12 @@ int lstalk_process_responses(LSTalk_Context* context) {
             free(response);
         }
 
-        for (size_t i = 0; i < server->notifications.length; i++) {
-            LSTalk_Notification* notification = (LSTalk_Notification*)vector_get(&server->notifications, i);
+        for (size_t notify_index = 0; notify_index < server->notifications.length; notify_index++) {
+            LSTalk_Notification* notification = (LSTalk_Notification*)vector_get(&server->notifications, notify_index);
             if (notification->polled) {
                 notification_free(notification);
-                vector_remove(&server->notifications, i);
-                i--;
+                vector_remove(&server->notifications, notify_index);
+                notify_index--;
             }
         }
     }
@@ -7071,7 +7057,7 @@ static TestResults tests_vector() {
     REGISTER_TEST(&tests, test_vector_get);
 
     result.fail = tests_run(&tests);
-    result.pass = tests.length - result.fail;
+    result.pass = (int)tests.length - result.fail;
     vector_destroy(&tests);
 
     return result;
@@ -7206,7 +7192,7 @@ static int test_json_encode_float() {
     JSONValue value = json_make_float(3.14f);
     JSONEncoder encoder = json_encode(&value);
     char buffer[40];
-    sprintf(buffer, "%f", 3.14f);
+    sprintf_s(buffer, sizeof(buffer), "%f", 3.14f);
     int result = strcmp(encoder.string.data, buffer) == 0;
     json_destroy_encoder(&encoder);
     return result;
@@ -7273,7 +7259,7 @@ static int test_json_encode_array_of_objects() {
 
 static int test_json_move_string() {
     JSONValue value = json_make_string("Hello World");
-    int length = strlen(value.value.string_value);
+    size_t length = strlen(value.value.string_value);
     int result = strncmp(value.value.string_value, "Hello World", length) == 0;
     char* moved = json_move_string(&value);
     json_destroy_value(&value);
@@ -7312,7 +7298,7 @@ static TestResults tests_json() {
     REGISTER_TEST(&tests, test_json_move_string);
 
     result.fail = tests_run(&tests);
-    result.pass = tests.length - result.fail;
+    result.pass = (int)tests.length - result.fail;
 
     vector_destroy(&tests);
     return result;
