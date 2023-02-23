@@ -619,7 +619,7 @@ static Process* process_create_posix(const char* path, int seek_path_env) {
         // Close pipes that are used by the parent process.
         process_close_pipes(&pipes);
 
-        char** args = NULL;
+        char* args[] = {final_path, NULL};
         int error = execv(final_path, args);
         if (error == -1) {
             printf("Failed to execv child process!\n");
