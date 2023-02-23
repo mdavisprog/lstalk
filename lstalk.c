@@ -93,7 +93,12 @@ static int strcpy_s(char* restrict dest, size_t destsz, const char* restrict src
 
 static int strncpy_s(char* restrict dest, size_t destsz, const char* src, size_t count) {
     (void)destsz;
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
     char* result = strncpy(dest, src, count);
+#pragma GCC diagnostic pop
     if (result != dest) {
         return EINVAL;
     }
