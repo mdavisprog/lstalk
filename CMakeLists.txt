@@ -42,35 +42,59 @@ function(add_program TARGET_NAME OUTPUT_NAME SOURCES)
     )
 endfunction()
 
-add_library(
-    lstalk
-    lstalk.c
-)
-
-set_target_properties(
-    lstalk
-    PROPERTIES PUBLIC_HEADER lstalk.h
-)
+add_library(lstalk_static STATIC lstalk.c)
+add_library(lstalk_dynamic SHARED lstalk.c)
 
 target_compile_definitions(
-    lstalk
+    lstalk_static
+    PUBLIC LSTALK_STATIC
     PRIVATE LSTALK_LIB
 )
 
-if(BUILD_SHARED_LIBS)
+target_compile_definitions(
+    lstalk_dynamic
+    PUBLIC LSTALK_EXPORT
+    PRIVATE LSTALK_LIB
+)
+
+set_target_properties(
+    lstalk_static
+    PROPERTIES
+    PUBLIC_HEADER lstalk.h
+    ARCHIVE_OUTPUT_NAME lstalk
+    RUNTIME_OUTPUT_NAME lstalk
+)
+
+set_target_properties(
+    lstalk_dynamic
+    PROPERTIES
+    PUBLIC_HEADER lstalk.h
+    ARCHIVE_OUTPUT_NAME lstalkdll
+    RUNTIME_OUTPUT_NAME lstalk
+)
+
+if(WITH_TESTS)
     target_compile_definitions(
-        lstalk
-        PUBLIC LSTALK_EXPORT
+        lstalk_static
+        PUBLIC LSTALK_TESTS
     )
-else()
+
     target_compile_definitions(
-        lstalk
-        PUBLIC LSTALK_STATIC
+        lstalk_dynamic
+        PUBLIC LSTALK_TESTS
     )
 endif()
 
+if(BUILD_SHARED_LIBS)
+    add_library(lstalk ALIAS lstalk_dynamic)
+    message("Building apps and examples with dynamic linkage")
+else()
+    add_library(lstalk ALIAS lstalk_static)
+    message("Building apps and examples with static linkage")
+endif()
+
 install(
-    TARGETS lstalk
+    TARGETS lstalk_static lstalk_dynamic
     DESTINATION ${LIB_DIR}
 )
 
@@ -107,14 +131,6 @@ if(BUILD_SHARED_LIBS)
         $<TARGET_FILE:lstalk>
         $<TARGET_FILE_DIR:lstalk_console>
     )
-endif()
-
-if(WITH_TESTS)
-target_compile_definitions(
-    lstalk
-    PUBLIC
-    LSTALK_TESTS
-)
 endif()
 
 if(NO_LIB)
