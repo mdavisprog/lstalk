@@ -65,7 +65,9 @@ static void utility_absolute_path(char* relative_path, char* out, size_t out_siz
     GetFullPathNameA(relative_path, (DWORD)out_size, out, NULL);
 #else
     (void)out_size;
-    realpath(relative_path, out);
+    if (realpath(relative_path, out) == NULL) {
+        out = NULL;
+    }
 #endif
 }
 
