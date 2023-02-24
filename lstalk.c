@@ -94,11 +94,15 @@ static int strcpy_s(char* restrict dest, size_t destsz, const char* restrict src
 static int strncpy_s(char* restrict dest, size_t destsz, const char* src, size_t count) {
     (void)destsz;
 
+#if LSTALK_LINUX
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
     char* result = strncpy(dest, src, count);
+#if LSTALK_LINUX
 #pragma GCC diagnostic pop
+#endif
     if (result != dest) {
         return EINVAL;
     }
