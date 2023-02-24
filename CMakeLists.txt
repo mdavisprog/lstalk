@@ -65,11 +65,17 @@ set_target_properties(
     RUNTIME_OUTPUT_NAME lstalk
 )
 
+set(LIBRARY_NAME lstalkshared)
+if(WIN32)
+    set(LIBRARY_NAME lstalk)
+endif()
+
 set_target_properties(
     lstalk_dynamic
     PROPERTIES
     PUBLIC_HEADER lstalk.h
     ARCHIVE_OUTPUT_NAME lstalkdll
+    LIBRARY_OUTPUT_NAME ${LIBRARY_NAME}
     RUNTIME_OUTPUT_NAME lstalk
 )
 
