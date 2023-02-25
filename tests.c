@@ -27,9 +27,9 @@ SOFTWARE.
 #include "lstalk.h"
 #include <stdio.h>
 
-int main() {
+int main(int argc, char** argv) {
 #if LSTALK_TESTS
-    lstalk_tests();
+    lstalk_tests(argc, argv);
 #else
     printf("Did not compile with LSTALK_TESTS enabled!\n");
 #endif

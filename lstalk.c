@@ -7348,7 +7348,10 @@ void add_test_suite(Vector* suites, TestResults (*fn)(), char* name) {
 
 #define ADD_TEST_SUITE(suites, fn) add_test_suite(suites, fn, #fn)
 
-void lstalk_tests() {
+void lstalk_tests(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+
     printf("Running tests for lstalk...\n\n");
 
     Vector suites = vector_create(sizeof(TestSuite));
