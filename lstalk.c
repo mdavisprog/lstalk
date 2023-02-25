@@ -6307,6 +6307,24 @@ typedef struct TextDocumentItem {
     char* text;
 } TextDocumentItem;
 
+static void text_document_item_free(TextDocumentItem* item) {
+    if (item == NULL) {
+        return;
+    }
+
+    if (item->uri != NULL) {
+        free(item->uri);
+    }
+
+    if (item->language_id != NULL) {
+        free(item->language_id);
+    }
+
+    if (item->text != NULL) {
+        free(item->text);
+    }
+}
+
 typedef struct Server {
     LSTalk_ServerID id;
     Process* process;
@@ -6386,18 +6404,7 @@ static void server_close(Server* server) {
 
     for (size_t i = 0; i < server->text_documents.length; i++) {
         TextDocumentItem* item = (TextDocumentItem*)vector_get(&server->text_documents, i);
-
-        if (item->uri != NULL) {
-            free(item->uri);
-        }
-
-        if (item->language_id != NULL) {
-            free(item->language_id);
-        }
-
-        if (item->text != NULL) {
-            free(item->text);
-        }
+        text_document_item_free(item);
     }
     vector_destroy(&server->text_documents);
 
@@ -6861,8 +6868,18 @@ int lstalk_text_document_did_close(LSTalk_Context* context, LSTalk_ServerID id, 
     }
 
     char* uri = file_uri(path);
+    char* escaped_uri = json_escape_string(uri);
+
+    for (size_t i = 0; i < server->text_documents.length; i++) {
+        TextDocumentItem* item = (TextDocumentItem*)vector_get(&server->text_documents, i);
+        if (strcmp(item->uri, escaped_uri) == 0) {
+            vector_remove(&server->text_documents, i);
+            break;
+        }
+    }
+
     JSONValue text_document_identifier = json_make_object();
-    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(json_escape_string(uri)));
+    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(escaped_uri));
     free(uri);
 
     JSONValue params = json_make_object();
