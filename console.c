@@ -206,6 +206,7 @@ int main(int argc, char** argv) {
     LSTalk_ConnectParams params;
     params.root_uri = NULL;
     params.trace = LSTALK_TRACE_VERBOSE;
+    params.seek_path_env = 1;
     int debug_flags = LSTALK_DEBUGFLAGS_NONE;
 
     Argument args[20];
