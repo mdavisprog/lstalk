@@ -319,7 +319,7 @@ static char* file_extension(char* path) {
 }
 
 #if LSTALK_WINDOWS
-int file_exists(wchar_t* path) {
+static int file_exists(wchar_t* path) {
     if (path == NULL) {
         return 0;
     }
@@ -332,7 +332,7 @@ int file_exists(wchar_t* path) {
     return !(attributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 #elif LSTALK_POSIX
-int file_exists(char* path) {
+static int file_exists(char* path) {
     if (path == NULL) {
         return 0;
     }
@@ -7335,7 +7335,7 @@ typedef struct TestSuite {
     char* name;
 } TestSuite;
 
-void add_test_suite(Vector* suites, TestResults (*fn)(), char* name) {
+static void add_test_suite(Vector* suites, TestResults (*fn)(), char* name) {
     if (suites == NULL) {
         return;
     }
