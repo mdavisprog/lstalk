@@ -6325,6 +6325,127 @@ static void text_document_item_free(TextDocumentItem* item) {
     }
 }
 
+typedef struct Message {
+    char* buffer;
+    size_t length;
+    size_t expected_length;
+} Message;
+
+static Message message_create() {
+    Message message;
+    memset(&message, 0, sizeof(message));
+    return message;
+}
+
+static void message_free(Message* message) {
+    if (message == NULL) {
+        return;
+    }
+
+    if (message->buffer != NULL) {
+        free(message->buffer);
+    }
+
+    memset(message, 0, sizeof(Message));
+}
+
+static int message_has_pending(Message* message) {
+    if (message == NULL) {
+        return 0;
+    }
+    
+    return message->buffer != NULL && message->expected_length > 0;
+}
+
+static JSONValue message_to_json(Message* message, char** request) {
+    JSONValue result = json_make_null();
+
+    if (message == NULL || request == NULL) {
+        return result;
+    }
+
+    char* anchor = *request;
+    size_t length = strlen(anchor);
+
+    // Pending message already exists.
+    if (message_has_pending(message)) {
+        if (message->length + length < message->expected_length) {
+            // Still not enough data. Store the rest of this response into the current
+            // pending buffer and continue waiting.
+            size_t size = message->length + length;
+            message->buffer = (char*)realloc(message->buffer, size + 1);
+            strncpy_s(message->buffer + message->length, size + 1, anchor, length);
+            message->buffer[size] = 0;
+            message->length = size;
+            *request = NULL;
+        } else {
+            // The data has arrived. Parse the contents into a JSON object.
+            size_t remaining = message->expected_length - message->length;
+            size_t size = message->expected_length + 1;
+            char* content = (char*)malloc(sizeof(char) * size);
+            strncpy_s(content, size, message->buffer, message->length);
+            strncpy_s(content + message->length, size - message->length, anchor, remaining);
+            content[message->expected_length] = 0;
+            result = json_decode(content);
+            *request += remaining + 1;
+            free(content);
+            message_free(message);
+        }
+    } else {
+        size_t content_length = 0;
+        char* content_length_str = NULL;
+        if (message->expected_length > 0) {
+            content_length = message->expected_length;
+            content_length_str = anchor;
+        } else {
+            // Find the next response to parse.
+            content_length_str = strstr(anchor, "Content-Length");
+            if (content_length_str == NULL) {
+                *request = NULL;
+                return result;
+            }
+
+            // TODO: Make sure the full line has been received before attempting to read length.
+
+            // Retrieve the length of the response.
+            sscanf_s(content_length_str, "Content-Length: %zu", &content_length);
+        }
+
+        // Find the start of the JSON string.
+        char* content_start = strchr(content_length_str, '{');
+        if (content_start != NULL) {
+            size_t remaining = strlen(content_start);
+            if (remaining < content_length) {
+                // The full content string is not part of this read. Store for the
+                // next read.
+                message->expected_length = content_length;
+                message->buffer = string_alloc_copy(content_start);
+                message->length = strlen(content_start);
+                *request = NULL;
+            } else {
+                // The full content is available. Decode the response into a JSON object.
+                char* content = (char*)malloc(sizeof(char) * content_length + 1);
+                strncpy_s(content, content_length + 1, content_start, content_length);
+                content[content_length] = 0;
+                result = json_decode(content);
+                free(content);
+                *request = content_start + content_length;
+                message_free(message);
+            }
+        } else {
+            // The length may have been parsed, but the content hasn't been parsed.
+            // Store the length to be used on the next read.
+            if (content_length > 0) {
+                message->expected_length = content_length;
+            }
+
+            *request = NULL;
+        }
+    }
+
+    return result;
+}
+
 typedef struct Server {
     LSTalk_ServerID id;
     Process* process;
@@ -6335,8 +6456,7 @@ typedef struct Server {
     ServerCapabilities capabilities;
     Vector text_documents;
     Vector notifications;
-    char* pending_content_response;
-    size_t pending_content_length;
+    Message pending_message;
 } Server;
 
 static LSTalk_ServerInfo server_info_parse(JSONValue* value) {
@@ -6414,9 +6534,7 @@ static void server_close(Server* server) {
     }
     vector_destroy(&server->notifications);
 
-    if (server->pending_content_response != NULL) {
-        free(server->pending_content_response);
-    }
+    message_free(&server->pending_message);
 }
 
 typedef struct ClientInfo {
@@ -6654,75 +6772,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
 
             char* anchor = response;
             while (anchor != NULL) {
-                JSONValue value = json_make_null();
-
-                if (server->pending_content_response != NULL && server->pending_content_length > 0) {
-                    // Currently have a response that is waiting for more data.
-                    size_t pending_length = strlen(server->pending_content_response);
-                    size_t anchor_length = strlen(anchor);
-                    if (pending_length + anchor_length < server->pending_content_length) {
-                        // Still not enough data. Store the rest of this response into the current
-                        // pending buffer and continue waiting.
-                        size_t new_size = pending_length + anchor_length;
-                        server->pending_content_response = (char*)realloc(server->pending_content_response, new_size + 1);
-                        strncpy_s(server->pending_content_response + pending_length, new_size + 1, anchor, anchor_length);
-                        server->pending_content_response[new_size] = 0;
-                        anchor = NULL;
-                    } else {
-                        // The data has arrived. Parse the contents into a JSON object.
-                        size_t remaining = server->pending_content_length - pending_length;
-                        size_t content_size = server->pending_content_length + 1;
-                        char* content = (char*)malloc(sizeof(char) * content_size);
-                        strncpy_s(content, content_size, server->pending_content_response, pending_length);
-                        strncpy_s(content + pending_length, content_size - pending_length, anchor, remaining);
-                        content[server->pending_content_length] = 0;
-                        value = json_decode(content);
-                        anchor += remaining + 1;
-                        free(content);
-                        free(server->pending_content_response);
-                        server->pending_content_response = NULL;
-                        server->pending_content_length = 0;
-                    }
-                } else {
-                    // Find the next response to parse.
-                    char* content_length = strstr(anchor, "Content-Length");
-                    if (content_length != NULL) {
-                        // Retrieve the length of the response.
-                        size_t length = 0;
-                        sscanf_s(content_length, "Content-Length: %zu", &length);
-
-                        // Find the start of the JSON string.
-                        char* content_start = strchr(content_length, '{');
-                        if (content_start != NULL) {
-                            size_t remaining = strlen(content_start);
-                            if (remaining < length) {
-                                // The full content string is not part of this read. Store for the
-                                // next read.
-                                server->pending_content_length = length;
-                                server->pending_content_response = string_alloc_copy(content_start);
-                                anchor = NULL;
-                            } else {
-                                // The full content is available. Decode the response into a JSON object.
-                                char* content = (char*)malloc(sizeof(char) * length + 1);
-                                strncpy_s(content, length + 1, content_start, length);
-                                content[length] = 0;
-                                value = json_decode(content);
-                                free(content);
-                                anchor = content_start + length;
-                            }
-                        } else {
-                            // The length may have been parsed, but the content hasn't been parsed.
-                            // Store the length to be used on the next read.
-                            if (length > 0) {
-                                server->pending_content_length = length;
-                            }
-
-                            anchor = NULL;
-                        }
-                    } else {
-                        anchor = NULL;
-                    }
-                }
+                JSONValue value = message_to_json(&server->pending_message, &anchor);
 
                 if (value.type == JSON_VALUE_OBJECT) {
                     JSONValue id = json_object_get(&value, "id");
@@ -7330,6 +7380,137 @@ static TestResults tests_json() {
     return result;
 }
 
+// Message tests
+
+#define TEST_BUFFER_SIZE 1024
+
+static void test_message_set(char* content, char* out, size_t out_size) {
+    size_t length = strlen(content);
+    sprintf_s(out, out_size, "Content-Length: %zu\r\n%s", length, content);
+}
+
+static int test_message_empty_object() {
+    Message message = message_create();
+    char buffer[TEST_BUFFER_SIZE];
+    test_message_set("{}", buffer, sizeof(buffer));
+    char* ptr = &buffer[0];
+    JSONValue value = message_to_json(&message, &ptr);
+    int result = value.type == JSON_VALUE_OBJECT && value.value.object_value->pairs.length == 0;
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_message_object() {
+    Message message = message_create();
+    char buffer[TEST_BUFFER_SIZE];
+    test_message_set("{\"Int\": 42}", buffer, sizeof(buffer));
+    char* ptr = &buffer[0];
+    JSONValue value = message_to_json(&message, &ptr);
+    int result = value.type == JSON_VALUE_OBJECT;
+    JSONValue obj = json_object_get(&value, "Int");
+    json_destroy_value(&value);
+    return result && obj.type == JSON_VALUE_INT && obj.value.int_value == 42;
+}
+
+static int test_message_object_and_invalid() {
+    Message message = message_create();
+    char buffer[TEST_BUFFER_SIZE];
+    test_message_set("{}", buffer, sizeof(buffer));
+    char* ptr = &buffer[0];
+    JSONValue first = message_to_json(&message, &ptr);
+    JSONValue second = message_to_json(&message, &ptr);
+    int result = first.type == JSON_VALUE_OBJECT && first.value.object_value->pairs.length == 0;
+    result &= second.type == JSON_VALUE_NULL;
+    json_destroy_value(&first);
+    json_destroy_value(&second);
+    return result;
+}
+
+static int test_message_two_objects() {
+    Message message = message_create();
+    char buffer_1[TEST_BUFFER_SIZE];
+    test_message_set("{\"Int\": 42}", buffer_1, sizeof(buffer_1));
+    char buffer_2[TEST_BUFFER_SIZE];
+    test_message_set("{\"Float\": 3.14}", buffer_2, sizeof(buffer_2));
+    char buffer[TEST_BUFFER_SIZE];
+    sprintf_s(buffer, sizeof(buffer), "%s\r\n%s", buffer_1, buffer_2);
+    char* ptr = &buffer[0];
+    JSONValue first = message_to_json(&message, &ptr);
+    JSONValue second = message_to_json(&message, &ptr);
+    JSONValue first_int = json_object_get(&first, "Int");
+    JSONValue second_float = json_object_get(&second, "Float");
+    int result = first_int.type == JSON_VALUE_INT && first_int.value.int_value == 42;
+    result &= second_float.type = JSON_VALUE_FLOAT && second_float.value.float_value == 3.14f;
+    json_destroy_value(&first);
+    json_destroy_value(&second);
+    return result;
+}
+
+static int test_message_partial() {
+    char* data = "{\"String\": \"Hello World\"}";
+    size_t data_length = strlen(data);
+    Message message = message_create();
+    char buffer[TEST_BUFFER_SIZE];
+    test_message_set(data, buffer, sizeof(buffer));
+    char partial[TEST_BUFFER_SIZE];
+    size_t offset = 30;
+    strncpy_s(partial, sizeof(partial), buffer, offset);
+    partial[offset] = 0;
+    char* ptr = &partial[0];
+    JSONValue value = message_to_json(&message, &ptr);
+    int result = value.type == JSON_VALUE_NULL && message.expected_length == data_length;
+    size_t remaining = strlen(buffer - offset);
+    strncpy_s(partial, sizeof(partial), buffer + offset, remaining);
+    partial[remaining] = 0;
+    ptr = &partial[0];
+    value = message_to_json(&message, &ptr);
+    result &= value.type == JSON_VALUE_OBJECT;
+    result &= message.buffer == NULL && message.length == 0 && message.expected_length == 0;
+    JSONValue string_value = json_object_get(&value, "String");
+    result &= string_value.type == JSON_VALUE_STRING && strcmp(string_value.value.string_value, "Hello World") == 0;
+    json_destroy_value(&value);
+    return result;
+}
+
+static int test_message_partial_no_content() {
+    char* data = "{\"Int\": 42}";
+    size_t data_length = strlen(data);
+    char buffer[TEST_BUFFER_SIZE];
+    sprintf_s(buffer, sizeof(buffer), "Content-Length: %zu\r\n", data_length);
+    Message message = message_create();
+    char* ptr = &buffer[0];
+    JSONValue value = message_to_json(&message, &ptr);
+    int result = value.type == JSON_VALUE_NULL && message.expected_length == data_length;
+    sprintf_s(buffer, sizeof(buffer), "%s", data);
+    ptr = &buffer[0];
+    value = message_to_json(&message, &ptr);
+    result &= value.type == JSON_VALUE_OBJECT;
+    result &= message.buffer == NULL && message.length == 0 && message.expected_length == 0;
+    JSONValue int_value = json_object_get(&value, "Int");
+    result &= int_value.type == JSON_VALUE_INT && int_value.value.int_value == 42;
+    json_destroy_value(&value);
+    return result;
+}
+
+static TestResults tests_message() {
+    TestResults result;
+
+    Vector tests = vector_create(sizeof(TestCase));
+
+    REGISTER_TEST(&tests, test_message_empty_object);
+    REGISTER_TEST(&tests, test_message_object);
+    REGISTER_TEST(&tests, test_message_object_and_invalid);
+    REGISTER_TEST(&tests, test_message_two_objects);
+    REGISTER_TEST(&tests, test_message_partial);
+    REGISTER_TEST(&tests, test_message_partial_no_content);
+
+    result.fail = tests_run(&tests);
+    result.pass = (int)tests.length - result.fail;
+
+    vector_destroy(&tests);
+    return result;
+}
+
 typedef struct TestSuite {
     TestResults (*fn)();
     char* name;
@@ -7357,6 +7538,7 @@ void lstalk_tests(int argc, char** argv) {
     Vector suites = vector_create(sizeof(TestSuite));
     ADD_TEST_SUITE(&suites, tests_vector);
     ADD_TEST_SUITE(&suites, tests_json);
+    ADD_TEST_SUITE(&suites, tests_message);
 
     TestResults results;
     results.pass = 0;
