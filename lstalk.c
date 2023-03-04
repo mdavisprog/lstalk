@@ -117,7 +117,7 @@ static int fopen_s(FILE* restrict* restrict streamptr, const char* restrict file
     return EXIT_SUCCESS;
 }
 
-#define sprintf_s(dest, bufsz, format, ...) sprintf(dest, format, __VA_ARGS__)
+#define sprintf_s(dest, bufsz, format, ...) (void)bufsz; sprintf(dest, format, __VA_ARGS__)
 #define sscanf_s(buffer, format, ...) sscanf(buffer, format, __VA_ARGS__)
 #endif
 
@@ -7432,7 +7432,7 @@ static int test_message_two_objects() {
     test_message_set("{\"Int\": 42}", buffer_1, sizeof(buffer_1));
     char buffer_2[TEST_BUFFER_SIZE];
     test_message_set("{\"Float\": 3.14}", buffer_2, sizeof(buffer_2));
-    char buffer[TEST_BUFFER_SIZE];
+    char buffer[TEST_BUFFER_SIZE * 3];
     sprintf_s(buffer, sizeof(buffer), "%s\r\n%s", buffer_1, buffer_2);
     char* ptr = &buffer[0];
     JSONValue first = message_to_json(&message, &ptr);
@@ -7459,7 +7459,7 @@ static int test_message_partial() {
     char* ptr = &partial[0];
     JSONValue value = message_to_json(&message, &ptr);
     int result = value.type == JSON_VALUE_NULL && message.expected_length == data_length;
-    size_t remaining = strlen(buffer - offset);
+    size_t remaining = strlen(buffer) - offset;
     strncpy_s(partial, sizeof(partial), buffer + offset, remaining);
     partial[remaining] = 0;
     ptr = &partial[0];
