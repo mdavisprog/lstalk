@@ -5479,7 +5479,17 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
                         }
                     }
 
-                    selectors[i].cells = parse_string_array(item, "cells", &selectors[i].cells_count);
+                    JSONValue* cells = json_object_get_ptr(item, "cells");
+                    if (cells != NULL && cells->type == JSON_VALUE_ARRAY) {
+                        size_t count = json_array_length(cells);
+                        selectors[i].cells_count = (int)count;
+                        selectors[i].cells = (char**)malloc(count * sizeof(char*));
+                        for (size_t cell_idx = 0; cell_idx < count; cell_idx++) {
+                            JSONValue* cell = json_array_get_ptr(cells, cell_idx);
+                            JSONValue* language = json_object_get_ptr(cell, "language");
+                            selectors[i].cells[cell_idx] = json_move_string(language);
+                        }
+                    }
                 }
                 result.notebook_document_sync.notebook_selector = selectors;
             }
