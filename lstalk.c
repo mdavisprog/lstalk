@@ -932,7 +932,7 @@ struct JSONArray;
 
 typedef struct JSONValue {
     union {
-        char bool_value;
+        unsigned char bool_value;
         int int_value;
         float float_value;
         char* string_value;
@@ -1099,10 +1099,10 @@ static JSONValue json_make_null() {
     return result;
 }
 
-static JSONValue json_make_boolean(int value) {
+static JSONValue json_make_boolean(lstalk_bool value) {
     JSONValue result;
     result.type = JSON_VALUE_BOOLEAN;
-    result.value.bool_value = value == 0 ? 0 : 1;
+    result.value.bool_value = value;
     return result;
 }
 
@@ -2411,7 +2411,7 @@ typedef struct WorkspaceEditClientCapabilities {
     /**
      * The client supports versioned document changes in `WorkspaceEdit`s
      */
-    int document_changes;
+    lstalk_bool document_changes;
 
     /**
      * The resource operations the client supports. Clients should at least
@@ -2437,7 +2437,7 @@ typedef struct WorkspaceEditClientCapabilities {
      *
      * @since 3.16.0
      */
-    int normalizes_line_endings;
+    lstalk_bool normalizes_line_endings;
 
     /**
      * Whether the client in general supports change annotations on text edits,
@@ -2451,7 +2451,7 @@ typedef struct WorkspaceEditClientCapabilities {
      * for instance all edits labelled with "Changes in Strings" would
      * be a tree node.
      */
-    int groups_on_label;
+    lstalk_bool groups_on_label;
 } WorkspaceEditClientCapabilities;
 
 static JSONValue workspace_edit_client_capabilities_make(WorkspaceEditClientCapabilities* workspace_edit) {
@@ -2467,7 +2467,7 @@ static JSONValue workspace_edit_client_capabilities_make(WorkspaceEditClientCapa
 }
 
 typedef struct DynamicRegistration {
-    int value;
+    lstalk_bool value;
 } DynamicRegistration;
 
 static void dynamic_registration_set(JSONValue* root, DynamicRegistration* dynamic_registration) {
@@ -2502,7 +2502,7 @@ typedef struct DidChangeWatchedFilesClientCapabilities {
      *
      * @since 3.17.0
      */
-    int relative_pattern_support;
+    lstalk_bool relative_pattern_support;
 } DidChangeWatchedFilesClientCapabilities;
 
 typedef struct WorkspaceSymbolClientCapabilities {
@@ -2580,7 +2580,7 @@ typedef struct RefreshSupport {
      * where a server for example detect a project wide change that requires
      * such a calculation.
      */
-    int value;
+    lstalk_bool value;
 } RefreshSupport;
 
 static JSONValue refresh_support_make(RefreshSupport* refresh_support) {
@@ -2604,32 +2604,32 @@ typedef struct FileOperations {
     /**
      * The client has support for sending didCreateFiles notifications.
      */
-    int did_create;
+    lstalk_bool did_create;
 
     /**
      * The client has support for sending willCreateFiles requests.
      */
-    int will_create;
+    lstalk_bool will_create;
 
     /**
      * The client has support for sending didRenameFiles notifications.
      */
-    int did_rename;
+    lstalk_bool did_rename;
 
     /**
      * The client has support for sending willRenameFiles requests.
      */
-    int will_rename;
+    lstalk_bool will_rename;
 
     /**
      * The client has support for sending didDeleteFiles notifications.
      */
-    int did_delete;
+    lstalk_bool did_delete;
 
     /**
      * The client has support for sending willDeleteFiles requests.
      */
-    int will_delete;
+    lstalk_bool will_delete;
 } FileOperations;
 
 static JSONValue file_operations_make(FileOperations* file_ops) {
@@ -2653,7 +2653,7 @@ typedef struct Workspace {
      * to the workspace by supporting the request
      * 'workspace/applyEdit'
      */
-    int apply_edit;
+    lstalk_bool apply_edit;
 
     /**
      * Capabilities specific to `WorkspaceEdit`s
@@ -2687,14 +2687,14 @@ typedef struct Workspace {
      *
      * @since 3.6.0
      */
-    int workspace_folders;
+    lstalk_bool workspace_folders;
 
     /**
      * The client supports `workspace/configuration` requests.
      *
      * @since 3.6.0
      */
-    int configuration;
+    lstalk_bool configuration;
 
     /**
      * Capabilities specific to the semantic token requests scoped to the
@@ -2775,19 +2775,19 @@ typedef struct TextDocumentSyncClientCapabilities {
     /**
      * The client supports sending will save notifications.
      */
-    int will_save;
+    lstalk_bool will_save;
 
     /**
      * The client supports sending a will save request and
      * waits for a response providing text edits which will
      * be applied to the document before it is saved.
      */
-    int will_save_wait_until;
+    lstalk_bool will_save_wait_until;
 
     /**
      * The client supports did save notifications.
      */
-    int did_save;
+    lstalk_bool did_save;
 } TextDocumentSyncClientCapabilities;
 
 static JSONValue text_document_sync_client_capabilities_make(TextDocumentSyncClientCapabilities* sync) {
@@ -2812,12 +2812,12 @@ typedef struct CompletionItem {
      * the end of the snippet. Placeholders with equal identifiers are
      * linked, that is typing in one will update others too.
      */
-    int snippet_support;
+    lstalk_bool snippet_support;
 
     /**
      * Client supports commit characters on a completion item.
      */
-    int commit_characters_support;
+    lstalk_bool commit_characters_support;
 
     /**
      * Client supports the follow content formats for the documentation
@@ -2828,12 +2828,12 @@ typedef struct CompletionItem {
     /**
      * Client supports the deprecated property on a completion item.
      */
-    int deprecated_support;
+    lstalk_bool deprecated_support;
 
     /**
      * Client supports the preselect property on a completion item.
      */
-    int preselect_support;
+    lstalk_bool preselect_support;
 
     /**
      * Client supports the tag property on a completion item. Clients
@@ -2855,7 +2855,7 @@ typedef struct CompletionItem {
      *
      * @since 3.16.0
      */
-    int insert_replace_support;
+    lstalk_bool insert_replace_support;
 
     /**
      * Indicates which properties a client can resolve lazily on a
@@ -2889,7 +2889,7 @@ typedef struct CompletionItem {
      *
      * @since 3.17.0
      */
-    int label_details_support;
+    lstalk_bool label_details_support;
 } CompletionItem;
 
 static JSONValue completion_item_make(CompletionItem* completion_item) {
@@ -2949,7 +2949,7 @@ typedef struct CompletionClientCapabilities {
      * The client supports to send additional context information for a
      * `textDocument/completion` request.
      */
-    int context_support;
+    lstalk_bool context_support;
 
     /**
      * The client's default when the completion item doesn't provide a
@@ -3036,7 +3036,7 @@ typedef struct SignatureInformation {
      *
      * @since 3.14.0
      */
-    int label_offset_support;
+    lstalk_bool label_offset_support;
 
     /**
      * The client supports the `activeParameter` property on
@@ -3044,7 +3044,7 @@ typedef struct SignatureInformation {
      *
      * @since 3.16.0
      */
-    int active_parameter_support;
+    lstalk_bool active_parameter_support;
 } SignatureInformation;
 
 /**
@@ -3070,7 +3070,7 @@ typedef struct SignatureHelpClientCapabilities {
      *
      * @since 3.15.0
      */
-    int context_support;
+    lstalk_bool context_support;
 } SignatureHelpClientCapabilities;
 
 static JSONValue signature_help_client_capabilities_make(SignatureHelpClientCapabilities* signature_help) {
@@ -3089,7 +3089,7 @@ static JSONValue signature_help_client_capabilities_make(SignatureHelpClientCapa
 
 typedef struct DynamicRegistrationLink {
     DynamicRegistration dynamic_registration;
-    int link_support;
+    lstalk_bool link_support;
 } DynamicRegistrationLink;
 
 static JSONValue dynamic_registration_link_make(DynamicRegistrationLink* dynamic_registration_link) {
@@ -3128,7 +3128,7 @@ typedef struct DocumentSymbolClientCapabilities {
     /**
      * The client supports hierarchical document symbols.
      */
-    int hierarchical_document_symbol_support;
+    lstalk_bool hierarchical_document_symbol_support;
 
     /**
      * The client supports tags on `SymbolInformation`. Tags are supported on
@@ -3149,7 +3149,7 @@ typedef struct DocumentSymbolClientCapabilities {
      *
      * @since 3.16.0
      */
-    int label_support;
+    lstalk_bool label_support;
 } DocumentSymbolClientCapabilities;
 
 static JSONValue document_symbol_client_capabilities_make(DocumentSymbolClientCapabilities* symbol) {
@@ -3200,14 +3200,14 @@ typedef struct CodeActionClientCapabilities {
      *
      * @since 3.15.0
      */
-    int is_preferred_support;
+    lstalk_bool is_preferred_support;
 
     /**
      * Whether code action supports the `disabled` property.
      *
      * @since 3.16.0
      */
-    int disabled_support;
+    lstalk_bool disabled_support;
 
     /**
      * Whether code action supports the `data` property which is
@@ -3216,7 +3216,7 @@ typedef struct CodeActionClientCapabilities {
      *
      * @since 3.16.0
      */
-    int data_support;
+    lstalk_bool data_support;
 
     /**
      * Whether the client supports resolving additional code action
@@ -3240,7 +3240,7 @@ typedef struct CodeActionClientCapabilities {
      *
      * @since 3.16.0
      */
-    int honors_change_annotations;
+    lstalk_bool honors_change_annotations;
 } CodeActionClientCapabilities;
 
 static JSONValue code_action_client_capabilities_make(CodeActionClientCapabilities* code_action) {
@@ -3276,7 +3276,7 @@ typedef struct DocumentLinkClientCapabilities {
      *
      * @since 3.15.0
      */
-    int tooltip_support;
+    lstalk_bool tooltip_support;
 } DocumentLinkClientCapabilities;
 
 typedef enum {
@@ -3302,7 +3302,7 @@ typedef struct RenameClientCapabilities {
      *
      * @since version 3.12.0
      */
-    int prepare_support;
+    lstalk_bool prepare_support;
 
     /**
      * Client supports the default behavior result
@@ -3324,7 +3324,7 @@ typedef struct RenameClientCapabilities {
      *
      * @since 3.16.0
      */
-    int honors_change_annotations;
+    lstalk_bool honors_change_annotations;
 } RenameClientCapabilities;
 
 static JSONValue rename_client_capabilities_make(RenameClientCapabilities* rename) {
@@ -3344,7 +3344,7 @@ typedef struct PublishDiagnosticsClientCapabilities {
     /**
      * Whether the clients accepts diagnostics with related information.
      */
-    int related_information;
+    lstalk_bool related_information;
 
     /**
      * Client supports the tag property to provide meta data about a diagnostic.
@@ -3364,14 +3364,14 @@ typedef struct PublishDiagnosticsClientCapabilities {
      *
      * @since 3.15.0
      */
-    int version_support;
+    lstalk_bool version_support;
 
     /**
      * Client supports a codeDescription property
      *
      * @since 3.16.0
      */
-    int code_description_support;
+    lstalk_bool code_description_support;
 
     /**
      * Whether code action supports the `data` property which is
@@ -3380,7 +3380,7 @@ typedef struct PublishDiagnosticsClientCapabilities {
      *
      * @since 3.16.0
      */
-    int data_support;
+    lstalk_bool data_support;
 } PublishDiagnosticsClientCapabilities;
 
 static JSONValue publish_diagnostics_client_capabilities_make(PublishDiagnosticsClientCapabilities* publish) {
@@ -3421,7 +3421,7 @@ typedef struct FoldingRangeClientCapabilities {
      * If set, client will ignore specified `startCharacter` and `endCharacter`
      * properties in a FoldingRange.
      */
-    int line_folding_only;
+    lstalk_bool line_folding_only;
 
     /**
      * Specific options for the folding range kind.
@@ -3448,7 +3448,7 @@ typedef struct FoldingRangeClientCapabilities {
     *
     * @since 3.17.0
     */
-    int collapsed_text;
+    lstalk_bool collapsed_text;
 } FoldingRangeClientCapabilities;
 
 static JSONValue folding_range_client_capabilities_make(FoldingRangeClientCapabilities* folding_range) {
@@ -3496,7 +3496,7 @@ typedef struct SemanticTokensClientCapabilities {
      *
      * range?: boolean | {}
      */
-    int range;
+    lstalk_bool range;
 
     /**
      * requests:
@@ -3509,7 +3509,7 @@ typedef struct SemanticTokensClientCapabilities {
      * The client will send the `textDocument/semanticTokens/full/delta`
      * request if the server provides a corresponding handler.
      */
-    int delta;
+    lstalk_bool delta;
 
     /**
      * The token types that the client supports.
@@ -3531,12 +3531,12 @@ typedef struct SemanticTokensClientCapabilities {
     /**
      * Whether the client supports tokens that can overlap each other.
      */
-    int overlapping_token_support;
+    lstalk_bool overlapping_token_support;
 
     /**
      * Whether the client supports tokens that can span multiple lines.
      */
-    int multiline_token_support;
+    lstalk_bool multiline_token_support;
 
     /**
      * Whether the client allows the server to actively cancel a
@@ -3546,7 +3546,7 @@ typedef struct SemanticTokensClientCapabilities {
      *
      * @since 3.17.0
      */
-    int server_cancel_support;
+    lstalk_bool server_cancel_support;
 
     /**
      * Whether the client uses semantic tokens to augment existing
@@ -3560,7 +3560,7 @@ typedef struct SemanticTokensClientCapabilities {
      *
      * @since 3.17.0
      */
-    int augments_syntax_tokens;
+    lstalk_bool augments_syntax_tokens;
 } SemanticTokensClientCapabilities;
 
 static JSONValue semantic_tokens_client_capabilities_make(SemanticTokensClientCapabilities* semantic_tokens) {
@@ -3625,7 +3625,7 @@ typedef struct DiagnosticClientCapabilities {
      * Whether the clients supports related documents for document diagnostic
      * pulls.
      */
-    int related_document_support;
+    lstalk_bool related_document_support;
 } DiagnosticClientCapabilities;
 
 /**
@@ -3883,7 +3883,7 @@ typedef struct NotebookDocumentSyncClientCapabilities {
     /**
      * The client supports sending execution summary data per cell.
      */
-    int execution_summary_support;
+    lstalk_bool execution_summary_support;
 } NotebookDocumentSyncClientCapabilities;
 
 /**
@@ -3913,7 +3913,7 @@ typedef struct ShowMessageRequestClientCapabilities {
      * are preserved and sent back to the server in the
      * request's response.
      */
-    int message_action_item_additional_properties_support;
+    lstalk_bool message_action_item_additional_properties_support;
 } ShowMessageRequestClientCapabilities;
 
 /**
@@ -3926,7 +3926,7 @@ typedef struct ShowDocumentClientCapabilities {
      * The client has support for the show document
      * request.
      */
-    int support;
+    lstalk_bool support;
 } ShowDocumentClientCapabilities;
 
 /**
@@ -3944,7 +3944,7 @@ typedef struct WindowClientCapabilities {
      *
      * @since 3.15.0
      */
-    int work_done_progress;
+    lstalk_bool work_done_progress;
 
     /**
      * Capabilities specific to the showMessage request
@@ -4034,7 +4034,7 @@ typedef struct GeneralClientCapabilities {
      * 
      * The client will actively cancel the request.
      */
-    int cancel;
+    lstalk_bool cancel;
 
     /**
      * The list of requests for which the client
@@ -4185,7 +4185,7 @@ static char** parse_string_array(JSONValue* value, char* key, int* count) {
 }
 
 typedef struct WorkDoneProgressOptions {
-    int value;
+    lstalk_bool value;
 } WorkDoneProgressOptions;
 
 static WorkDoneProgressOptions work_done_progress_parse(JSONValue* value) {
@@ -4273,7 +4273,7 @@ typedef struct TextDocumentSyncOptions {
      * Open and close notifications are sent to the server. If omitted open
      * close notifications should not be sent.
      */
-    int open_close;
+    lstalk_bool open_close;
 
     /**
      * Change notifications are sent to the server. See
@@ -4347,7 +4347,7 @@ typedef struct NotebookDocumentSyncOptions {
      * Whether save notification should be forwarded to
      * the server. Will only be honored if mode === `notebook`.
      */
-    int save;
+    lstalk_bool save;
 } NotebookDocumentSyncOptions;
 
 /**
@@ -4390,7 +4390,7 @@ typedef struct CompletionOptions {
      * The server provides support to resolve additional
      * information for a completion item.
      */
-    int resolve_provider;
+    lstalk_bool resolve_provider;
 
     /**
      * The server supports the following `CompletionItem` specific
@@ -4406,12 +4406,12 @@ typedef struct CompletionOptions {
      *
      * @since 3.17.0
      */
-    int completion_item_label_details_support;
+    lstalk_bool completion_item_label_details_support;
 } CompletionOptions;
 
 typedef struct HoverOptions {
     WorkDoneProgressOptions work_done_progress;
-    int is_supported;
+    lstalk_bool is_supported;
 } HoverOptions;
 
 /**
@@ -4558,7 +4558,7 @@ typedef struct DeclarationRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } DeclarationRegistrationOptions;
 
 /**
@@ -4566,7 +4566,7 @@ typedef struct DeclarationRegistrationOptions {
  */
 typedef struct DefinitionOptions {
     WorkDoneProgressOptions work_done_progress;
-    int is_supported;
+    lstalk_bool is_supported;
 } DefinitionOptions;
 
 /**
@@ -4578,7 +4578,7 @@ typedef struct TypeDefinitionRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } TypeDefinitionRegistrationOptions;
 
 /**
@@ -4590,7 +4590,7 @@ typedef struct ImplementationRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } ImplementationRegistrationOptions;
 
 /**
@@ -4598,7 +4598,7 @@ typedef struct ImplementationRegistrationOptions {
  */
 typedef struct ReferenceOptions {
     WorkDoneProgressOptions work_done_progress;
-    int is_supported;
+    lstalk_bool is_supported;
 } ReferenceOptions;
 
 /**
@@ -4606,7 +4606,7 @@ typedef struct ReferenceOptions {
  */
 typedef struct DocumentHighlightOptions {
     WorkDoneProgressOptions work_done_progress;
-    int is_supported;
+    lstalk_bool is_supported;
 } DocumentHighlightOptions;
 
 /**
@@ -4614,7 +4614,7 @@ typedef struct DocumentHighlightOptions {
  */
 typedef struct DocumentSymbolOptions {
     WorkDoneProgressOptions work_done_progress;
-    int is_supported;
+    lstalk_bool is_supported;
 
     /**
      * A human-readable string that is shown when multiple outlines trees
@@ -4632,7 +4632,7 @@ typedef struct DocumentSymbolOptions {
  */
 typedef struct CodeActionOptions {
     WorkDoneProgressOptions work_done_progress;
-    int is_supported;
+    lstalk_bool is_supported;
 
     /**
      * CodeActionKinds that this server may return.
@@ -4648,7 +4648,7 @@ typedef struct CodeActionOptions {
      *
      * @since 3.16.0
      */
-    int resolve_provider;
+    lstalk_bool resolve_provider;
 } CodeActionOptions;
 
 /**
@@ -4660,7 +4660,7 @@ typedef struct CodeLensOptions {
     /**
      * Code lens has a resolve provider as well.
      */
-    int resolve_provider;
+    lstalk_bool resolve_provider;
 } CodeLensOptions;
 
 /**
@@ -4672,7 +4672,7 @@ typedef struct DocumentLinkOptions {
     /**
      * Document links have a resolve provider as well.
      */
-    int resolve_provider;
+    lstalk_bool resolve_provider;
 } DocumentLinkOptions;
 
 /**
@@ -4684,7 +4684,7 @@ typedef struct DocumentColorRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } DocumentColorRegistrationOptions;
 
 /**
@@ -4692,7 +4692,7 @@ typedef struct DocumentColorRegistrationOptions {
  */
 typedef struct DocumentFormattingOptions {
     WorkDoneProgressOptions work_done_progress;
-    int is_supported;
+    lstalk_bool is_supported;
 } DocumentFormattingOptions;
 
 /**
@@ -4700,7 +4700,7 @@ typedef struct DocumentFormattingOptions {
  */
 typedef struct DocumentRangeFormattingOptions {
     WorkDoneProgressOptions work_done_progress;
-    int is_supported;
+    lstalk_bool is_supported;
 } DocumentRangeFormattingOptions;
 
 /**
@@ -4726,12 +4726,12 @@ typedef struct DocumentOnTypeFormattingOptions {
  */
 typedef struct RenameOptions {
     WorkDoneProgressOptions work_done_progress;
-    int is_supported;
+    lstalk_bool is_supported;
 
     /**
      * Renames should be checked and tested before being executed.
      */
-    int prepare_provider;
+    lstalk_bool prepare_provider;
 } RenameOptions;
 
 /**
@@ -4743,7 +4743,7 @@ typedef struct FoldingRangeRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } FoldingRangeRegistrationOptions;
 
 /**
@@ -4768,7 +4768,7 @@ typedef struct SelectionRangeRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } SelectionRangeRegistrationOptions;
 
 /**
@@ -4780,7 +4780,7 @@ typedef struct LinkedEditingRangeRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } LinkedEditingRangeRegistrationOptions;
 
 /**
@@ -4792,7 +4792,7 @@ typedef struct CallHierarchyRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } CallHierarchyRegistrationOptions;
 
 typedef struct SemanticTokensLegend {
@@ -4821,7 +4821,7 @@ typedef struct SemanticTokensOptions {
      * Server supports providing semantic tokens for a specific range
      * of a document.
      */
-    int range;
+    lstalk_bool range;
 
     /**
      * Server supports providing semantic tokens for a full document.
@@ -4830,7 +4830,7 @@ typedef struct SemanticTokensOptions {
      * 
      * The server supports deltas for full documents.
      */
-    int full_delta;
+    lstalk_bool full_delta;
 } SemanticTokensOptions;
 
 /**
@@ -4852,7 +4852,7 @@ typedef struct SemanticTokensRegistrationOptions {
 typedef struct MonikerRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } MonikerRegistrationOptions;
 
 /**
@@ -4864,7 +4864,7 @@ typedef struct TypeHierarchyRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } TypeHierarchyRegistrationOptions;
 
 /**
@@ -4876,7 +4876,7 @@ typedef struct InlineValueRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } InlineValueRegistrationOptions;
 
 /**
@@ -4888,7 +4888,7 @@ typedef struct InlayHintRegistrationOptions {
     WorkDoneProgressOptions work_done_progress;
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
-    int is_supported;
+    lstalk_bool is_supported;
 } InlayHintRegistrationOptions;
 
 /**
@@ -4913,12 +4913,12 @@ typedef struct DiagnosticRegistrationOptions {
      * set in another file. Inter file dependencies are common for
      * most programming languages and typically uncommon for linters.
      */
-    int inter_file_dependencies;
+    lstalk_bool inter_file_dependencies;
 
     /**
      * The server provides support for workspace diagnostics as well.
      */
-    int workspace_diagnostics;
+    lstalk_bool workspace_diagnostics;
 } DiagnosticRegistrationOptions;
 
 /**
@@ -4926,7 +4926,7 @@ typedef struct DiagnosticRegistrationOptions {
  */
 typedef struct WorkspaceSymbolOptions {
     WorkDoneProgressOptions work_done_progress;
-    int is_supported;
+    lstalk_bool is_supported;
 
     /**
      * The server provides support to resolve additional
@@ -4934,7 +4934,7 @@ typedef struct WorkspaceSymbolOptions {
      *
      * @since 3.17.0
      */
-    int resolve_provider;
+    lstalk_bool resolve_provider;
 } WorkspaceSymbolOptions;
 
 /**
@@ -4946,7 +4946,7 @@ typedef struct WorkspaceFoldersServerCapabilities {
     /**
      * The server has support for workspace folders
      */
-    int supported;
+    lstalk_bool supported;
 
     /**
      * Whether the server wants to receive workspace folder
@@ -4958,7 +4958,7 @@ typedef struct WorkspaceFoldersServerCapabilities {
      * using the `client/unregisterCapability` request.
      */
     char* change_notifications;
-    int change_notifications_boolean;
+    lstalk_bool change_notifications_boolean;
 } WorkspaceFoldersServerCapabilities;
 
 /**
@@ -4988,7 +4988,7 @@ typedef struct FileOperationPatternOptions {
     /**
      * The pattern should be matched ignoring casing.
      */
-    int ignore_case;
+    lstalk_bool ignore_case;
 } FileOperationPatternOptions;
 
 /**

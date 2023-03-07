@@ -53,6 +53,13 @@ extern "C" {
 #endif
 
 /**
+ * Boolean type defined to aid in documenting property types.
+ */
+typedef unsigned char lstalk_bool;
+#define lstalk_false 0
+#define lstalk_true 1
+
+/**
  * Data container for a LSTalk session. Must be created using lstalk_init
  * and destroyed with lstalk_shutdown.
  */
