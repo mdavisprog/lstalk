@@ -110,6 +110,16 @@ static int strncpy_s(char* restrict dest, size_t destsz, const char* src, size_t
     return EXIT_SUCCESS;
 }
 
+static int strncat_s(char* restrict dest, size_t destsz, const char* restrict src, size_t count) {
+    (void)destsz;
+
+    char* result = strncat(dest, src, count);
+    if (result != dest) {
+        return EINVAL;
+    }
+    return EXIT_SUCCESS;
+}
+
 static int fopen_s(FILE* restrict* restrict streamptr, const char* restrict filename, const char* restrict mode) {
     *streamptr = fopen(filename, mode);
     if (*streamptr == NULL) {
@@ -376,6 +386,37 @@ static int file_exists(char* path) {
 
     return 1;
 }
+
+#define READ_SIZE 4096
+
+static char* file_async_read(int handle) {
+    if (handle < 0) {
+        return NULL;
+    }
+
+    Vector array = vector_create(sizeof(char));
+    char buffer[READ_SIZE];
+    int bytes_read = read(handle, (void*)buffer, sizeof(buffer));
+    if (bytes_read == -1) {
+        vector_destroy(&array);
+        return NULL;
+    }
+
+    while (bytes_read > 0) {
+        vector_append(&array, (void*)buffer, (size_t)bytes_read);
+        if (bytes_read < READ_SIZE) {
+            break;
+        }
+
+        bytes_read = read(handle, (void*)buffer, sizeof(buffer));
+    }
+
+    char* result = (char*)malloc(sizeof(char) * array.length + 1);
+    strncpy(result, array.data, array.length);
+    result[array.length] = 0;
+    vector_destroy(&array);
+    return result;
+}
 #endif
 
 static void file_get_directory(char* path, char* out, size_t out_size) {
@@ -421,6 +462,8 @@ static void file_to_absolute_path(char* relative_path, char* out, size_t out_siz
 static char* file_async_read_stdin() {
 #if LSTALK_WINDOWS
     return file_async_read(GetStdHandle(STD_INPUT_HANDLE));
+#elif LSTALK_POSIX
+    return file_async_read(STDIN_FILENO);
 #else
     #error "Not implemented for current platform!"
 #endif
@@ -718,35 +761,12 @@ static void process_close_posix(Process* process) {
     free(process);
 }
 
-#define READ_SIZE 4096
-
 static char* process_read_posix(Process* process) {
     if (process == NULL) {
         return NULL;
     }
 
-    Vector array = vector_create(sizeof(char));
-    char buffer[READ_SIZE];
-    int bytes_read = read(process->pipes.out[PIPE_READ], (void*)buffer, sizeof(buffer));
-    if (bytes_read == -1) {
-        vector_destroy(&array);
-        return NULL;
-    }
-
-    while (bytes_read > 0) {
-        vector_append(&array, (void*)buffer, (size_t)bytes_read);
-        if (bytes_read < READ_SIZE) {
-            break;
-        }
-
-        bytes_read = read(process->pipes.out[PIPE_READ], (void*)buffer, sizeof(buffer));
-    }
-
-    char* result = (char*)malloc(sizeof(char) * array.length + 1);
-    strncpy(result, array.data, array.length);
-    result[array.length] = 0;
-    vector_destroy(&array);
-    return result;
+    return file_async_read(process->pipes.out[PIPE_READ]);
 }
 
 static void process_write_posix(Process* process, const char* request) {
