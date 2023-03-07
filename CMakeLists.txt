@@ -150,11 +150,28 @@ if(NO_LIB)
         lstalk_tests
         tests
     )
+
+    add_executable(
+        lstalk_test_server
+        lstalk.c
+        test_server.c
+    )
+
+    set_output_properties(
+        lstalk_test_server
+        test_server
+    )
 else()
     add_program(
         lstalk_tests
         tests
         tests.c
+    )
+
+    add_program(
+        lstalk_test_server
+        test_server
+        test_server.c
     )
 endif()
 

@@ -32,6 +32,7 @@ SOFTWARE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 //
 // Version information
@@ -331,6 +332,33 @@ static int file_exists(wchar_t* path) {
 
     return !(attributes & FILE_ATTRIBUTE_DIRECTORY);
 }
+
+static char* file_async_read(HANDLE handle) {
+    if (handle == INVALID_HANDLE_VALUE) {
+        return NULL;
+    }
+
+    DWORD total_bytes_avail = 0;
+    if (!PeekNamedPipe(handle, NULL, 0, NULL, &total_bytes_avail, NULL)) {
+        printf("Failed to peek for number of bytes!\n");
+        return NULL;
+    }
+
+    if (total_bytes_avail == 0) {
+        return NULL;
+    }
+
+    char* read_buffer = (char*)malloc(sizeof(char) * total_bytes_avail + 1);
+    DWORD read = 0;
+    BOOL read_result = ReadFile(handle, read_buffer, total_bytes_avail, &read, NULL);
+    if (!read_result || read == 0) {
+        printf("Failed to read from process stdout.\n");
+        free(read_buffer);
+        return NULL;
+    }
+    read_buffer[read] = 0;
+    return read_buffer;
+}
 #elif LSTALK_POSIX
 static int file_exists(char* path) {
     if (path == NULL) {
@@ -349,6 +377,54 @@ static int file_exists(char* path) {
     return 1;
 }
 #endif
+
+static void file_get_directory(char* path, char* out, size_t out_size) {
+    char* anchor = path;
+    char* ptr = anchor;
+    while (*ptr != 0) {
+        char ch = *ptr;
+        if (ch == '\\' || ch == '/') {
+            anchor = ptr;
+        }
+        ptr++;
+    }
+
+    size_t length = anchor - path;
+    if (length == 0) {
+        length = strlen(path);
+    }
+
+    length = length > out_size ? out_size : length;
+    strncpy_s(out, out_size, path, length);
+    out[length] = 0;
+}
+
+static void file_to_absolute_path(char* relative_path, char* out, size_t out_size) {
+    if (out == NULL) {
+        return;
+    }
+
+    if (relative_path == NULL) {
+        out[0] = 0;
+    }
+
+#if LSTALK_WINDOWS
+    GetFullPathNameA(relative_path, (DWORD)out_size, out, NULL);
+#else
+    (void)out_size;
+    if (realpath(relative_path, out) == NULL) {
+        out = NULL;
+    }
+#endif
+}
+
+static char* file_async_read_stdin() {
+#if LSTALK_WINDOWS
+    return file_async_read(GetStdHandle(STD_INPUT_HANDLE));
+#else
+    #error "Not implemented for current platform!"
+#endif
+}
 
 //
 // Process Management
@@ -491,26 +567,7 @@ static char* process_read_windows(Process* process) {
         return NULL;
     }
 
-    DWORD total_bytes_avail = 0;
-    if (!PeekNamedPipe(process->std_handles.child_stdout_read, NULL, 0, NULL, &total_bytes_avail, NULL)) {
-        printf("Failed to peek for number of bytes!\n");
-        return NULL;
-    }
-
-    if (total_bytes_avail == 0) {
-        return NULL;
-    }
-
-    char* read_buffer = (char*)malloc(sizeof(char) * total_bytes_avail + 1);
-    DWORD read = 0;
-    BOOL read_result = ReadFile(process->std_handles.child_stdout_read, read_buffer, total_bytes_avail, &read, NULL);
-    if (!read_result || read == 0) {
-        printf("Failed to read from process stdout.\n");
-        free(read_buffer);
-        return NULL;
-    }
-    read_buffer[read] = 0;
-    return read_buffer;
+    return file_async_read(process->std_handles.child_stdout_read);
 }
 
 static void process_write_windows(Process* process, const char* request) {
@@ -7511,6 +7568,102 @@ static TestResults tests_message() {
     return result;
 }
 
+// Server tests
+
+static LSTalk_Context* test_context = NULL;
+static LSTalk_ServerID test_server = LSTALK_INVALID_SERVER_ID;
+static char test_server_path[PATH_MAX] = "";
+
+#if LSTALK_WINDOWS
+    #define TEST_SERVER_NAME "test_server.exe"
+#else
+    #define TEST_SERVER_NAME "test_server"
+#endif
+
+static int test_server_init() {
+    if (test_context != NULL) {
+        return 0;
+    }
+    test_context = lstalk_init();
+    return test_context != NULL;
+}
+
+static int test_server_connect() {
+    if (test_context == NULL) {
+        return 0;
+    }
+
+    if (test_server != LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    LSTalk_ConnectParams connect_params;
+    connect_params.root_uri = NULL;
+    connect_params.trace = LSTALK_TRACE_OFF;
+    connect_params.seek_path_env = 0;
+    test_server = lstalk_connect(test_context, test_server_path, &connect_params);
+    if (test_server == LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    clock_t start = clock();
+    int result = 0;
+    while (1) {
+        if (!lstalk_process_responses(test_context)) {
+            break;
+        }
+
+        if (lstalk_get_connection_status(test_context, test_server) == LSTALK_CONNECTION_STATUS_CONNECTED) {
+            result = 1;
+            break;
+        }
+
+        double elapsed = (double)(clock() - start) / (double)CLOCKS_PER_SEC;
+        if (elapsed >= 5.0) {
+            break;
+        }
+    }
+
+    return result;
+}
+
+static int test_server_close() {
+    if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    int result = lstalk_close(test_context, test_server);
+    test_server = LSTALK_INVALID_SERVER_ID;
+    return result;
+}
+
+static int test_server_shutdown() {
+    if (test_context == NULL) {
+        return 0;
+    }
+    lstalk_shutdown(test_context);
+    test_context = NULL;
+    return 1;
+}
+
+static TestResults tests_server() {
+    TestResults results;
+
+    Vector tests = vector_create(sizeof(TestCase));
+
+    REGISTER_TEST(&tests, test_server_init);
+    REGISTER_TEST(&tests, test_server_connect);
+    REGISTER_TEST(&tests, test_server_close);
+    REGISTER_TEST(&tests, test_server_shutdown);
+
+    results.fail = tests_run(&tests);
+    results.pass = (int)tests.length - results.fail;
+
+    vector_destroy(&tests);
+
+    return results;
+}
+
 typedef struct TestSuite {
     TestResults (*fn)();
     char* name;
@@ -7531,14 +7684,20 @@ static void add_test_suite(Vector* suites, TestResults (*fn)(), char* name) {
 
 void lstalk_tests(int argc, char** argv) {
     (void)argc;
-    (void)argv;
-
     printf("Running tests for lstalk...\n\n");
+
+    size_t size = PATH_MAX;
+    char absolute_path[PATH_MAX] = "";
+    file_to_absolute_path(argv[0], absolute_path, size);
+    file_get_directory(absolute_path, test_server_path, size);
+    strncat_s(test_server_path, size, "/", size);
+    strncat_s(test_server_path, size, TEST_SERVER_NAME, size);
 
     Vector suites = vector_create(sizeof(TestSuite));
     ADD_TEST_SUITE(&suites, tests_vector);
     ADD_TEST_SUITE(&suites, tests_json);
     ADD_TEST_SUITE(&suites, tests_message);
+    ADD_TEST_SUITE(&suites, tests_server);
 
     TestResults results;
     results.pass = 0;
@@ -7558,6 +7717,64 @@ void lstalk_tests(int argc, char** argv) {
     printf("TESTS FAILED: %d\n", results.fail);
 
     vector_destroy(&suites);
+}
+
+static JSONValue test_server_build_response(JSONValue* request) {
+    JSONValue result = json_make_null();
+
+    if (request == NULL || request->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue method = json_object_get(request, "method");
+    if (method.type == JSON_VALUE_STRING) {
+        result = json_make_object();
+        JSONValue id = json_object_get(request, "id");
+
+        char* method_str = method.value.string_value;
+        if (strcmp(method_str, "initialize") == 0) {
+            json_object_const_key_set(&result, "id", id);
+        }
+    }
+
+    return result;
+}
+
+static void test_server_send_response(JSONValue* response) {
+    if (response == NULL) {
+        return;
+    }
+
+    JSONEncoder encoder = json_encode(response);
+    if (encoder.string.length > 0) {
+        printf("Content-Length: %zu\r\n%s", encoder.string.length, encoder.string.data);
+        fflush(stdout);
+    }
+
+    json_destroy_encoder(&encoder);
+}
+
+void lstalk_test_server(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
+
+    Message message = message_create();
+    while (1) {
+        char* request = file_async_read_stdin();
+        if (request != NULL) {
+            char* anchor = request;
+            while (anchor != NULL) {
+                JSONValue value = message_to_json(&message, &anchor);
+
+                JSONValue response = test_server_build_response(&value);
+                test_server_send_response(&response);
+
+                json_destroy_value(&value);
+            }
+            free(request);
+        }
+    }
+    message_free(&message);
 }
 
 #endif

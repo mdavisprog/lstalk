@@ -662,6 +662,7 @@ typedef struct LSTalk_Notification {
 
 #ifdef LSTALK_TESTS
 LSTALK_API void lstalk_tests(int argc, char** argv);
+LSTALK_API void lstalk_test_server(int argc, char** argv);
 #endif
 
 #if defined(__cplusplus)
