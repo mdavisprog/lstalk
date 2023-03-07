@@ -1162,7 +1162,7 @@ static JSONValue json_make_array() {
 }
 
 static char* json_move_string(JSONValue* value) {
-    if (value == NULL) {
+    if (value == NULL || value->type != JSON_VALUE_STRING) {
         return NULL;
     }
 
