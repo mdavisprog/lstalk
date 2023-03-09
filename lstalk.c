@@ -4889,6 +4889,12 @@ typedef struct InlayHintRegistrationOptions {
     TextDocumentRegistrationOptions text_document_registration;
     StaticRegistrationOptions static_registration;
     lstalk_bool is_supported;
+
+    /**
+     * The server provides support to resolve additional
+     * information for an inlay hint item.
+     */
+    lstalk_bool resolve_provider;
 } InlayHintRegistrationOptions;
 
 /**
@@ -5831,6 +5837,8 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
             result.inlay_hint_provider.work_done_progress = work_done_progress_parse(inlay_hint_provider);
             result.inlay_hint_provider.text_document_registration = text_document_registration_options_parse(inlay_hint_provider);
             result.inlay_hint_provider.static_registration = static_registration_options_parse(inlay_hint_provider);
+            JSONValue resolve_provider = json_object_get(inlay_hint_provider, "resolveProvider");
+            result.inlay_hint_provider.resolve_provider = resolve_provider.type == JSON_VALUE_BOOLEAN ? resolve_provider.value.bool_value : lstalk_false;
         }
     }
 
