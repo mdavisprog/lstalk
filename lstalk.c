@@ -5694,7 +5694,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         }
 
         result.document_on_type_formatting_provider.more_trigger_character =
-            parse_string_array(document_on_type_formatting_provider, "moreTriggerCharacters", &result.document_on_type_formatting_provider.more_trigger_character_count);
+            parse_string_array(document_on_type_formatting_provider, "moreTriggerCharacter", &result.document_on_type_formatting_provider.more_trigger_character_count);
     }
 
     JSONValue rename_provider = json_object_get(value, "renameProvider");
