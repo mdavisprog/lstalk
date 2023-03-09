@@ -4188,6 +4188,8 @@ typedef struct WorkDoneProgressOptions {
     lstalk_bool value;
 } WorkDoneProgressOptions;
 
+#define WORK_DONE_PROGRESS_NAME "workDoneProgress"
+
 static WorkDoneProgressOptions work_done_progress_parse(JSONValue* value) {
     WorkDoneProgressOptions result;
     result.value = 0;
@@ -4196,13 +4198,31 @@ static WorkDoneProgressOptions work_done_progress_parse(JSONValue* value) {
         return result;
     }
 
-    JSONValue work_done_progress = json_object_get(value, "workDoneProgress");
+    JSONValue work_done_progress = json_object_get(value, WORK_DONE_PROGRESS_NAME);
     if (work_done_progress.type != JSON_VALUE_BOOLEAN) {
         return result;
     }
 
     result.value = work_done_progress.value.bool_value;
     return result;
+}
+
+static JSONValue work_done_progress_json_make(WorkDoneProgressOptions* options) {
+    if (options == NULL) {
+        return json_make_null();
+    }
+
+    JSONValue result = json_make_object();
+    json_object_const_key_set(&result, WORK_DONE_PROGRESS_NAME, json_make_boolean(options->value));
+    return result;
+}
+
+static void work_done_progress_json_set(WorkDoneProgressOptions* options, JSONValue* value) {
+    if (options == NULL || value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return;
+    }
+
+    json_object_const_key_set(value, WORK_DONE_PROGRESS_NAME, json_make_boolean(options->value));
 }
 
 /**
@@ -4231,6 +4251,14 @@ static StaticRegistrationOptions static_registration_options_parse(JSONValue* va
 
     result.id = json_move_string(&id);
     return result;
+}
+
+static void static_registration_options_json_set(StaticRegistrationOptions* options, JSONValue* value) {
+    if (options == NULL || value == NULL) {
+        return;
+    }
+
+    json_object_const_key_set(value, "id", json_make_string(options->id));
 }
 
 static void static_registration_options_free(StaticRegistrationOptions* static_registration) {
@@ -4521,6 +4549,34 @@ static TextDocumentRegistrationOptions text_document_registration_options_parse(
     }
 
     return result;
+}
+
+static void text_document_registration_options_json_set(TextDocumentRegistrationOptions* options, JSONValue* value) {
+    if (options == NULL || value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return;
+    }
+
+    if (options->document_selector_count == 0) {
+        json_object_const_key_set(value, "documentFilter", json_make_null());
+        return;
+    }
+
+    JSONValue array = json_make_array();
+    for (int i = 0; i < options->document_selector_count; i++) {
+        DocumentFilter* filter = &options->document_selector[i];
+        JSONValue item = json_make_object();
+        if (filter->language != NULL) { 
+            json_object_const_key_set(&item, "language", json_make_string(filter->language));
+        }
+        if (filter->scheme != NULL) {
+            json_object_const_key_set(&item, "scheme", json_make_string(filter->scheme));
+        }
+        if (filter->pattern != NULL) {
+            json_object_const_key_set(&item, "pattern", json_make_string(filter->pattern));
+        }
+        json_array_push(&array, item);
+    }
+    json_object_const_key_set(value, "documentFilter", array);
 }
 
 static void text_document_registration_options_free(TextDocumentRegistrationOptions* text_document_registration) {
@@ -5122,6 +5178,41 @@ static FileOperationRegistrationOptions file_operation_registration_options_pars
     }
 
     return result;
+}
+
+static JSONValue file_operation_registration_json(FileOperationRegistrationOptions* options) {
+    if (options == NULL) {
+        return json_make_null();
+    }
+
+    JSONValue value = json_make_object();
+
+    if (options->filters_count > 0) {
+        JSONValue filters = json_make_array();
+        for (int filter_index = 0; filter_index < options->filters_count; filter_index++) {
+            FileOperationFilter* item = &options->filters[filter_index];
+            JSONValue filter = json_make_object();
+            if (item->scheme != NULL) {
+                json_object_const_key_set(&filter, "scheme", json_make_string(item->scheme));
+            }
+
+            JSONValue pattern = json_make_object();
+            json_object_const_key_set(&pattern, "glob", json_make_string(item->pattern.glob));
+            if (item->pattern.matches == FILEOPERATIONPATTERNKIND_FILE) {
+                json_object_const_key_set(&pattern, "matches", json_make_string_const("file"));
+            } else if (item->pattern.matches == FILEOPERATIONPATTERNKIND_FOLDER) {
+                json_object_const_key_set(&pattern, "matches", json_make_string_const("folder"));
+            }
+            JSONValue pattern_options = json_make_object();
+            json_object_const_key_set(&pattern_options, "ignoreCase", json_make_boolean(item->pattern.options.ignore_case));
+            json_object_const_key_set(&pattern, "options", pattern_options);
+            json_object_const_key_set(&filter, "pattern", pattern);
+            json_array_push(&filters, filter);
+        }
+        json_object_const_key_set(&value, "filters", filters);
+    }
+
+    return value;
 }
 
 static void file_operation_registration_options_free(FileOperationRegistrationOptions* file_operation_registration) {
@@ -5907,6 +5998,286 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
             result.workspace.file_operations.did_delete = file_operation_registration_options_parse(file_operations, "didDelete");
             result.workspace.file_operations.will_delete = file_operation_registration_options_parse(file_operations, "willDelete");
         }
+    }
+
+    return result;
+}
+
+static JSONValue server_capabilities_json(ServerCapabilities* capabilities) {
+    JSONValue result = json_make_null();
+
+    if (capabilities == NULL) {
+        return result;
+    }
+
+    #define WORK_TEXT_STATIC_OPTIONS(property, name) \
+    { \
+        JSONValue value = json_make_object(); \
+        work_done_progress_json_set(&property.work_done_progress, &value); \
+        text_document_registration_options_json_set(&property.text_document_registration, &value); \
+        static_registration_options_json_set(&property.static_registration, &value); \
+        json_object_const_key_set(&result, name, value); \
+    }
+
+    result = json_make_object();
+
+    json_object_const_key_set(&result, "positionEncoding", json_make_int(capabilities->position_encoding));
+
+    {
+        TextDocumentSyncOptions* options = &capabilities->text_document_sync;
+        JSONValue value = json_make_object();
+        json_object_const_key_set(&value, "openClose", json_make_boolean(options->open_close));
+        json_object_const_key_set(&value, "change", json_make_int(options->change));
+        json_object_const_key_set(&result, "textDocumentSync", value);
+    }
+
+    {
+        NotebookDocumentSyncOptions* options = &capabilities->notebook_document_sync;
+        JSONValue value = json_make_object();
+        static_registration_options_json_set(&options->static_registration, &value);
+
+        JSONValue notebook_selector = json_make_array();
+        for (int i = 0; i < options->notebook_selector_count; i++) {
+            NotebookSelector* selector = &options->notebook_selector[i];
+            JSONValue item = json_make_object();
+
+            JSONValue notebook = json_make_object();
+            json_object_const_key_set(&notebook, "notebookType", json_make_string(selector->notebook.notebook_type));
+            json_object_const_key_set(&notebook, "scheme", json_make_string(selector->notebook.scheme));
+            json_object_const_key_set(&notebook, "pattern", json_make_string(selector->notebook.pattern));
+            json_object_const_key_set(&item, "notebook", notebook);
+
+            JSONValue cells = json_make_array();
+            for (int j = 0; j < selector->cells_count; j++) {
+                JSONValue cell = json_make_object();
+                json_object_const_key_set(&cell, "language", json_make_string(selector->cells[j]));
+            }
+            json_object_const_key_set(&item, "cells", cells);
+            json_array_push(&notebook_selector, item);
+        }
+        json_object_const_key_set(&value, "notebookSelector", notebook_selector);
+
+        json_object_const_key_set(&value, "save", json_make_boolean(options->save));
+        json_object_const_key_set(&result, "notebookDocumentSync", value);
+    }
+
+    {
+        CompletionOptions* options = &capabilities->completion_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        json_object_const_key_set(&value, "triggerCharacters", json_make_string_array(options->trigger_characters, options->trigger_characters_count));
+        json_object_const_key_set(&value, "allCommitCharacters", json_make_string_array(options->all_commit_characters, options->all_commit_characters_count));
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+
+        JSONValue completion_item = json_make_object();
+        json_object_const_key_set(&completion_item, "labelDetailsSupport", json_make_boolean(options->completion_item_label_details_support));
+        json_object_const_key_set(&value, "completionItem", completion_item);
+        json_object_const_key_set(&result, "completionProvider", value);
+    }
+
+    json_object_const_key_set(&result, "hoverProvider", work_done_progress_json_make(&capabilities->hover_provider.work_done_progress));
+
+    {
+        SignatureHelpOptions* options = &capabilities->signature_help_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        json_object_const_key_set(&value, "triggerCharacters", json_make_string_array(options->trigger_characters, options->trigger_characters_count));
+        json_object_const_key_set(&value, "retriggerCharacters", json_make_string_array(options->retrigger_characters, options->retrigger_characters_count));
+
+        json_object_const_key_set(&result, "signatureHelpProvider", value);
+    }
+
+    WORK_TEXT_STATIC_OPTIONS(capabilities->declaration_provider, "declarationProvider");
+    json_object_const_key_set(&result, "definitionProvider", work_done_progress_json_make(&capabilities->definition_provider.work_done_progress));
+    WORK_TEXT_STATIC_OPTIONS(capabilities->type_definition_provider, "typeDefinitionProvider");
+    WORK_TEXT_STATIC_OPTIONS(capabilities->implementation_provider, "implementationProvider");
+    json_object_const_key_set(&result, "referencesProvider", work_done_progress_json_make(&capabilities->references_provider.work_done_progress));
+    json_object_const_key_set(&result, "documentHighlightProvider", work_done_progress_json_make(&capabilities->document_highlight_provider.work_done_progress));
+
+    {
+        DocumentSymbolOptions* options = &capabilities->document_symbol_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        if (options->label != NULL) {
+            json_object_const_key_set(&value, "label", json_make_string(options->label));
+        }
+
+        json_object_const_key_set(&result, "documentSymbolProvider", value);
+    }
+
+    {
+        CodeActionOptions* options = &capabilities->code_action_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        json_object_const_key_set(&value, "codeActionKinds", code_action_kind_make_array(options->code_action_kinds));
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+
+        json_object_const_key_set(&result, "codeActionProvider", value);
+    }
+
+    {
+        CodeLensOptions* options = &capabilities->code_lens_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+
+        json_object_const_key_set(&result, "codeLensProvider", value);
+    }
+
+    {
+        DocumentLinkOptions* options = &capabilities->document_link_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+
+        json_object_const_key_set(&result, "documentLinkProvider", value);
+    }
+
+    WORK_TEXT_STATIC_OPTIONS(capabilities->color_provider, "colorProvider");
+    json_object_const_key_set(&result, "documentFormattingProvider", work_done_progress_json_make(&capabilities->document_formatting_provider.work_done_progress));
+    json_object_const_key_set(&result, "documentRangeFormattingProvider", work_done_progress_json_make(&capabilities->document_range_rormatting_provider.work_done_progress));
+
+    {
+        DocumentOnTypeFormattingOptions* options = &capabilities->document_on_type_formatting_provider;
+        JSONValue value = json_make_object();
+
+        json_object_const_key_set(&value, "firstTriggerCharacter", json_make_string(options->first_trigger_character));
+        if (options->more_trigger_character_count > 0) {
+            json_object_const_key_set(&value, "moreTriggerCharacter", json_make_string_array(options->more_trigger_character, options->more_trigger_character_count));
+        }
+
+        json_object_const_key_set(&result, "documentOnTypeFormattingProvider", value);
+    }
+
+    {
+        RenameOptions* options = &capabilities->rename_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        json_object_const_key_set(&value, "prepareProvider", json_make_boolean(options->prepare_provider));
+
+        json_object_const_key_set(&result, "renameProvider", value);
+    }
+
+    WORK_TEXT_STATIC_OPTIONS(capabilities->folding_range_provider, "foldingRangeProvider");
+
+    {
+        ExecuteCommandOptions* options = &capabilities->execute_command_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        json_object_const_key_set(&value, "commands", json_make_string_array(options->commands, options->commands_count));
+
+        json_object_const_key_set(&result, "executeCommandProvider", value);
+    }
+
+    WORK_TEXT_STATIC_OPTIONS(capabilities->selection_range_provider, "selectionRangeProvider");
+    WORK_TEXT_STATIC_OPTIONS(capabilities->linked_editing_range_provider, "linkedEditingRangeProvider");
+    WORK_TEXT_STATIC_OPTIONS(capabilities->call_hierarchy_provider, "callHierarchyProvider");
+
+    {
+        SemanticTokensRegistrationOptions* options = &capabilities->semantic_tokens_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->semantic_tokens.work_done_progress, &value);
+        text_document_registration_options_json_set(&options->text_document_registration, &value);
+        static_registration_options_json_set(&options->static_registration, &value);
+
+        JSONValue legend = json_make_object();
+        json_object_const_key_set(&legend, "tokenTypes", json_make_string_array(options->semantic_tokens.legend.token_types, options->semantic_tokens.legend.token_types_count));
+        json_object_const_key_set(&legend, "tokenModifiers", json_make_string_array(options->semantic_tokens.legend.token_modifiers, options->semantic_tokens.legend.token_modifiers_count));
+        json_object_const_key_set(&value, "legend", legend);
+        json_object_const_key_set(&value, "range", json_make_boolean(options->semantic_tokens.range));
+        
+        JSONValue full = json_make_object();
+        json_object_const_key_set(&full, "delta", json_make_boolean(options->semantic_tokens.full_delta));
+        json_object_const_key_set(&value, "full", full);
+
+        json_object_const_key_set(&result, "semanticTokensProvider", value);
+    }
+
+    {
+        MonikerRegistrationOptions* options = &capabilities->moniker_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        text_document_registration_options_json_set(&options->text_document_registration, &value);
+
+        json_object_const_key_set(&result, "monikerProvider", value);
+    }
+
+    WORK_TEXT_STATIC_OPTIONS(capabilities->type_hierarchy_provider, "typeHierarchyProvider");
+    WORK_TEXT_STATIC_OPTIONS(capabilities->inline_value_provider, "inlineValueProvider");
+
+    {
+        InlayHintRegistrationOptions* options = &capabilities->inlay_hint_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        text_document_registration_options_json_set(&options->text_document_registration, &value);
+        static_registration_options_json_set(&options->static_registration, &value);
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+
+        json_object_const_key_set(&result, "inlayHintProvider", value);
+    }
+
+    {
+        DiagnosticRegistrationOptions* options = &capabilities->diagnostic_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        text_document_registration_options_json_set(&options->text_document_registration, &value);
+        static_registration_options_json_set(&options->static_registration, &value);
+        if (options->identifier != NULL) {
+            json_object_const_key_set(&value, "identifier", json_make_string(options->identifier));
+        }
+        json_object_const_key_set(&value, "interFileDependencies", json_make_boolean(options->inter_file_dependencies));
+        json_object_const_key_set(&value, "workspaceDiagnostics", json_make_boolean(options->workspace_diagnostics));
+
+        json_object_const_key_set(&result, "diagnosticProvider", value);
+    }
+
+    {
+        WorkspaceSymbolOptions* options = &capabilities->workspace_symbol_provider;
+        JSONValue value = json_make_object();
+
+        work_done_progress_json_set(&options->work_done_progress, &value);
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+
+        json_object_const_key_set(&result, "workspaceSymbolProvider", value);
+    }
+
+    {
+        WorkspaceServer* workspace = &capabilities->workspace;
+        JSONValue value = json_make_object();
+
+        WorkspaceFoldersServerCapabilities* folders = &workspace->workspace_folders;
+        JSONValue workspace_folders = json_make_object();
+        json_object_const_key_set(&workspace_folders, "supported", json_make_boolean(folders->supported));
+        if (folders->change_notifications != NULL) {
+            json_object_const_key_set(&workspace_folders, "changeNotifications", json_make_string(folders->change_notifications));
+        } else {
+            json_object_const_key_set(&workspace_folders, "changeNotifications", json_make_boolean(folders->change_notifications_boolean));
+        }
+        json_object_const_key_set(&value, "workspaceFolders", workspace_folders);
+
+        FileOperationsServer* operations = &workspace->file_operations;
+        JSONValue file_operations = json_make_object();
+        json_object_const_key_set(&file_operations, "didCreate", file_operation_registration_json(&operations->did_create));
+        json_object_const_key_set(&file_operations, "willCreate", file_operation_registration_json(&operations->will_create));
+        json_object_const_key_set(&file_operations, "didRename", file_operation_registration_json(&operations->did_rename));
+        json_object_const_key_set(&file_operations, "willRename", file_operation_registration_json(&operations->will_rename));
+        json_object_const_key_set(&file_operations, "didDelete", file_operation_registration_json(&operations->did_delete));
+        json_object_const_key_set(&file_operations, "willDelete", file_operation_registration_json(&operations->will_delete));
+        json_object_const_key_set(&value, "fileOperations", file_operations);
+
+        json_object_const_key_set(&result, "workspace", value);
     }
 
     return result;
