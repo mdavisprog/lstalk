@@ -7982,6 +7982,7 @@ static TestResults tests_message() {
 static LSTalk_Context* test_context = NULL;
 static LSTalk_ServerID test_server = LSTALK_INVALID_SERVER_ID;
 static char test_server_path[PATH_MAX] = "";
+static int test_server_debug_flags = 0;
 
 #if LSTALK_WINDOWS
     #define TEST_SERVER_NAME "test_server.exe"
@@ -7994,6 +7995,7 @@ static int test_server_init() {
         return 0;
     }
     test_context = lstalk_init();
+    lstalk_set_debug_flags(test_context, test_server_debug_flags);
     return test_context != NULL;
 }
 
@@ -8094,6 +8096,13 @@ static void add_test_suite(Vector* suites, TestResults (*fn)(), char* name) {
 void lstalk_tests(int argc, char** argv) {
     (void)argc;
     printf("Running tests for lstalk...\n\n");
+
+    for (int i = 0; i < argc; i++) {
+        char* arg = argv[i];
+        if (strcmp(arg, "--server-responses") == 0) {
+            test_server_debug_flags |= LSTALK_DEBUGFLAGS_PRINT_RESPONSES;
+        }
+    }
 
     size_t size = PATH_MAX;
     char absolute_path[PATH_MAX] = "";
