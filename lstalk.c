@@ -8137,6 +8137,98 @@ void lstalk_tests(int argc, char** argv) {
     vector_destroy(&suites);
 }
 
+static ServerCapabilities test_server_make_capabilities() {
+    ServerCapabilities result;
+    memset(&result, 0, sizeof(result));
+
+    #define ALLOC_TEXT_DOCUMENT_REGISTRATION(property) \
+    property.text_document_registration.document_selector_count = 1; \
+    property.text_document_registration.document_selector = (DocumentFilter*)malloc(sizeof(DocumentFilter)); \
+    property.text_document_registration.document_selector[0].language = string_alloc_copy("language"); \
+    property.text_document_registration.document_selector[0].scheme = string_alloc_copy("scheme"); \
+    property.text_document_registration.document_selector[0].pattern = string_alloc_copy("pattern");
+
+    #define ALLOC_FILE_OPERATIONS_REGISTRATION(property) \
+    property.filters_count = 1; \
+    property.filters = (FileOperationFilter*)malloc(sizeof(FileOperationFilter)); \
+    property.filters[0].scheme = string_alloc_copy("scheme"); \
+    property.filters[0].pattern.glob = string_alloc_copy("glob");
+
+    result.notebook_document_sync.static_registration.id = string_alloc_copy("id");
+    result.notebook_document_sync.notebook_selector_count = 1;
+    result.notebook_document_sync.notebook_selector = (NotebookSelector*)malloc(sizeof(NotebookSelector));
+    result.notebook_document_sync.notebook_selector[0].notebook.notebook_type = string_alloc_copy("notebook_type");
+    result.notebook_document_sync.notebook_selector[0].notebook.scheme = string_alloc_copy("scheme");
+    result.notebook_document_sync.notebook_selector[0].notebook.pattern = string_alloc_copy("pattern");
+    result.notebook_document_sync.notebook_selector[0].cells_count = 1;
+    result.notebook_document_sync.notebook_selector[0].cells = (char**)malloc(sizeof(char*));
+    result.notebook_document_sync.notebook_selector[0].cells[0] = string_alloc_copy("cells");
+    result.completion_provider.trigger_characters_count = 1;
+    result.completion_provider.trigger_characters = (char**)malloc(sizeof(char*));
+    result.completion_provider.trigger_characters[0] = string_alloc_copy("trigger_characters");
+    result.completion_provider.all_commit_characters_count = 1;
+    result.completion_provider.all_commit_characters = (char**)malloc(sizeof(char*));
+    result.completion_provider.all_commit_characters[0] = string_alloc_copy("all_commit_characters");
+    result.signature_help_provider.trigger_characters_count = 1;
+    result.signature_help_provider.trigger_characters = (char**)malloc(sizeof(char*));
+    result.signature_help_provider.trigger_characters[0] = string_alloc_copy("trigger_characters");
+    result.signature_help_provider.retrigger_characters_count = 1;
+    result.signature_help_provider.retrigger_characters = (char**)malloc(sizeof(char*));
+    result.signature_help_provider.retrigger_characters[0] = string_alloc_copy("retrigger_characters");
+    result.declaration_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.declaration_provider);
+    result.type_definition_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.type_definition_provider);
+    result.implementation_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.implementation_provider);
+    result.document_symbol_provider.label = string_alloc_copy("label");
+    result.color_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.color_provider);
+    result.document_on_type_formatting_provider.first_trigger_character = string_alloc_copy("first_trigger_character");
+    result.document_on_type_formatting_provider.more_trigger_character_count = 1;
+    result.document_on_type_formatting_provider.more_trigger_character = (char**)malloc(sizeof(char*));
+    result.document_on_type_formatting_provider.more_trigger_character[0] = string_alloc_copy("more_trigger_character");
+    result.folding_range_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.folding_range_provider);
+    result.execute_command_provider.commands_count = 1;
+    result.execute_command_provider.commands = (char**)malloc(sizeof(char*));
+    result.execute_command_provider.commands[0] = string_alloc_copy("commands");
+    result.selection_range_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.selection_range_provider);
+    result.linked_editing_range_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.linked_editing_range_provider);
+    result.call_hierarchy_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.call_hierarchy_provider);
+    result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count = 1;
+    result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers = (char**)malloc(sizeof(char*));
+    result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers[0] = string_alloc_copy("token_modifiers");
+    result.semantic_tokens_provider.semantic_tokens.legend.token_types_count = 1;
+    result.semantic_tokens_provider.semantic_tokens.legend.token_types = (char**)malloc(sizeof(char*));
+    result.semantic_tokens_provider.semantic_tokens.legend.token_types[0] = string_alloc_copy("token_types");
+    result.semantic_tokens_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.semantic_tokens_provider);
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.moniker_provider);
+    result.type_hierarchy_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.type_hierarchy_provider);
+    result.inline_value_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.inline_value_provider);
+    result.inlay_hint_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.inlay_hint_provider);
+    result.diagnostic_provider.static_registration.id = string_alloc_copy("id");
+    ALLOC_TEXT_DOCUMENT_REGISTRATION(result.diagnostic_provider);
+    result.workspace.workspace_folders.change_notifications = string_alloc_copy("change_notifications");
+    ALLOC_FILE_OPERATIONS_REGISTRATION(result.workspace.file_operations.did_create);
+    ALLOC_FILE_OPERATIONS_REGISTRATION(result.workspace.file_operations.will_create);
+    ALLOC_FILE_OPERATIONS_REGISTRATION(result.workspace.file_operations.did_rename);
+    ALLOC_FILE_OPERATIONS_REGISTRATION(result.workspace.file_operations.will_rename);
+    ALLOC_FILE_OPERATIONS_REGISTRATION(result.workspace.file_operations.did_delete);
+    ALLOC_FILE_OPERATIONS_REGISTRATION(result.workspace.file_operations.will_delete);
+
+    #undef ALLOC_TEXT_DOCUMENT_REGISTRATION
+
+    return result;
+}
+
 static JSONValue test_server_build_response(JSONValue* request) {
     JSONValue result = json_make_null();
 
@@ -8152,6 +8244,19 @@ static JSONValue test_server_build_response(JSONValue* request) {
         char* method_str = method.value.string_value;
         if (strcmp(method_str, "initialize") == 0) {
             json_object_const_key_set(&result, "id", id);
+            JSONValue results = json_make_object();
+            json_object_const_key_set(&result, "results", results);
+            char version[40];
+            sprintf_s(version, sizeof(version), "%d.%d.%d", LSTALK_MAJOR, LSTALK_MINOR, LSTALK_REVISION);
+            JSONValue server_info = json_make_object();
+            json_object_const_key_set(&server_info, "name", json_make_string_const("Test Server"));
+            json_object_const_key_set(&server_info, "version", json_make_string(version));
+            json_object_const_key_set(&results, "serverInfo", server_info);
+            
+            ServerCapabilities server_capabilities = test_server_make_capabilities();
+            JSONValue capabilities = server_capabilities_json(&server_capabilities);
+            json_object_const_key_set(&results, "capabilities", capabilities);
+            server_capabilities_free(&server_capabilities);
         }
     }
 
