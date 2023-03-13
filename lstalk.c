@@ -39,7 +39,7 @@ SOFTWARE.
 //
 
 #define LSTALK_MAJOR 0
-#define LSTALK_MINOR 1
+#define LSTALK_MINOR 2
 #define LSTALK_REVISION 0
 
 //
