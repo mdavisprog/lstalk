@@ -31,6 +31,8 @@ int main(int argc, char** argv) {
 #if LSTALK_TESTS
     lstalk_tests(argc, argv);
 #else
+    (void)argc;
+    (void)argv;
     printf("Did not compile with LSTALK_TESTS enabled!\n");
 #endif
     return 0;
