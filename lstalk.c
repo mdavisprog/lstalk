@@ -7255,7 +7255,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
 
         if (response != NULL) {
             if (context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_RESPONSES) {
-                printf("%s\n", response);
+                printf("Response: %s\n", response);
             }
 
             char* anchor = response;
@@ -8292,7 +8292,7 @@ static void test_server_send_response(JSONValue* response) {
 
     JSONEncoder encoder = json_encode(response);
     if (encoder.string.length > 0) {
-        printf("Content-Length: %zu\r\n%s", encoder.string.length, encoder.string.data);
+        printf("Content-Length: %zu\r\n%s\r\n", encoder.string.length, encoder.string.data);
         fflush(stdout);
     }
 
