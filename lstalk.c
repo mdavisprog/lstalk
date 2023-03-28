@@ -6783,6 +6783,10 @@ static void document_symbol_notification_free(LSTalk_DocumentSymbolNotification*
         return;
     }
 
+    if (notification->uri != NULL) {
+        free(notification->uri);
+    }
+
     if (notification->symbols != NULL) {
         for (size_t i = 0; i < (size_t)notification->symbols_count; i++) {
             document_symbol_free(&notification->symbols[i]);
@@ -7356,6 +7360,9 @@ int lstalk_process_responses(LSTalk_Context* context) {
                                 JSONValue* result = json_object_get_ptr(&value, "result");
                                 LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS);
                                 notification.data.document_symbols = document_symbol_notification_parse(result);
+                                JSONValue params = json_object_get(&request->payload, "params");
+                                JSONValue text_document = json_object_get(&params, "textDocument");
+                                notification.data.document_symbols.uri = json_unescape_string(json_object_get(&text_document, "uri").value.string_value);
                                 vector_push(&server->notifications, &notification);
                             }
 
