@@ -58,6 +58,7 @@ int main(int argc, char** argv) {
             LSTalk_Notification notification;
             lstalk_poll_notification(context, server, &notification);
             if (notification.type == LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS) {
+                printf("Document symbols from: %s\n", notification.data.document_symbols.uri);
                 printf("Document symbols count: %d\n", notification.data.document_symbols.symbols_count);
                 for (int i = 0; i < notification.data.document_symbols.symbols_count; i++) {
                     printf("   %s - %s\n", notification.data.document_symbols.symbols[i].name,
