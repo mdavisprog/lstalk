@@ -7855,6 +7855,13 @@ static int test_json_move_string() {
     return result;
 }
 
+static int test_json_escape_string() {
+    char* escaped = json_escape_string("Hello\nworld\tfoo\\bar/");
+    int result = strcmp(escaped, "Hello\\nworld\\tfoo\\\\bar\\/") == 0;
+    free(escaped);
+    return result;
+}
+
 static TestResults tests_json() {
     TestResults result;
     Vector tests = vector_create(sizeof(TestCase));
@@ -7883,6 +7890,7 @@ static TestResults tests_json() {
     REGISTER_TEST(&tests, test_json_encode_sub_object);
     REGISTER_TEST(&tests, test_json_encode_array_of_objects);
     REGISTER_TEST(&tests, test_json_move_string);
+    REGISTER_TEST(&tests, test_json_escape_string);
 
     result.fail = tests_run(&tests);
     result.pass = (int)tests.length - result.fail;
