@@ -933,6 +933,62 @@ static char* json_escape_string(char* source) {
     return result;
 }
 
+static char* json_unescape_string(char* source) {
+    if (source == NULL) {
+        return NULL;
+    }
+
+    Vector array = vector_create(sizeof(char));
+
+    char* start = source;
+    char* ptr = start;
+    size_t length = 0;
+    while (start != NULL) {
+        char ch = *ptr;
+        if (ch == '\\') {
+            char next = *(ptr + 1);
+            char unescaped = 0;
+            switch (next) {
+                case '"': unescaped = '"'; break;
+                case '\\': unescaped = '\\'; break;
+                case '/': unescaped = '/'; break;
+                case 'b': unescaped = '\b'; break;
+                case 'f': unescaped = '\f'; break;
+                case 'n': unescaped = '\n'; break;
+                case 'r': unescaped = '\r'; break;
+                case 't': unescaped = '\t'; break;
+                default: break;
+            }
+            if (unescaped != 0) {
+                size_t count = ptr - start;
+                length += count + 1;
+                vector_append(&array, start, count);
+                vector_push(&array, &unescaped);
+                // Advance to the unescaped character. The loop will move to the next character.
+                ptr++;
+                start = ptr + 1;
+            }
+            // TODO: Handle unicode escape characters.
+        } else if (ch == '\0') {
+            size_t count = ptr - start;
+            length += count;
+            vector_append(&array, start, count);
+            start = NULL;
+        }
+        ptr++;
+    }
+
+    char* result = NULL;
+    if (array.length > 0) {
+        result = (char*)malloc(sizeof(char) * length + 1);
+        strncpy_s(result, length + 1, array.data, length);
+        result[length] = '\0';
+    }
+
+    vector_destroy(&array);
+    return result;
+}
+
 struct JSONObject;
 struct JSONArray;
 
@@ -7862,6 +7918,13 @@ static int test_json_escape_string() {
     return result;
 }
 
+static int test_json_unescape_string() {
+    char* unescaped = json_unescape_string("Hello\\nworld\\tfoo\\\\bar\\/");
+    int result = strcmp(unescaped, "Hello\nworld\tfoo\\bar/") == 0;
+    free(unescaped);
+    return result;
+}
+
 static TestResults tests_json() {
     TestResults result;
     Vector tests = vector_create(sizeof(TestCase));
@@ -7891,6 +7954,7 @@ static TestResults tests_json() {
     REGISTER_TEST(&tests, test_json_encode_array_of_objects);
     REGISTER_TEST(&tests, test_json_move_string);
     REGISTER_TEST(&tests, test_json_escape_string);
+    REGISTER_TEST(&tests, test_json_unescape_string);
 
     result.fail = tests_run(&tests);
     result.pass = (int)tests.length - result.fail;
