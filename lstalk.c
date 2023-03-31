@@ -7513,10 +7513,10 @@ int lstalk_text_document_did_close(LSTalk_Context* context, LSTalk_ServerID id, 
     return 1;
 }
 
-int lstalk_text_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, const char* path) {
-    Server* server = context_get_server(context, id);
-    if (server == NULL) {
-        return 0;
+static JSONValue text_document_identifier_make(const char* path) {
+    JSONValue result = json_make_null();
+    if (path == NULL) {
+        return result;
     }
 
     char* uri = file_uri(path);
@@ -7524,10 +7524,19 @@ int lstalk_text_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, con
     json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(json_escape_string(uri)));
     free(uri);
 
-    JSONValue params = json_make_object();
-    json_object_const_key_set(&params, "textDocument", text_document_identifier);
+    result = json_make_object();
+    json_object_const_key_set(&result, "textDocument", text_document_identifier);
 
-    server_make_and_send_request(context, server, "textDocument/documentSymbol", params);
+    return result;
+}
+
+int lstalk_text_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, const char* path) {
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
+        return 0;
+    }
+
+    server_make_and_send_request(context, server, "textDocument/documentSymbol", text_document_identifier_make(path));
     return 1;
 }
 
