@@ -1338,7 +1338,7 @@ static JSONValue json_array_get(JSONValue* array, size_t index) {
 }
 
 static size_t json_array_length(JSONValue* array) {
-    if (array == NULL) {
+    if (array == NULL || array->type != JSON_VALUE_ARRAY) {
         return 0;
     }
 
