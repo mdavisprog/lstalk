@@ -6796,6 +6796,85 @@ static void document_symbol_notification_free(LSTalk_DocumentSymbolNotification*
     }
 }
 
+//
+// Semantic Tokens
+//
+
+static LSTalk_SemanticTokens semantic_tokens_parse(JSONValue* value, SemanticTokensLegend* legend) {
+    LSTalk_SemanticTokens result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT || legend == NULL) {
+        return result;
+    }
+
+    JSONValue* result_id = json_object_get_ptr(value, "resultId");
+    if (result_id != NULL && result_id->type == JSON_VALUE_STRING) {
+        result.result_id = json_move_string(result_id);
+    }
+
+    JSONValue* data = json_object_get_ptr(value, "data");
+    size_t count = json_array_length(data);
+    if (count > 0) {
+        result.tokens_count = (int)(count / 5);
+        result.tokens = malloc((size_t)result.tokens_count * sizeof(LSTalk_SemanticToken));
+        int previous_line = 0;
+        int previous_character = 0;
+        int index = 0;
+        for (size_t i = 0; i < count; i += 5) {
+            int line = json_array_get(data, i).value.int_value;
+            int character = json_array_get(data, i + 1).value.int_value;
+            int length = json_array_get(data, i + 2).value.int_value;
+            int token_type = json_array_get(data, i + 3).value.int_value;
+            int token_modifiers = json_array_get(data, i + 4).value.int_value;
+
+            if (line > 0) {
+                previous_character = 0;
+            }
+
+            LSTalk_SemanticToken* token = &result.tokens[index++];
+            token->line = previous_line + line;
+            token->character = previous_character + character;
+            token->length = length;
+            token->token_type = token_type < legend->token_types_count ? legend->token_types[token_type] : NULL;
+
+            previous_line += line;
+            previous_character += character;
+
+            Vector modifiers = vector_create(sizeof(int));
+            for (int pos = 0; pos < 32; pos++) {
+                if ((token_modifiers & (1 << pos)) != 0) {
+                    vector_push(&modifiers, &pos);
+                }
+            }
+
+            token->token_modifiers_count = (int)modifiers.length;
+            token->token_modifiers = (char**)malloc(sizeof(char*) * modifiers.length);
+            for (size_t j = 0; j < modifiers.length; j++) {
+                int pos = *(int*)vector_get(&modifiers, j);
+                token->token_modifiers[j] = legend->token_modifiers[pos];
+            }
+            vector_destroy(&modifiers);
+        }
+    }
+
+    return result;
+}
+
+static void semantic_tokens_free(LSTalk_SemanticTokens* semantic_tokens) {
+    if (semantic_tokens == NULL) {
+        return;
+    }
+
+    if (semantic_tokens->result_id != NULL) {
+        free(semantic_tokens->result_id);
+    }
+
+    if (semantic_tokens->tokens != NULL) {
+        free(semantic_tokens->tokens);
+    }
+}
+
 static LSTalk_Notification notification_make(LSTalk_NotificationType type) {
     LSTalk_Notification result;
     memset(&result, 0, sizeof(LSTalk_Notification));
@@ -6818,6 +6897,12 @@ static void notification_free(LSTalk_Notification* notification) {
             publish_diagnostics_free(&notification->data.publish_diagnostics);
             break;
         }
+
+        case LSTALK_NOTIFICATION_SEMANTIC_TOKENS: {
+            semantic_tokens_free(&notification->data.semantic_tokens);
+            break;
+        }
+
         case LSTALK_NOTIFICATION_NONE:
         default: break;
     }
@@ -7346,6 +7431,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
                         if (request->id == id.value.int_value) {
                             int remove_request = 1;
                             char* method = rpc_get_method(request);
+                            JSONValue* result = json_object_get_ptr(&value, "result");
                             if (strcmp(method, "initialize") == 0) {
                                 server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
                                 server_initialized_parse(server, &value);
@@ -7357,12 +7443,15 @@ int lstalk_process_responses(LSTalk_Context* context) {
                                 i--;
                                 remove_request = 0;
                             } else if (strcmp(method, "textDocument/documentSymbol") == 0) {
-                                JSONValue* result = json_object_get_ptr(&value, "result");
                                 LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS);
                                 notification.data.document_symbols = document_symbol_notification_parse(result);
                                 JSONValue params = json_object_get(&request->payload, "params");
                                 JSONValue text_document = json_object_get(&params, "textDocument");
                                 notification.data.document_symbols.uri = json_unescape_string(json_object_get(&text_document, "uri").value.string_value);
+                                vector_push(&server->notifications, &notification);
+                            } else if (strcmp(method, "textDocument/semanticTokens/full") == 0) {
+                                LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_SEMANTIC_TOKENS);
+                                notification.data.semantic_tokens = semantic_tokens_parse(result, &server->capabilities.semantic_tokens_provider.semantic_tokens.legend);
                                 vector_push(&server->notifications, &notification);
                             }
 
@@ -7537,6 +7626,16 @@ int lstalk_text_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, con
     }
 
     server_make_and_send_request(context, server, "textDocument/documentSymbol", text_document_identifier_make(path));
+    return 1;
+}
+
+int lstalk_text_document_semantic_tokens(LSTalk_Context* context, LSTalk_ServerID id, const char* path) {
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
+        return 0;
+    }
+
+    server_make_and_send_request(context, server, "textDocument/semanticTokens/full", text_document_identifier_make(path));
     return 1;
 }
 

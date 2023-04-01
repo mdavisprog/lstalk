@@ -318,6 +318,17 @@ LSTALK_API int lstalk_text_document_did_close(struct LSTalk_Context* context, LS
  */
 LSTALK_API int lstalk_text_document_symbol(struct LSTalk_Context* context, LSTalk_ServerID id, const char* path);
 
+/**
+ * Retrieves semantic tokens to provide additional information for language specific symbols.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param id - The LSTalk_ServerID connection to open the document on.
+ * @param path - The absolute path to the file that is opened on the client.
+ * 
+ * @return - Non-zero if the request was sent. 0 if it failed.
+ */
+LSTALK_API int lstalk_text_document_semantic_tokens(struct LSTalk_Context* context, LSTalk_ServerID id, const char* path);
+
 //
 // The section below contains the definitions of interfaces used in communicating
 // with the language server.
@@ -646,12 +657,34 @@ typedef struct LSTalk_DocumentSymbolNotification {
 } LSTalk_DocumentSymbolNotification;
 
 /**
+ * Represents a single token with the location, the type, and 0 to n modifiers.
+ */
+typedef struct LSTalk_SemanticToken {
+    int line;
+    int character;
+    int length;
+    char* token_type;
+    char** token_modifiers;
+    int token_modifiers_count;
+} LSTalk_SemanticToken;
+
+/**
+ * List of semantic tokens retrieved from a document.
+ */
+typedef struct LSTalk_SemanticTokens {
+    char* result_id;
+    LSTalk_SemanticToken* tokens;
+    int tokens_count;
+} LSTalk_SemanticTokens;
+
+/**
  * Different types of notifications/responses from the server.
  */
 typedef enum {
     LSTALK_NOTIFICATION_NONE,
     LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS,
     LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS,
+    LSTALK_NOTIFICATION_SEMANTIC_TOKENS,
 } LSTalk_NotificationType;
 
 /**
@@ -662,6 +695,7 @@ typedef struct LSTalk_Notification {
     union {
         LSTalk_DocumentSymbolNotification document_symbols;
         LSTalk_PublishDiagnostics publish_diagnostics;
+        LSTalk_SemanticTokens semantic_tokens;
     } data;
 
     LSTalk_NotificationType type;
