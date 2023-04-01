@@ -72,4 +72,6 @@ int main(int argc, char** argv) {
     }
 
     lstalk_shutdown(context);
+
+    return 0;
 }
