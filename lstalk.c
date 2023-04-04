@@ -6871,6 +6871,11 @@ static void semantic_tokens_free(LSTalk_SemanticTokens* semantic_tokens) {
     }
 
     if (semantic_tokens->tokens != NULL) {
+        for (int i = 0; i < semantic_tokens->tokens_count; i++) {
+            if (semantic_tokens->tokens[i].token_modifiers != NULL) {
+                free(semantic_tokens->tokens[i].token_modifiers);
+            }
+        }
         free(semantic_tokens->tokens);
     }
 }
