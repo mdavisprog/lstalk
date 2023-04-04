@@ -8143,7 +8143,7 @@ static int test_message_two_objects() {
     JSONValue first_int = json_object_get(&first, "Int");
     JSONValue second_float = json_object_get(&second, "Float");
     int result = first_int.type == JSON_VALUE_INT && first_int.value.int_value == 42;
-    result &= second_float.type = JSON_VALUE_FLOAT && second_float.value.float_value == 3.14f;
+    result &= second_float.type == JSON_VALUE_FLOAT && second_float.value.float_value == 3.14f;
     json_destroy_value(&first);
     json_destroy_value(&second);
     return result;
