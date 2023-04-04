@@ -17,8 +17,6 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    lstalk_set_debug_flags(context, LSTALK_DEBUGFLAGS_PRINT_REQUESTS | LSTALK_DEBUGFLAGS_PRINT_RESPONSES);
-
     char exe_path[PATH_MAX];
     utility_absolute_path(argv[0], exe_path, sizeof(exe_path));
 
