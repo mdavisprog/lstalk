@@ -22,7 +22,7 @@
 static int fopen_s(FILE* restrict* restrict streamptr, const char* restrict filename, const char* restrict mode) {
     *streamptr = fopen(filename, mode);
     if (*streamptr == NULL) {
-        return EINVAL;
+        return -1;
     }
     return 0;
 }
@@ -38,6 +38,12 @@ static int strcat_s(char* restrict dest, size_t destsz, const char* restrict src
     strcat(dest, src);
     return 0;
 }
+#endif
+
+#if _MSC_VER
+    #define MAYBE_UNUSED
+#elif __GNUC__
+    #define MAYBE_UNUSED __attribute__((unused))
 #endif
 
 static void utility_get_directory(char* path, char* out, size_t out_size) {
@@ -80,17 +86,15 @@ static void utility_absolute_path(char* relative_path, char* out, size_t out_siz
 #endif
 }
 
-#if DEFINE_SLEEP
-static void utility_sleep(unsigned int ms) {
+MAYBE_UNUSED static void utility_sleep(unsigned int ms) {
 #if WINDOWS
     Sleep(ms);
 #else
     usleep(1000L * ms);
 #endif
 }
-#endif
 
-static char* utility_file_contents(const char* path) {
+MAYBE_UNUSED static char* utility_file_contents(const char* path) {
     if (path == NULL) {
         return NULL;
     }
@@ -118,7 +122,7 @@ static char* utility_file_contents(const char* path) {
     return result;
 }
 
-static const char* utility_get_token_ptr(const char* contents, int line, int character) {
+MAYBE_UNUSED static const char* utility_get_token_ptr(const char* contents, int line, int character) {
     if (contents == NULL) {
         return NULL;
     }
