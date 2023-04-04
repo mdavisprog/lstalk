@@ -14,10 +14,19 @@
 #endif
 
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #if !WINDOWS && __STDC_VERSION__ <= 199901L
+static int fopen_s(FILE* restrict* restrict streamptr, const char* restrict filename, const char* restrict mode) {
+    *streamptr = fopen(filename, mode);
+    if (*streamptr == NULL) {
+        return EINVAL;
+    }
+    return 0;
+}
+
 static int strncpy_s(char* restrict dest, size_t destsz, const char* restrict src, size_t count) {
     (void)destsz;
     strncpy(dest, src, count);
@@ -80,5 +89,56 @@ static void utility_sleep(unsigned int ms) {
 #endif
 }
 #endif
+
+static char* utility_file_contents(const char* path) {
+    if (path == NULL) {
+        return NULL;
+    }
+
+    FILE* file = NULL;
+    fopen_s(&file, path, "rb");
+    if (file == NULL) {
+        return NULL;
+    }
+
+    fseek(file, 0L, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0L, SEEK_SET);
+
+    if (size == 0) {
+        fclose(file);
+        return NULL;
+    }
+
+    char* result = (char*)malloc(sizeof(char) * size + 1);
+    size_t read = fread(result, sizeof(char), size, file);
+    result[read] = '\0';
+    fclose(file);
+
+    return result;
+}
+
+static const char* utility_get_token_ptr(const char* contents, int line, int character) {
+    if (contents == NULL) {
+        return NULL;
+    }
+
+    const char* ptr = contents;
+    int current_line = 0;
+    while (current_line < line) {
+        char* end = strchr(ptr, '\n');
+        if (end == NULL) {
+            break;
+        }
+        ptr = end + 1;
+        current_line++;
+    }
+
+    if (current_line != line) {
+        return NULL;
+    }
+
+    return ptr + character;
+}
 
 #endif

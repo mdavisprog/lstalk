@@ -187,4 +187,10 @@ add_program(
     example_document_symbols
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/document_symbols.c
 )
+
+add_program(
+    example_semantic_tokens
+    example_semantic_tokens
+    ${CMAKE_CURRENT_SOURCE_DIR}/examples/semantic_tokens.c
+)
 endif()
