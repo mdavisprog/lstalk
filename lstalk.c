@@ -8294,6 +8294,36 @@ static int test_server_debug_flags = 0;
     #define TEST_SERVER_NAME "test_server"
 #endif
 
+static int test_server_process_notification(LSTalk_Notification* notification, LSTalk_NotificationType filter) {
+    if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    if (notification == NULL) {
+        return 0;
+    }
+
+    clock_t start = clock();
+    while (1) {
+        if (!lstalk_process_responses(test_context)) {
+            break;
+        }
+
+        if (lstalk_poll_notification(test_context, test_server, notification)) {
+            if (filter == LSTALK_NOTIFICATION_NONE || notification->type == filter) {
+                return 1;
+            }
+        }
+
+        double elapsed = (double)(clock() - start) / (double)CLOCKS_PER_SEC;
+        if (elapsed >= 5.0) {
+            break;
+        }
+    }
+
+    return 0;
+}
+
 static int test_server_init() {
     if (test_context != NULL) {
         return 0;
@@ -8342,6 +8372,39 @@ static int test_server_connect() {
     return result;
 }
 
+static int test_server_trace() {
+    if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    if (!lstalk_set_trace(test_context, test_server, LSTALK_TRACE_MESSAGES)) {
+        return 0;
+    }
+
+    LSTalk_Notification notification;
+    if (!test_server_process_notification(&notification, LSTALK_NOTIFICATION_LOG)) {
+        return 0;
+    }
+
+    if (strcmp(notification.data.log.message, "message") != 0 || notification.data.log.verbose != NULL) {
+        return 0;
+    }
+
+    if (!lstalk_set_trace(test_context, test_server, LSTALK_TRACE_VERBOSE)) {
+        return 0;
+    }
+
+    if (!test_server_process_notification(&notification, LSTALK_NOTIFICATION_LOG)) {
+        return 0;
+    }
+
+    if (strcmp(notification.data.log.message, "message") != 0 || strcmp(notification.data.log.verbose, "verbose") != 0) {
+        return 0;
+    }
+
+    return 1;
+}
+
 static int test_server_close() {
     if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
         return 0;
@@ -8368,6 +8431,7 @@ static TestResults tests_server() {
 
     REGISTER_TEST(&tests, test_server_init);
     REGISTER_TEST(&tests, test_server_connect);
+    REGISTER_TEST(&tests, test_server_trace);
     REGISTER_TEST(&tests, test_server_close);
     REGISTER_TEST(&tests, test_server_shutdown);
 
@@ -8546,6 +8610,7 @@ static JSONValue test_server_build_response(JSONValue* request) {
         JSONValue id = json_object_get(request, "id");
 
         char* method_str = method.value.string_value;
+        JSONValue* params = json_object_get_ptr(request, "params");
         if (strcmp(method_str, "initialize") == 0) {
             json_object_const_key_set(&result, "id", id);
             JSONValue results = json_make_object();
@@ -8561,6 +8626,22 @@ static JSONValue test_server_build_response(JSONValue* request) {
             JSONValue capabilities = server_capabilities_json(&server_capabilities);
             json_object_const_key_set(&results, "capabilities", capabilities);
             server_capabilities_free(&server_capabilities);
+        } else if (strcmp(method_str, "$/setTrace") == 0) {
+            JSONValue value = json_object_get(params, "value");
+            if (value.type == JSON_VALUE_STRING) {
+                LSTalk_Trace trace = trace_from_string(value.value.string_value);
+                json_destroy_value(&result);
+                if (trace == LSTALK_TRACE_MESSAGES) {
+                    JSONValue result_params = json_make_object();
+                    json_object_const_key_set(&result_params, "message", json_make_string_const("message"));
+                    result = rpc_make_notification("$/logTrace", result_params);
+                } else if (trace == LSTALK_TRACE_VERBOSE) {
+                    JSONValue result_params = json_make_object();
+                    json_object_const_key_set(&result_params, "message", json_make_string_const("message"));
+                    json_object_const_key_set(&result_params, "verbose", json_make_string_const("verbose"));
+                    result = rpc_make_notification("$/logTrace", result_params);
+                }
+            }
         }
     }
 
@@ -8568,7 +8649,7 @@ static JSONValue test_server_build_response(JSONValue* request) {
 }
 
 static void test_server_send_response(JSONValue* response) {
-    if (response == NULL) {
+    if (response == NULL || response->type == JSON_VALUE_NULL) {
         return;
     }
 
