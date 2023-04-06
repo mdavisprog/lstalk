@@ -135,6 +135,12 @@ static int fopen_s(FILE* restrict* restrict streamptr, const char* restrict file
 #define sscanf_s(buffer, format, ...) sscanf(buffer, format, __VA_ARGS__)
 #endif
 
+#if _MSC_VER
+    #define MAYBE_UNUSED
+#elif __GNUC__
+    #define MAYBE_UNUSED __attribute__((unused))
+#endif
+
 //
 // Dynamic Array
 //
@@ -1364,6 +1370,16 @@ static JSONEncoder json_encode(JSONValue* value) {
 
 static void json_destroy_encoder(JSONEncoder* encoder) {
     vector_destroy(&encoder->string);
+}
+
+MAYBE_UNUSED static void json_print(JSONValue* value) {
+    if (value == NULL) {
+        return;
+    }
+
+    JSONEncoder encoder = json_encode(value);
+    printf("%s\n", encoder.string.data);
+    json_destroy_encoder(&encoder);
 }
 
 //
