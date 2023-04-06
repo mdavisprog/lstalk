@@ -1724,24 +1724,28 @@ static void rpc_message(JSONValue* object) {
     json_object_const_key_set(object, "jsonrpc", json_make_string_const("2.0"));
 }
 
-static Request rpc_make_notification(char* method, JSONValue params) {
-    Request result;
-    result.id = 0;
-    result.payload = json_make_null();
-
+static JSONValue rpc_make_notification(char* method, JSONValue params) {
+    JSONValue result = json_make_null();
+    
     if (method == NULL) {
         return result;
     }
 
-    JSONValue object = json_make_object();
-    rpc_message(&object);
-    json_object_const_key_set(&object, "method", json_make_string_const(method));
+    result = json_make_object();
+    rpc_message(&result);
+    json_object_const_key_set(&result, "method", json_make_string_const(method));
 
     if (params.type == JSON_VALUE_OBJECT || params.type == JSON_VALUE_ARRAY) {
-        json_object_const_key_set(&object, "params", params);
+        json_object_const_key_set(&result, "params", params);
     }
 
-    result.payload = object;
+    return result;
+}
+
+static Request rpc_make_notification_request(char* method, JSONValue params) {
+    Request result;
+    result.id = 0;
+    result.payload = rpc_make_notification(method, params);
     return result;
 }
 
@@ -1754,7 +1758,7 @@ static Request rpc_make_request(int* id, char* method, JSONValue params) {
         return result;
     }
 
-    result = rpc_make_notification(method, params);
+    result = rpc_make_notification_request(method, params);
     json_object_const_key_set(&result.payload, "id", json_make_int(*id));
     result.id = *id;
     (*id)++;
@@ -7249,7 +7253,7 @@ typedef struct LSTalk_Context {
 } LSTalk_Context;
 
 static void server_make_and_send_notification(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
-    Request request = rpc_make_notification(method, params);
+    Request request = rpc_make_notification_request(method, params);
     server_send_request(server, &request, context->debug_flags);
     rpc_close_request(&request);
 }
