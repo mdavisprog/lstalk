@@ -677,6 +677,11 @@ typedef struct LSTalk_SemanticTokens {
     int tokens_count;
 } LSTalk_SemanticTokens;
 
+typedef struct LSTalk_Log {
+    char* message;
+    char* verbose;
+} LSTalk_Log;
+
 /**
  * Different types of notifications/responses from the server.
  */
@@ -685,6 +690,7 @@ typedef enum {
     LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS,
     LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS,
     LSTALK_NOTIFICATION_SEMANTIC_TOKENS,
+    LSTALK_NOTIFICATION_LOG,
 } LSTalk_NotificationType;
 
 /**
@@ -696,6 +702,7 @@ typedef struct LSTalk_Notification {
         LSTalk_DocumentSymbolNotification document_symbols;
         LSTalk_PublishDiagnostics publish_diagnostics;
         LSTalk_SemanticTokens semantic_tokens;
+        LSTalk_Log log;
     } data;
 
     LSTalk_NotificationType type;

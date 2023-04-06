@@ -6900,6 +6900,41 @@ static void semantic_tokens_free(LSTalk_SemanticTokens* semantic_tokens) {
     }
 }
 
+static LSTalk_Log log_parse(JSONValue* value) {
+    LSTalk_Log result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue* message = json_object_get_ptr(value, "message");
+    if (message != NULL) {
+        result.message = json_move_string(message);
+    }
+
+    JSONValue* verbose = json_object_get_ptr(value, "verbose");
+    if (verbose != NULL) {
+        result.verbose = json_move_string(verbose);
+    }
+
+    return result;
+}
+
+static void log_free(LSTalk_Log* log) {
+    if (log == NULL) {
+        return;
+    }
+
+    if (log->message != NULL) {
+        free(log->message);
+    }
+
+    if (log->verbose != NULL) {
+        free(log->verbose);
+    }
+}
+
 static LSTalk_Notification notification_make(LSTalk_NotificationType type) {
     LSTalk_Notification result;
     memset(&result, 0, sizeof(LSTalk_Notification));
@@ -6925,6 +6960,11 @@ static void notification_free(LSTalk_Notification* notification) {
 
         case LSTALK_NOTIFICATION_SEMANTIC_TOKENS: {
             semantic_tokens_free(&notification->data.semantic_tokens);
+            break;
+        }
+
+        case LSTALK_NOTIFICATION_LOG: {
+            log_free(&notification->data.log);
             break;
         }
 
@@ -7491,11 +7531,18 @@ int lstalk_process_responses(LSTalk_Context* context) {
 
                     JSONValue method = json_object_get(&value, "method");
                     // This area is to handle notifications. These are sent from the server unprompted.
-                    if (method.type == JSON_VALUE_STRING && strcmp(method.value.string_value, "textDocument/publishDiagnostics") == 0) {
-                        LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS);
-                        JSONValue params = json_object_get(&value, "params");
-                        notification.data.publish_diagnostics = publish_diagnostics_parse(&params);
-                        vector_push(&server->notifications, &notification);
+                    if (method.type == JSON_VALUE_STRING) {
+                        char* method_str = method.value.string_value;
+                        JSONValue* params = json_object_get_ptr(&value, "params");
+                        if (strcmp(method_str, "textDocument/publishDiagnostics") == 0) {
+                            LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS);
+                            notification.data.publish_diagnostics = publish_diagnostics_parse(params);
+                            vector_push(&server->notifications, &notification);
+                        } else if (strcmp(method_str, "$/logTrace") == 0) {
+                            LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_LOG);
+                            notification.data.log = log_parse(params);
+                            vector_push(&server->notifications, &notification);
+                        }
                     }
 
                     json_destroy_value(&value);
