@@ -30,7 +30,6 @@ IF NOT "%1" == "" (
 IF "%HELP%" == "TRUE" (
     ECHO This is a list of arguments and a description for each:
     ECHO release        Sets the configuration to Release. The default is Debug.
-    ECHO tools          Compiles with tools enabled. This can be compiled in any configuration.
     ECHO ninja          Use the ninja build system instead of the default (msbuild^). The path
     ECHO                to the ninja build system must be added to the PATH environment variable.
     ECHO shared         Compiles the library as shared libraries.
