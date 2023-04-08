@@ -8387,12 +8387,24 @@ static LSTalk_Context* test_context = NULL;
 static LSTalk_ServerID test_server = LSTALK_INVALID_SERVER_ID;
 static char test_server_path[PATH_MAX] = "";
 static int test_server_debug_flags = 0;
+static const char* test_source = "void foo() {}";
+static const char* test_source_file_name = "test_source.c";
 
 #if LSTALK_WINDOWS
     #define TEST_SERVER_NAME "test_server.exe"
 #else
     #define TEST_SERVER_NAME "test_server"
 #endif
+
+static void test_server_get_source_file_name(char* destination, size_t size) {
+    if (destination == NULL) {
+        return;
+    }
+
+    file_get_directory(test_server_path, destination, size);
+    strncat_s(destination, size, "/", size);
+    strncat_s(destination, size, test_source_file_name, size);
+}
 
 static int test_server_process_notification(LSTalk_Notification* notification, LSTalk_NotificationType filter) {
     if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
@@ -8505,6 +8517,60 @@ static int test_server_trace() {
     return 1;
 }
 
+static int test_server_text_document_did_open() {
+    if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    char file_name[PATH_MAX];
+    test_server_get_source_file_name(file_name, sizeof(file_name));
+
+    if (!lstalk_text_document_did_open(test_context, test_server, file_name)) {
+        return 0;
+    }
+
+    return 1;
+}
+
+static int test_server_document_symbols() {
+    if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    char file_name[PATH_MAX];
+    test_server_get_source_file_name(file_name, sizeof(file_name));
+
+    if (!lstalk_text_document_symbol(test_context, test_server, file_name)) {
+        return 0;
+    }
+
+    LSTalk_Notification notification;
+    if (!test_server_process_notification(&notification, LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS)) {
+        return 0;
+    }
+
+    if (notification.data.document_symbols.symbols_count != 1) {
+        return 0;
+    }
+
+    return 1;
+}
+
+static int test_server_text_document_did_close() {
+    if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    char file_name[PATH_MAX];
+    test_server_get_source_file_name(file_name, sizeof(file_name));
+
+    if (!lstalk_text_document_did_close(test_context, test_server, file_name)) {
+        return 0;
+    }
+
+    return 1;
+}
+
 static int test_server_close() {
     if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
         return 0;
@@ -8529,9 +8595,17 @@ static TestResults tests_server() {
 
     Vector tests = vector_create(sizeof(TestCase));
 
+    char file_name[PATH_MAX];
+    test_server_get_source_file_name(file_name, sizeof(file_name));
+
+    file_write_contents(file_name, test_source);
+
     REGISTER_TEST(&tests, test_server_init);
     REGISTER_TEST(&tests, test_server_connect);
     REGISTER_TEST(&tests, test_server_trace);
+    REGISTER_TEST(&tests, test_server_text_document_did_open);
+    REGISTER_TEST(&tests, test_server_document_symbols);
+    REGISTER_TEST(&tests, test_server_text_document_did_close);
     REGISTER_TEST(&tests, test_server_close);
     REGISTER_TEST(&tests, test_server_shutdown);
 
@@ -8539,6 +8613,7 @@ static TestResults tests_server() {
     results.pass = (int)tests.length - results.fail;
 
     vector_destroy(&tests);
+    remove(file_name);
 
     return results;
 }
@@ -8697,6 +8772,33 @@ static ServerCapabilities test_server_make_capabilities() {
     return result;
 }
 
+static LSTalk_DocumentSymbolNotification test_server_make_document_symbols() {
+    LSTalk_DocumentSymbolNotification result;
+    memset(&result, 0, sizeof(result));
+
+    result.symbols_count = 1;
+    result.symbols = (LSTalk_DocumentSymbol*)calloc(result.symbols_count, sizeof(LSTalk_DocumentSymbol));
+
+    LSTalk_DocumentSymbol* document_symbol = &result.symbols[0];
+    document_symbol->name = string_alloc_copy("foo");
+    document_symbol->detail = string_alloc_copy("Detail");
+    document_symbol->kind = SYMBOLKIND_Function;
+    document_symbol->range.start.line = 1;
+    document_symbol->range.start.character = 2;
+    document_symbol->range.end.line = 3;
+    document_symbol->range.end.character = 4;
+    document_symbol->selection_range.start.line = 5;
+    document_symbol->selection_range.start.character = 6;
+    document_symbol->selection_range.end.line = 7;
+    document_symbol->selection_range.end.character = 8;
+    document_symbol->children_count = 1;
+    document_symbol->children = (LSTalk_DocumentSymbol*)calloc(document_symbol->children_count, sizeof(LSTalk_DocumentSymbol));
+    document_symbol->children[0].name = string_alloc_copy("child");
+    document_symbol->children[0].detail = string_alloc_copy("child detail");
+
+    return result;
+}
+
 static JSONValue test_server_build_response(JSONValue* request) {
     JSONValue result = json_make_null();
 
@@ -8742,6 +8844,12 @@ static JSONValue test_server_build_response(JSONValue* request) {
                     result = rpc_make_notification("$/logTrace", result_params);
                 }
             }
+        } else if (strcmp(method_str, "textDocument/documentSymbol") == 0) {
+            LSTalk_DocumentSymbolNotification notification = test_server_make_document_symbols();
+            JSONValue results = document_symbol_notification_json(&notification);
+            json_object_const_key_set(&result, "id", id);
+            json_object_const_key_set(&result, "result", results);
+            document_symbol_notification_free(&notification);
         }
     }
 
