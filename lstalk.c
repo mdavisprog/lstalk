@@ -304,6 +304,28 @@ static char* file_get_contents(const char* path) {
     return result;
 }
 
+static int file_write_contents(const char* path, const char* contents) {
+    if (path == NULL || contents == NULL) {
+        return 0;
+    }
+
+    FILE* file = NULL;
+    fopen_s(&file, path, "w");
+    if (file == NULL) {
+        return 0;
+    }
+
+    size_t length = strlen(contents);
+    size_t written = fwrite(contents, sizeof(char), length, file);
+    fclose(file);
+
+    if (written != length) {
+        return 0;
+    }
+
+    return 1;
+}
+
 static char* file_uri(const char* path) {
     if (path == NULL) {
         return NULL;
