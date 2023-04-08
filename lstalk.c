@@ -6530,6 +6530,15 @@ static LSTalk_Position position_parse(JSONValue* value) {
     return result;
 }
 
+static JSONValue position_json(LSTalk_Position position) {
+    JSONValue result = json_make_object();
+
+    json_object_const_key_set(&result, "line", json_make_int(position.line));
+    json_object_const_key_set(&result, "character", json_make_int(position.character));
+
+    return result;
+}
+
 static LSTalk_Range range_parse(JSONValue* value) {
     LSTalk_Range result;
     memset(&result, 0, sizeof(LSTalk_Range));
@@ -6551,6 +6560,15 @@ static LSTalk_Range range_parse(JSONValue* value) {
     return result;
 }
 
+static JSONValue range_json(LSTalk_Range range) {
+    JSONValue result = json_make_object();
+
+    json_object_const_key_set(&result, "start", position_json(range.start));
+    json_object_const_key_set(&result, "end", position_json(range.end));
+
+    return result;
+}
+
 static LSTalk_Location location_parse(JSONValue* value) {
     LSTalk_Location result;
     memset(&result, 0, sizeof(LSTalk_Location));
@@ -6568,6 +6586,22 @@ static LSTalk_Location location_parse(JSONValue* value) {
     if (range.type == JSON_VALUE_OBJECT) {
         result.range = range_parse(&range);
     }
+
+    return result;
+}
+
+static JSONValue location_json(LSTalk_Location* location) {
+    if (location == NULL) {
+        return json_make_null();
+    }
+
+    JSONValue result = json_make_object();
+
+    if (location->uri != NULL) {
+        json_object_const_key_set(&result, "uri", json_make_string(location->uri));
+    }
+
+    json_object_const_key_set(&result, "range", range_json(location->range));
 
     return result;
 }
@@ -6774,6 +6808,36 @@ static LSTalk_DocumentSymbol document_symbol_parse(JSONValue* value) {
     return result;
 }
 
+static JSONValue document_symbol_json(LSTalk_DocumentSymbol* document_symbol) {
+    if (document_symbol == NULL) {
+        return json_make_null();
+    }
+
+    JSONValue result = json_make_object();
+
+    if (document_symbol->name != NULL) {
+        json_object_const_key_set(&result, "name", json_make_string(document_symbol->name));
+    }
+
+    if (document_symbol->detail != NULL) {
+        json_object_const_key_set(&result, "detail", json_make_string(document_symbol->detail));
+    }
+
+    json_object_const_key_set(&result, "kind", json_make_int((int)document_symbol->kind));
+    json_object_const_key_set(&result, "range", range_json(document_symbol->range));
+    json_object_const_key_set(&result, "selectionRange", range_json(document_symbol->selection_range));
+
+    if (document_symbol->children_count > 0) {
+        JSONValue children = json_make_array();
+        for (int i = 0; i < document_symbol->children_count; i++) {
+            LSTalk_DocumentSymbol* child = &document_symbol->children[i];
+            json_array_push(&children, document_symbol_json(child));
+        }
+    }
+
+    return result;
+}
+
 static void document_symbol_free(LSTalk_DocumentSymbol* document_symbol) {
     if (document_symbol == NULL) {
         return;
@@ -6815,6 +6879,20 @@ static LSTalk_DocumentSymbolNotification document_symbol_notification_parse(JSON
             JSONValue* item = json_array_get_ptr(value, i);
             result.symbols[i] = document_symbol_parse(item);
         }
+    }
+
+    return result;
+}
+
+static JSONValue document_symbol_notification_json(LSTalk_DocumentSymbolNotification* notification) {
+    if (notification == NULL) {
+        return json_make_null();
+    }
+
+    JSONValue result = json_make_array();
+    for (int i = 0; i < notification->symbols_count; i++) {
+        LSTalk_DocumentSymbol* document_symbol = &notification->symbols[i];
+        json_array_push(&result, document_symbol_json(document_symbol));
     }
 
     return result;
