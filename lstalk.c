@@ -304,7 +304,7 @@ static char* file_get_contents(const char* path) {
     return result;
 }
 
-static int file_write_contents(const char* path, const char* contents) {
+MAYBE_UNUSED static int file_write_contents(const char* path, const char* contents) {
     if (path == NULL || contents == NULL) {
         return 0;
     }
@@ -6590,7 +6590,7 @@ static LSTalk_Location location_parse(JSONValue* value) {
     return result;
 }
 
-static JSONValue location_json(LSTalk_Location* location) {
+MAYBE_UNUSED static JSONValue location_json(LSTalk_Location* location) {
     if (location == NULL) {
         return json_make_null();
     }
@@ -6884,7 +6884,7 @@ static LSTalk_DocumentSymbolNotification document_symbol_notification_parse(JSON
     return result;
 }
 
-static JSONValue document_symbol_notification_json(LSTalk_DocumentSymbolNotification* notification) {
+MAYBE_UNUSED static JSONValue document_symbol_notification_json(LSTalk_DocumentSymbolNotification* notification) {
     if (notification == NULL) {
         return json_make_null();
     }
