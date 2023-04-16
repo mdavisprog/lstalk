@@ -6981,6 +6981,57 @@ static LSTalk_SemanticTokens semantic_tokens_parse(JSONValue* value, SemanticTok
     return result;
 }
 
+static void semantic_token_json(LSTalk_SemanticToken* semantic_token, JSONValue* array, SemanticTokensLegend* legend) {
+    if (semantic_token == NULL || array == NULL || array->type != JSON_VALUE_ARRAY || legend == NULL) {
+        return;
+    }
+
+    json_array_push(array, json_make_int(semantic_token->line));
+    json_array_push(array, json_make_int(semantic_token->character));
+    json_array_push(array, json_make_int(semantic_token->length));
+
+    int token_type = 0;
+    for (int i = 0; i < legend->token_types_count; i++) {
+        if (strcmp(semantic_token->token_type, legend->token_types[i]) == 0) {
+            token_type = i;
+            break;
+        }
+    }
+
+    json_array_push(array, json_make_int(token_type));
+
+    int token_modifiers = 0;
+    for (int i = 0; i < semantic_token->token_modifiers_count; i++) {
+        for (int pos = 0; pos < legend->token_modifiers_count; pos++) {
+            if (strcmp(semantic_token->token_modifiers[i], legend->token_modifiers[pos]) == 0) {
+                token_modifiers |= 1 << pos;
+                break;
+            }
+        }
+    }
+
+    json_array_push(array, json_make_int(token_modifiers));
+}
+
+MAYBE_UNUSED static JSONValue semantic_tokens_json(LSTalk_SemanticTokens* semantic_tokens, SemanticTokensLegend* legend) {
+    if (semantic_tokens == NULL || legend == NULL) {
+        return json_make_null();
+    }
+
+    JSONValue result = json_make_object();
+
+    json_object_const_key_set(&result, "resultId", json_make_string(semantic_tokens->result_id));
+
+    JSONValue tokens = json_make_array();
+    for (int i = 0; i < semantic_tokens->tokens_count; i++) {
+        semantic_token_json(&semantic_tokens->tokens[i], &tokens, legend);
+    }
+
+    json_object_const_key_set(&result, "data", tokens);
+
+    return result;
+}
+
 static void semantic_tokens_free(LSTalk_SemanticTokens* semantic_tokens) {
     if (semantic_tokens == NULL) {
         return;
@@ -8556,6 +8607,38 @@ static int test_server_document_symbols() {
     return 1;
 }
 
+static int test_server_document_semantic_tokens() {
+    if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    char file_name[PATH_MAX];
+    test_server_get_source_file_name(file_name, sizeof(file_name));
+
+    if (!lstalk_text_document_semantic_tokens(test_context, test_server, file_name)) {
+        return 0;
+    }
+
+    LSTalk_Notification notification;
+    if (!test_server_process_notification(&notification, LSTALK_NOTIFICATION_SEMANTIC_TOKENS)) {
+        return 0;
+    }
+
+    if (strcmp(notification.data.semantic_tokens.result_id, "1") != 0) {
+        return 0;
+    }
+
+    if (notification.data.semantic_tokens.tokens_count == 0) {
+        return 0;
+    }
+
+    if (notification.data.semantic_tokens.tokens[0].line != 0 || notification.data.semantic_tokens.tokens[0].character != 0 || notification.data.semantic_tokens.tokens[0].length != 0) {
+        return 0;
+    }
+
+    return 1;
+}
+
 static int test_server_text_document_did_close() {
     if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
         return 0;
@@ -8605,6 +8688,7 @@ static TestResults tests_server() {
     REGISTER_TEST(&tests, test_server_trace);
     REGISTER_TEST(&tests, test_server_text_document_did_open);
     REGISTER_TEST(&tests, test_server_document_symbols);
+    REGISTER_TEST(&tests, test_server_document_semantic_tokens);
     REGISTER_TEST(&tests, test_server_text_document_did_close);
     REGISTER_TEST(&tests, test_server_close);
     REGISTER_TEST(&tests, test_server_shutdown);
@@ -8799,6 +8883,24 @@ static LSTalk_DocumentSymbolNotification test_server_make_document_symbols() {
     return result;
 }
 
+static LSTalk_SemanticTokens test_server_make_semantic_tokens() {
+    LSTalk_SemanticTokens result;
+    memset(&result, 0, sizeof(result));
+
+    result.result_id = string_alloc_copy("1");
+    result.tokens_count = 1;
+    result.tokens = (LSTalk_SemanticToken*)calloc(1, sizeof(LSTalk_SemanticToken));
+    result.tokens[0].line = 0;
+    result.tokens[0].character = 0;
+    result.tokens[0].length = 0;
+    result.tokens[0].token_type = "token_type";
+    result.tokens[0].token_modifiers_count = 1;
+    result.tokens[0].token_modifiers = (char**)calloc(1, sizeof(char*));
+    result.tokens[0].token_modifiers[0] = string_alloc_copy("token_modifiers");
+
+    return result;
+}
+
 static JSONValue test_server_build_response(JSONValue* request) {
     JSONValue result = json_make_null();
 
@@ -8850,6 +8952,14 @@ static JSONValue test_server_build_response(JSONValue* request) {
             json_object_const_key_set(&result, "id", id);
             json_object_const_key_set(&result, "result", results);
             document_symbol_notification_free(&notification);
+        } else if (strcmp(method_str, "textDocument/semanticTokens/full") == 0) {
+            LSTalk_SemanticTokens notification = test_server_make_semantic_tokens();
+            SemanticTokensLegend legend;
+            memset(&legend, 0, sizeof(legend));
+            JSONValue results = semantic_tokens_json(&notification, &legend);
+            json_object_const_key_set(&result, "id", id);
+            json_object_const_key_set(&result, "result", results);
+            semantic_tokens_free(&notification);
         }
     }
 
