@@ -7935,11 +7935,13 @@ static int tests_run(Vector* tests) {
     }
 
     printf("Running %zu tests...\n", tests->length);
+    clock_t tests_start = clock();
 
     int failed = 0;
     for (size_t i = 0; i < tests->length; i++) {
         TestCase* test_case = (TestCase*)vector_get(tests, i);
 
+        clock_t start = clock();
         int success = test_case->fn();
         if (success) {
             GREEN_TEXT("PASS");
@@ -7948,8 +7950,11 @@ static int tests_run(Vector* tests) {
             failed++;
         }
 
-        printf(" ... %s\n", test_case->name);
+        double elapsed = (double)(clock() - start) / (double)CLOCKS_PER_SEC;
+        printf(" ... (%fs) %s\n", elapsed, test_case->name);
     }
+    double elapsed = (double)(clock() - tests_start) / (double)CLOCKS_PER_SEC;
+    printf("Completed in %fs\n", elapsed);
 
     return failed;
 }
@@ -8748,6 +8753,7 @@ void lstalk_tests(int argc, char** argv) {
     results.pass = 0;
     results.fail = 0;
 
+    clock_t start = clock();
     for (size_t i = 0; i < suites.length; i++) {
         TestSuite* suite = (TestSuite*)vector_get(&suites, i);
 
@@ -8758,6 +8764,8 @@ void lstalk_tests(int argc, char** argv) {
         printf("\n");
     }
 
+    double elapsed = (double)(clock() - start) / (double)CLOCKS_PER_SEC;
+    printf("TESTS TIME: %fs\n", elapsed);
     printf("TESTS PASSED: %d\n", results.pass);
     printf("TESTS FAILED: %d\n", results.fail);
 
