@@ -1433,42 +1433,14 @@ static char* token_make_string(Token* token) {
         return NULL;
     }
 
-    size_t length = token->length + 1;
-    // Iterate through the token string and remove any escape characters.
-    int is_escaped = 0;
-    for (size_t i = 0; i < token->length; i++) {
-        if (token->ptr[i] == '\\') {
-            if (!is_escaped) {
-                length--;
-            }
-            is_escaped = is_escaped > 0 ? 0 : 1;
-        } else {
-            is_escaped = 0;
-        }
-    }
+    // TODO: Make json_unescape_string take length to prevent an additional
+    // memory allocation here.
+    char* buffer = (char*)malloc(sizeof(char) * token->length + 1);
+    strncpy_s(buffer, token->length + 1, token->ptr, token->length);
+    buffer[token->length] = 0;
 
-    // The next steps will attempt to copy sub-strings ignoring all escape characters.
-    char* result = (char*)malloc(sizeof(char) * length);
-    char* dest = result;
-    char* ptr = token->ptr;
-    is_escaped = 0;
-    for (size_t i = 0; i < token->length; i++) {
-        if (token->ptr[i] == '\\') {
-            if (!is_escaped) {
-                size_t dest_size = length - (dest - result);
-                size_t count = (token->ptr + i) - ptr;
-                strncpy_s(dest, dest_size, ptr, count);
-                dest += count;
-                ptr += count + 1;
-            }
-            is_escaped = is_escaped > 0 ? 0 : 1;
-        } else {
-            is_escaped = 0;
-        }
-    }
-    size_t dest_size = length - (dest - result);
-    strncpy_s(dest, dest_size, ptr, (token->ptr + token->length) - ptr);
-    result[length - 1] = 0;
+    char* result = json_unescape_string(buffer);
+    free(buffer);
     return result;
 }
 
