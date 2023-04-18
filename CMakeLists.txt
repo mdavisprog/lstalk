@@ -193,4 +193,10 @@ add_program(
     example_semantic_tokens
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/semantic_tokens.c
 )
+
+add_program(
+    example_hover
+    example_hover
+    ${CMAKE_CURRENT_SOURCE_DIR}/examples/hover.c
+)
 endif()
