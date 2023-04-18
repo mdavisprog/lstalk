@@ -2029,6 +2029,18 @@ typedef enum {
     MARKUPKIND_MARKDOWN = 1 << 1,
 } MarkupKind;
 
+MAYBE_UNUSED static MarkupKind markup_kind_parse(JSONValue* value) {
+    if (value == NULL || value->type != JSON_VALUE_STRING) {
+        return MARKUPKIND_PLAINTEXT;
+    }
+
+    if (strcmp(value->value.string_value, "markdown") == 0) {
+        return MARKUPKIND_MARKDOWN;
+    }
+
+    return MARKUPKIND_PLAINTEXT;
+}
+
 static JSONValue markup_kind_make_array(int value) {
     JSONValue result = json_make_array();
 
@@ -7023,6 +7035,59 @@ static void semantic_tokens_free(LSTalk_SemanticTokens* semantic_tokens) {
     }
 }
 
+static LSTalk_Hover hover_parse(JSONValue* value) {
+    LSTalk_Hover result;
+    memset(&result, 0, sizeof(result));
+
+    if (value == NULL || value->type != JSON_VALUE_OBJECT) {
+        return result;
+    }
+
+    JSONValue* contents = json_object_get_ptr(value, "contents");
+    if (contents != NULL) {
+        if (contents->type == JSON_VALUE_STRING) {
+            result.contents = json_move_string(contents);
+        } else if (contents->type == JSON_VALUE_OBJECT) {
+            JSONValue kind = json_object_get(contents, "kind");
+            if (kind.type == JSON_VALUE_STRING) {
+                JSONValue* text = json_object_get_ptr(contents, "value");
+                if (text != NULL && text->type == JSON_VALUE_STRING) {
+                    result.contents = json_unescape_string(text->value.string_value);
+                }
+            }
+
+            JSONValue* language = json_object_get_ptr(contents, "language");
+            if (language != NULL && language->type == JSON_VALUE_STRING) {
+                JSONValue* text = json_object_get_ptr(contents, "value");
+                if (text != NULL && text->type == JSON_VALUE_STRING) {
+                    result.contents = json_move_string(text);
+                }
+            }
+        } else if (contents->type == JSON_VALUE_ARRAY) {
+            printf("TODO: Handle MarkedString array\n");
+        }
+    }
+
+    JSONValue range = json_object_get(value, "range");
+    result.range = range_parse(&range);
+
+    return result;
+}
+
+static void hover_free(LSTalk_Hover* hover) {
+    if (hover == NULL) {
+        return;
+    }
+
+    if (hover->uri != NULL) {
+        free(hover->uri);
+    }
+
+    if (hover->contents != NULL) {
+        free(hover->contents);
+    }
+}
+
 static LSTalk_Log log_parse(JSONValue* value) {
     LSTalk_Log result;
     memset(&result, 0, sizeof(result));
@@ -7083,6 +7148,11 @@ static void notification_free(LSTalk_Notification* notification) {
 
         case LSTALK_NOTIFICATION_SEMANTIC_TOKENS: {
             semantic_tokens_free(&notification->data.semantic_tokens);
+            break;
+        }
+
+        case LSTALK_NOTIFICATION_HOVER: {
+            hover_free(&notification->data.hover);
             break;
         }
 
@@ -7641,6 +7711,13 @@ int lstalk_process_responses(LSTalk_Context* context) {
                                 LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_SEMANTIC_TOKENS);
                                 notification.data.semantic_tokens = semantic_tokens_parse(result, &server->capabilities.semantic_tokens_provider.semantic_tokens.legend);
                                 vector_push(&server->notifications, &notification);
+                            } else if (strcmp(method, "textDocument/hover") == 0) {
+                                LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_HOVER);
+                                notification.data.hover = hover_parse(result);
+                                JSONValue params = json_object_get(&request->payload, "params");
+                                JSONValue text_document = json_object_get(&params, "textDocument");
+                                notification.data.hover.uri = json_unescape_string(json_object_get(&text_document, "uri").value.string_value);
+                                vector_push(&server->notifications, &notification);
                             }
 
                             if (remove_request) {
@@ -7797,7 +7874,7 @@ int lstalk_text_document_did_close(LSTalk_Context* context, LSTalk_ServerID id, 
     return 1;
 }
 
-static JSONValue text_document_identifier_make(const char* path) {
+static JSONValue text_document_identifier_json(const char* path) {
     JSONValue result = json_make_null();
     if (path == NULL) {
         return result;
@@ -7820,7 +7897,7 @@ int lstalk_text_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, con
         return 0;
     }
 
-    server_make_and_send_request(context, server, "textDocument/documentSymbol", text_document_identifier_make(path));
+    server_make_and_send_request(context, server, "textDocument/documentSymbol", text_document_identifier_json(path));
     return 1;
 }
 
@@ -7830,7 +7907,24 @@ int lstalk_text_document_semantic_tokens(LSTalk_Context* context, LSTalk_ServerI
         return 0;
     }
 
-    server_make_and_send_request(context, server, "textDocument/semanticTokens/full", text_document_identifier_make(path));
+    server_make_and_send_request(context, server, "textDocument/semanticTokens/full", text_document_identifier_json(path));
+    return 1;
+}
+
+int lstalk_text_document_hover(LSTalk_Context* context, LSTalk_ServerID id, const char* path, unsigned int line, unsigned int character) {
+    Server* server = context_get_server(context, id);
+    if (server == NULL) {
+        return 0;
+    }
+
+    LSTalk_Position position;
+    position.line = line;
+    position.character = character;
+
+    JSONValue params = text_document_identifier_json(path);
+    json_object_const_key_set(&params, "position", position_json(position));
+
+    server_make_and_send_request(context, server, "textDocument/hover", params);
     return 1;
 }
 

@@ -329,6 +329,19 @@ LSTALK_API int lstalk_text_document_symbol(struct LSTalk_Context* context, LSTal
  */
 LSTALK_API int lstalk_text_document_semantic_tokens(struct LSTalk_Context* context, LSTalk_ServerID id, const char* path);
 
+/**
+ * Requests hover information at a given text document position.
+ * 
+ * @param context - An initialized LSTalk_Context object.
+ * @param id - The LSTalk_ServerID connection to open the document on.
+ * @param path - The absolute path to the file that is opened on the client.
+ * @param line - The line number in the document referenced by 'path'.
+ * @param character - The column number on the line referenced by 'line' in the document referenced by 'path'.
+ * 
+ * @return - Non-zero if the request was sent. 0 if it failed.
+ */
+LSTALK_API int lstalk_text_document_hover(struct LSTalk_Context* context, LSTalk_ServerID id, const char* path, unsigned int line, unsigned int character);
+
 //
 // The section below contains the definitions of interfaces used in communicating
 // with the language server.
@@ -677,6 +690,18 @@ typedef struct LSTalk_SemanticTokens {
     int tokens_count;
 } LSTalk_SemanticTokens;
 
+/**
+ * Contains the message and the document range of a hover request.
+ */
+typedef struct LSTalk_Hover {
+    char* uri;
+    char* contents;
+    LSTalk_Range range;
+} LSTalk_Hover;
+
+/**
+ * Notification to log the trace of the server's execution.
+ */
 typedef struct LSTalk_Log {
     char* message;
     char* verbose;
@@ -690,6 +715,7 @@ typedef enum {
     LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS,
     LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS,
     LSTALK_NOTIFICATION_SEMANTIC_TOKENS,
+    LSTALK_NOTIFICATION_HOVER,
     LSTALK_NOTIFICATION_LOG,
 } LSTalk_NotificationType;
 
@@ -702,6 +728,7 @@ typedef struct LSTalk_Notification {
         LSTalk_DocumentSymbolNotification document_symbols;
         LSTalk_PublishDiagnostics publish_diagnostics;
         LSTalk_SemanticTokens semantic_tokens;
+        LSTalk_Hover hover;
         LSTalk_Log log;
     } data;
 
