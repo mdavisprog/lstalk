@@ -7074,6 +7074,26 @@ static LSTalk_Hover hover_parse(JSONValue* value) {
     return result;
 }
 
+static JSONValue hover_json(LSTalk_Hover* hover) {
+    if (hover == NULL) {
+        return json_make_null();
+    }
+
+    JSONValue result = json_make_object();
+
+    if (hover->uri != NULL) {
+        json_object_const_key_set(&result, "uri", json_make_string(hover->uri));
+    }
+
+    if (hover->contents != NULL) {
+        json_object_const_key_set(&result, "contents", json_make_string(hover->contents));
+    }
+
+    json_object_const_key_set(&result, "range", range_json(hover->range));
+
+    return result;
+}
+
 static void hover_free(LSTalk_Hover* hover) {
     if (hover == NULL) {
         return;
@@ -8710,6 +8730,34 @@ static int test_server_document_semantic_tokens() {
     return 1;
 }
 
+static int test_server_text_document_hover() {
+    if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
+        return 0;
+    }
+
+    char file_name[PATH_MAX];
+    test_server_get_source_file_name(file_name, sizeof(file_name));
+
+    if (!lstalk_text_document_hover(test_context, test_server, file_name, 0, 0)) {
+        return 0;
+    }
+
+    LSTalk_Notification notification;
+    if (!test_server_process_notification(&notification, LSTALK_NOTIFICATION_HOVER)) {
+        return 0;
+    }
+
+    if (strcmp(notification.data.hover.contents, "contents") != 0) {
+        return 0;
+    }
+
+    if (notification.data.hover.range.end.character != 5) {
+        return 0;
+    }
+
+    return 1;
+}
+
 static int test_server_text_document_did_close() {
     if (test_context == NULL || test_server == LSTALK_INVALID_SERVER_ID) {
         return 0;
@@ -8760,6 +8808,7 @@ static TestResults tests_server() {
     REGISTER_TEST(&tests, test_server_text_document_did_open);
     REGISTER_TEST(&tests, test_server_document_symbols);
     REGISTER_TEST(&tests, test_server_document_semantic_tokens);
+    REGISTER_TEST(&tests, test_server_text_document_hover);
     REGISTER_TEST(&tests, test_server_text_document_did_close);
     REGISTER_TEST(&tests, test_server_close);
     REGISTER_TEST(&tests, test_server_shutdown);
@@ -8975,6 +9024,19 @@ static LSTalk_SemanticTokens test_server_make_semantic_tokens() {
     return result;
 }
 
+static LSTalk_Hover test_server_make_hover() {
+    LSTalk_Hover result;
+    memset(&result, 0, sizeof(result));
+
+    result.contents = string_alloc_copy("contents");
+    result.range.start.line = 0;
+    result.range.start.character = 0;
+    result.range.end.line = 0;
+    result.range.end.character = 5;
+
+    return result;
+}
+
 static JSONValue test_server_build_response(JSONValue* request) {
     JSONValue result = json_make_null();
 
@@ -9034,6 +9096,12 @@ static JSONValue test_server_build_response(JSONValue* request) {
             json_object_const_key_set(&result, "id", id);
             json_object_const_key_set(&result, "result", results);
             semantic_tokens_free(&notification);
+        } else if (strcmp(method_str, "textDocument/hover") == 0) {
+            LSTalk_Hover notification = test_server_make_hover();
+            JSONValue results = hover_json(&notification);
+            json_object_const_key_set(&result, "id", id);
+            json_object_const_key_set(&result, "result", results);
+            hover_free(&notification);
         }
     }
 
