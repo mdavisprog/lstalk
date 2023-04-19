@@ -7503,6 +7503,7 @@ typedef struct LSTalk_Context {
     char* locale;
     ClientCapabilities client_capabilities;
     int debug_flags;
+    LSTalk_MemoryAllocator allocator;
 } LSTalk_Context;
 
 static void server_make_and_send_notification(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
@@ -7538,7 +7539,17 @@ static Server* context_get_server(LSTalk_Context* context, LSTalk_ServerID id) {
 // This is the beginning of the exposed API functions for the library.
 
 LSTalk_Context* lstalk_init() {
-    LSTalk_Context* result = (LSTalk_Context*)malloc(sizeof(LSTalk_Context));
+    LSTalk_MemoryAllocator allocator;
+    memset(&allocator, 0, sizeof(allocator));
+    return lstalk_init_with_allocator(allocator);
+}
+
+LSTalk_Context* lstalk_init_with_allocator(LSTalk_MemoryAllocator allocator) {
+    allocator.malloc = allocator.malloc != NULL ? allocator.malloc : malloc;
+    allocator.calloc = allocator.calloc != NULL ? allocator.calloc : calloc;
+    allocator.realloc = allocator.realloc != NULL ? allocator.realloc : realloc;
+    allocator.free = allocator.free != NULL ? allocator.free : free;
+    LSTalk_Context* result = (LSTalk_Context*)allocator.malloc(sizeof(LSTalk_Context));
     result->servers = vector_create(sizeof(Server));
     result->server_id = 1;
     char buffer[40];
@@ -7548,6 +7559,7 @@ LSTalk_Context* lstalk_init() {
     result->locale = string_alloc_copy("en");
     memset(&result->client_capabilities, 0, sizeof(result->client_capabilities));
     result->debug_flags = LSTALK_DEBUGFLAGS_NONE;
+    result->allocator = allocator;
     return result;
 }
 

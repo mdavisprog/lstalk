@@ -28,6 +28,8 @@ SOFTWARE.
 #ifndef __LSTALK_H__
 #define __LSTALK_H__
 
+#include <stddef.h>
+
 #if LSTALK_LIB
     #if LSTALK_STATIC
         #define LSTALK_API
@@ -126,11 +128,29 @@ typedef struct LSTalk_ConnectParams {
 struct LSTalk_Notification;
 
 /**
+ * Allow setting custom functions for handling memory allocation.
+ */
+typedef struct LSTalk_MemoryAllocator {
+    void* (*malloc)(size_t);
+    void* (*calloc)(size_t, size_t);
+    void* (*realloc)(void*, size_t);
+    void (*free)(void*);
+} LSTalk_MemoryAllocator;
+
+/**
  * Initializes a LSTalk_Context object to be used with all of the API functions.
  * 
  * @return A heap-allocated LSTalk_Context object. Must be freed with lstalk_shutdown.
  */
 LSTALK_API struct LSTalk_Context* lstalk_init();
+
+/**
+ * Initializes a LSTalk_Context object given the memory allocator. The context is to
+ * be used with all of the API functions.
+ * 
+ * @return A heap-allocated LSTalk_Context object. Must be freed with lstalk_shutdown.
+ */
+LSTALK_API struct LSTalk_Context* lstalk_init_with_allocator(LSTalk_MemoryAllocator allocator);
 
 /**
  * Cleans up a LSTalk_Context object. This will close any existing connections to servers
