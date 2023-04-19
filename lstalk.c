@@ -154,22 +154,22 @@ typedef struct Vector {
     size_t capacity;
 } Vector;
 
-static Vector vector_create(size_t element_size) {
+static Vector vector_create(size_t element_size, LSTalk_MemoryAllocator* allocator) {
     Vector result;
     result.element_size = element_size;
     result.length = 0;
     result.capacity = 1;
-    result.data = malloc(element_size * result.capacity);
+    result.data = allocator->malloc(element_size * result.capacity);
     return result;
 }
 
-static void vector_destroy(Vector* vector) {
+static void vector_destroy(Vector* vector, LSTalk_MemoryAllocator* allocator) {
     if (vector == NULL) {
         return;
     }
 
     if (vector->data != NULL) {
-        free(vector->data);
+        allocator->free(vector->data);
     }
 
     vector->data = NULL;
@@ -178,22 +178,22 @@ static void vector_destroy(Vector* vector) {
     vector->capacity = 0;
 }
 
-static void vector_resize(Vector* vector, size_t capacity) {
+static void vector_resize(Vector* vector, size_t capacity, LSTalk_MemoryAllocator* allocator) {
     if (vector == NULL || vector->element_size == 0) {
         return;
     }
 
     vector->capacity = capacity;
-    vector->data = realloc(vector->data, vector->element_size * vector->capacity);
+    vector->data = allocator->realloc(vector->data, vector->element_size * vector->capacity);
 }
 
-static void vector_push(Vector* vector, void* element) {
+static void vector_push(Vector* vector, void* element, LSTalk_MemoryAllocator* allocator) {
     if (vector == NULL || element == NULL || vector->element_size == 0) {
         return;
     }
 
     if (vector->length == vector->capacity) {
-        vector_resize(vector, vector->capacity * 2);
+        vector_resize(vector, vector->capacity * 2, allocator);
     }
 
     size_t offset = vector->length * vector->element_size;
@@ -201,7 +201,7 @@ static void vector_push(Vector* vector, void* element) {
     vector->length++;
 }
 
-static void vector_append(Vector* vector, void* elements, size_t count) {
+static void vector_append(Vector* vector, void* elements, size_t count, LSTalk_MemoryAllocator* allocator) {
     if (vector == NULL || elements == NULL || vector->element_size == 0) {
         return;
     }
@@ -209,7 +209,7 @@ static void vector_append(Vector* vector, void* elements, size_t count) {
     size_t remaining = vector->capacity - vector->length;
 
     if (count > remaining) {
-        vector_resize(vector, vector->capacity + (count - remaining) * 2);
+        vector_resize(vector, vector->capacity + (count - remaining) * 2, allocator);
     }
 
     size_t offset = vector->length * vector->element_size;
@@ -250,25 +250,25 @@ static char* vector_get(Vector* vector, size_t index) {
 //
 // Section that contains functions to help manage strings.
 
-static char* string_alloc_copy(const char* source) {
+static char* string_alloc_copy(const char* source, LSTalk_MemoryAllocator* allocator) {
     size_t length = strlen(source);
-    char* result = (char*)malloc(length + 1);
+    char* result = (char*)allocator->malloc(length + 1);
     strcpy_s(result, length + 1, source);
     return result;
 }
 
-static void string_free_array(char** array, size_t count) {
+static void string_free_array(char** array, size_t count, LSTalk_MemoryAllocator* allocator) {
     if (array == NULL) {
         return;
     }
 
     for (size_t i = 0; i < count; i++) {
         if (array[i] != NULL) {
-            free(array[i]);
+            allocator->free(array[i]);
         }
     }
 
-    free(array);
+    allocator->free(array);
 }
 
 //
@@ -276,8 +276,8 @@ static void string_free_array(char** array, size_t count) {
 //
 // This section contains utility functions when operating on files.
 
-static char* file_get_contents(const char* path) {
-    if (path == NULL) {
+static char* file_get_contents(const char* path, LSTalk_MemoryAllocator* allocator) {
+    if (path == NULL || allocator == NULL || allocator->malloc == NULL) {
         return NULL;
     }
 
@@ -296,7 +296,7 @@ static char* file_get_contents(const char* path) {
         return NULL;
     }
 
-    char* result = (char*)malloc(sizeof(char) * size + 1);
+    char* result = (char*)allocator->malloc(sizeof(char) * size + 1);
     size_t read = fread(result, sizeof(char), size, file);
     result[read] = '\0';
     fclose(file);
@@ -326,7 +326,7 @@ MAYBE_UNUSED static int file_write_contents(const char* path, const char* conten
     return 1;
 }
 
-static char* file_uri(const char* path) {
+static char* file_uri(const char* path, LSTalk_MemoryAllocator* allocator) {
     if (path == NULL) {
         return NULL;
     }
@@ -334,15 +334,15 @@ static char* file_uri(const char* path) {
     char* scheme = "file:///";
     size_t scheme_length = strlen(scheme);
     size_t path_length = strlen(path);
-    Vector result = vector_create(sizeof(char));
-    vector_resize(&result, scheme_length + path_length + 1);
-    vector_append(&result, scheme, scheme_length);
-    vector_append(&result, (void*)path, path_length);
+    Vector result = vector_create(sizeof(char), allocator);
+    vector_resize(&result, scheme_length + path_length + 1, allocator);
+    vector_append(&result, scheme, scheme_length, allocator);
+    vector_append(&result, (void*)path, path_length, allocator);
     result.data[scheme_length + path_length] = 0;
     return result.data;
 }
 
-static char* file_extension(const char* path) {
+static char* file_extension(const char* path, LSTalk_MemoryAllocator* allocator) {
     if (path == NULL) {
         return NULL;
     }
@@ -353,7 +353,7 @@ static char* file_extension(const char* path) {
         const char* start = ptr;
         ptr = strchr(ptr + 1, '.');
         if (ptr == NULL) {
-            result = string_alloc_copy(start + 1);
+            result = string_alloc_copy(start + 1, allocator);
         }
     }
 
@@ -374,7 +374,7 @@ static int file_exists(wchar_t* path) {
     return !(attributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-static char* file_async_read(HANDLE handle) {
+static char* file_async_read(HANDLE handle, LSTalk_MemoryAllocator* allocator) {
     if (handle == INVALID_HANDLE_VALUE) {
         return NULL;
     }
@@ -389,12 +389,12 @@ static char* file_async_read(HANDLE handle) {
         return NULL;
     }
 
-    char* read_buffer = (char*)malloc(sizeof(char) * total_bytes_avail + 1);
+    char* read_buffer = (char*)allocator->malloc(sizeof(char) * total_bytes_avail + 1);
     DWORD read = 0;
     BOOL read_result = ReadFile(handle, read_buffer, total_bytes_avail, &read, NULL);
     if (!read_result || read == 0) {
         printf("Failed to read from process stdout.\n");
-        free(read_buffer);
+        allocator->free(read_buffer);
         return NULL;
     }
     read_buffer[read] = 0;
@@ -420,21 +420,21 @@ static int file_exists(char* path) {
 
 #define READ_SIZE 4096
 
-static char* file_async_read(int handle) {
+static char* file_async_read(int handle, LSTalk_MemoryAllocator* allocator) {
     if (handle < 0) {
         return NULL;
     }
 
-    Vector array = vector_create(sizeof(char));
+    Vector array = vector_create(sizeof(char), allocator);
     char buffer[READ_SIZE];
     int bytes_read = read(handle, (void*)buffer, sizeof(buffer));
     if (bytes_read == -1) {
-        vector_destroy(&array);
+        vector_destroy(&array, allocator);
         return NULL;
     }
 
     while (bytes_read > 0) {
-        vector_append(&array, (void*)buffer, (size_t)bytes_read);
+        vector_append(&array, (void*)buffer, (size_t)bytes_read, allocator);
         if (bytes_read < READ_SIZE) {
             break;
         }
@@ -442,10 +442,10 @@ static char* file_async_read(int handle) {
         bytes_read = read(handle, (void*)buffer, sizeof(buffer));
     }
 
-    char* result = (char*)malloc(sizeof(char) * array.length + 1);
+    char* result = (char*)allocator->malloc(sizeof(char) * array.length + 1);
     strncpy(result, array.data, array.length);
     result[array.length] = 0;
-    vector_destroy(&array);
+    vector_destroy(&array, allocator);
     return result;
 }
 #endif
@@ -492,11 +492,11 @@ static void file_to_absolute_path(char* relative_path, char* out, size_t out_siz
 #endif
 }
 
-static char* file_async_read_stdin() {
+static char* file_async_read_stdin(LSTalk_MemoryAllocator* allocator) {
 #if LSTALK_WINDOWS
-    return file_async_read(GetStdHandle(STD_INPUT_HANDLE));
+    return file_async_read(GetStdHandle(STD_INPUT_HANDLE), allocator);
 #elif LSTALK_POSIX
-    return file_async_read(STDIN_FILENO);
+    return file_async_read(STDIN_FILENO, allocator);
 #else
     #error "Not implemented for current platform!"
 #endif
@@ -538,7 +538,7 @@ typedef struct Process {
     PROCESS_INFORMATION info;
 } Process;
 
-static Process* process_create_windows(const char* path, int seek_path_env) {
+static Process* process_create_windows(const char* path, int seek_path_env, LSTalk_MemoryAllocator* allocator) {
     StdHandles handles;
     handles.child_stdin_read = NULL;
     handles.child_stdin_write = NULL;
@@ -623,28 +623,28 @@ static Process* process_create_windows(const char* path, int seek_path_env) {
         return NULL;
     }
 
-    Process* process = (Process*)malloc(sizeof(Process));
+    Process* process = (Process*)allocator->malloc(sizeof(Process));
     process->std_handles = handles;
     process->info = process_info;
     return process;
 }
 
-static void process_close_windows(Process* process) {
+static void process_close_windows(Process* process, LSTalk_MemoryAllocator* allocator) {
     if (process == NULL) {
         return;
     }
 
     TerminateProcess(process->info.hProcess, 0);
     process_close_handles(&process->std_handles);
-    free(process);
+    allocator->free(process);
 }
 
-static char* process_read_windows(Process* process) {
+static char* process_read_windows(Process* process, LSTalk_MemoryAllocator* allocator) {
     if (process == NULL) {
         return NULL;
     }
 
-    return file_async_read(process->std_handles.child_stdout_read);
+    return file_async_read(process->std_handles.child_stdout_read, allocator);
 }
 
 static void process_write_windows(Process* process, const char* request) {
@@ -692,7 +692,7 @@ typedef struct Process {
     pid_t pid;
 } Process;
 
-static Process* process_create_posix(const char* path, int seek_path_env) {
+static Process* process_create_posix(const char* path, int seek_path_env, LSTalk_MemoryAllocator* allocator) {
     char final_path[PATH_MAX];
     strcpy(final_path, path);
 
@@ -778,29 +778,29 @@ static Process* process_create_posix(const char* path, int seek_path_env) {
 
     fcntl(pipes.out[PIPE_READ], F_SETFL, O_NONBLOCK);
 
-    Process* process = (Process*)malloc(sizeof(Process));
+    Process* process = (Process*)allocator->malloc(sizeof(Process));
     process->pipes = pipes;
     process->pid = pid;
 
     return process;
 }
 
-static void process_close_posix(Process* process) {
+static void process_close_posix(Process* process, LSTalk_MemoryAllocator* allocator) {
     if (process == NULL) {
         return;
     }
 
     process_close_pipes(&process->pipes);
     kill(process->pid, SIGKILL);
-    free(process);
+    allocator->free(process);
 }
 
-static char* process_read_posix(Process* process) {
+static char* process_read_posix(Process* process, LSTalk_MemoryAllocator* allocator) {
     if (process == NULL) {
         return NULL;
     }
 
-    return file_async_read(process->pipes.out[PIPE_READ]);
+    return file_async_read(process->pipes.out[PIPE_READ], allocator);
 }
 
 static void process_write_posix(Process* process, const char* request) {
@@ -824,21 +824,21 @@ static int process_get_current_id_posix() {
 // Process Management functions
 //
 
-static Process* process_create(const char* path, int seek_path_env) {
+static Process* process_create(const char* path, int seek_path_env, LSTalk_MemoryAllocator* allocator) {
 #if LSTALK_WINDOWS
-    return process_create_windows(path, seek_path_env);
+    return process_create_windows(path, seek_path_env, allocator);
 #elif LSTALK_POSIX
-    return process_create_posix(path, seek_path_env);
+    return process_create_posix(path, seek_path_env, allocator);
 #else
     #error "Current platform does not implement create_process"
 #endif
 }
 
-static void process_close(Process* process) {
+static void process_close(Process* process, LSTalk_MemoryAllocator* allocator) {
 #if LSTALK_WINDOWS
-    process_close_windows(process);
+    process_close_windows(process, allocator);
 #elif LSTALK_POSIX
-    process_close_posix(process);
+    process_close_posix(process, allocator);
 #else
     #error "Current platform does not implement close_process"
 #endif
@@ -846,11 +846,11 @@ static void process_close(Process* process) {
 
 // Platform specific handling should allocate the string on the heap
 // and the caller is responsible for freeing the result.
-static char* process_read(Process* process) {
+static char* process_read(Process* process, LSTalk_MemoryAllocator* allocator) {
 #if LSTALK_WINDOWS
-    return process_read_windows(process);
+    return process_read_windows(process, allocator);
 #elif LSTALK_POSIX
-    return process_read_posix(process);
+    return process_read_posix(process, allocator);
 #else
     #error "Current platform does not implement read_response"
 #endif
@@ -876,16 +876,16 @@ static int process_get_current_id() {
 #endif
 }
 
-static void process_request(Process* process, const char* request) {
+static void process_request(Process* process, const char* request, LSTalk_MemoryAllocator* allocator) {
     size_t length = strlen(request);
 
     // Temporary buffer length.
     // TODO: Is there a way to eliminate this heap allocation?
     size_t buffer_size = length + 40;
-    char* buffer = (char*)malloc(buffer_size);
+    char* buffer = (char*)allocator->malloc(buffer_size);
     sprintf_s(buffer, buffer_size, "Content-Length: %zu\r\n\r\n%s", length, request);
     process_write(process, buffer);
-    free(buffer);
+    allocator->free(buffer);
 }
 
 //
@@ -906,12 +906,12 @@ typedef enum {
     JSON_VALUE_ARRAY,
 } JSON_VALUE_TYPE;
 
-static char* json_escape_string(char* source) {
+static char* json_escape_string(char* source, LSTalk_MemoryAllocator* allocator) {
     if (source == NULL) {
         return NULL;
     }
 
-    Vector array = vector_create(sizeof(char));
+    Vector array = vector_create(sizeof(char), allocator);
 
     char* start = source;
     char* ptr = start;
@@ -934,17 +934,17 @@ static char* json_escape_string(char* source) {
             if (escaped != 0) {
                 size_t count = ptr - start;
                 length += count + 2;
-                vector_append(&array, start, count);
+                vector_append(&array, start, count, allocator);
                 char escape = '\\';
-                vector_push(&array, &escape);
-                vector_push(&array, &escaped);
+                vector_push(&array, &escape, allocator);
+                vector_push(&array, &escaped, allocator);
                 start = ptr + 1;
             }
         // TODO: Handle unicode escape characters.
         } else if (ch == '\0') {
             size_t count = ptr - start;
             length += count;
-            vector_append(&array, start, count);
+            vector_append(&array, start, count, allocator);
             start = NULL;
         }
         ptr++;
@@ -952,21 +952,21 @@ static char* json_escape_string(char* source) {
 
     char* result = NULL;
     if (array.length > 0) {
-        result = (char*)malloc(sizeof(char) * length + 1);
+        result = (char*)allocator->malloc(sizeof(char) * length + 1);
         strncpy_s(result, length + 1, array.data, length);
         result[length] = '\0';
     }
 
-    vector_destroy(&array);
+    vector_destroy(&array, allocator);
     return result;
 }
 
-static char* json_unescape_string(char* source) {
+static char* json_unescape_string(char* source, LSTalk_MemoryAllocator* allocator) {
     if (source == NULL) {
         return NULL;
     }
 
-    Vector array = vector_create(sizeof(char));
+    Vector array = vector_create(sizeof(char), allocator);
 
     char* start = source;
     char* ptr = start;
@@ -990,8 +990,8 @@ static char* json_unescape_string(char* source) {
             if (unescaped != 0) {
                 size_t count = ptr - start;
                 length += count + 1;
-                vector_append(&array, start, count);
-                vector_push(&array, &unescaped);
+                vector_append(&array, start, count, allocator);
+                vector_push(&array, &unescaped, allocator);
                 // Advance to the unescaped character. The loop will move to the next character.
                 ptr++;
                 start = ptr + 1;
@@ -1000,7 +1000,7 @@ static char* json_unescape_string(char* source) {
         } else if (ch == '\0') {
             size_t count = ptr - start;
             length += count;
-            vector_append(&array, start, count);
+            vector_append(&array, start, count, allocator);
             start = NULL;
         }
         ptr++;
@@ -1008,12 +1008,12 @@ static char* json_unescape_string(char* source) {
 
     char* result = NULL;
     if (array.length > 0) {
-        result = (char*)malloc(sizeof(char) * length + 1);
+        result = (char*)allocator->malloc(sizeof(char) * length + 1);
         strncpy_s(result, length + 1, array.data, length);
         result[length] = '\0';
     }
 
-    vector_destroy(&array);
+    vector_destroy(&array, allocator);
     return result;
 }
 
@@ -1050,44 +1050,44 @@ typedef struct JSONEncoder {
     Vector string;
 } JSONEncoder;
 
-static void json_to_string(JSONValue* value, Vector* vector);
-static void json_object_to_string(JSONObject* object, Vector* vector) {
+static void json_to_string(JSONValue* value, Vector* vector, LSTalk_MemoryAllocator* allocator);
+static void json_object_to_string(JSONObject* object, Vector* vector, LSTalk_MemoryAllocator* allocator) {
     if (object == NULL || vector == NULL || vector->element_size != 1) {
         return;
     }
 
-    vector_append(vector, (void*)"{", 1);
+    vector_append(vector, (void*)"{", 1, allocator);
     for (size_t i = 0; i < object->pairs.length; i++) {
         JSONPair* pair = (JSONPair*)vector_get(&object->pairs, i);
-        json_to_string(&pair->key, vector);
-        vector_append(vector, (void*)": ", 2);
-        json_to_string(&pair->value, vector);
+        json_to_string(&pair->key, vector, allocator);
+        vector_append(vector, (void*)": ", 2, allocator);
+        json_to_string(&pair->value, vector, allocator);
 
         if (i + 1 < object->pairs.length) {
-            vector_append(vector, (void*)", ", 2);
+            vector_append(vector, (void*)", ", 2, allocator);
         }
     }
-    vector_append(vector, (void*)"}", 1);
+    vector_append(vector, (void*)"}", 1, allocator);
 }
 
-static void json_array_to_string(JSONArray* array, Vector* vector) {
+static void json_array_to_string(JSONArray* array, Vector* vector, LSTalk_MemoryAllocator* allocator) {
     if (array == NULL || vector == NULL || vector->element_size != 1) {
         return;
     }
 
-    vector_append(vector, (void*)"[", 1);
+    vector_append(vector, (void*)"[", 1, allocator);
     for (size_t i = 0; i < array->values.length; i++) {
         JSONValue* value = (JSONValue*)vector_get(&array->values, i);
-        json_to_string(value, vector);
+        json_to_string(value, vector, allocator);
 
         if (i + 1 < array->values.length) {
-            vector_append(vector, (void*)", ", 2);
+            vector_append(vector, (void*)", ", 2, allocator);
         }
     }
-    vector_append(vector, (void*)"]", 1);
+    vector_append(vector, (void*)"]", 1, allocator);
 }
 
-static void json_to_string(JSONValue* value, Vector* vector) {
+static void json_to_string(JSONValue* value, Vector* vector, LSTalk_MemoryAllocator* allocator) {
     // The vector object must be created with an element size of 1.
 
     if (value == NULL || vector == NULL || vector->element_size != 1) {
@@ -1097,48 +1097,48 @@ static void json_to_string(JSONValue* value, Vector* vector) {
     switch (value->type) {
         case JSON_VALUE_BOOLEAN: {
             if (value->value.bool_value) {
-                vector_append(vector, (void*)"true", 4);
+                vector_append(vector, (void*)"true", 4, allocator);
             } else {
-                vector_append(vector, (void*)"false", 5);
+                vector_append(vector, (void*)"false", 5, allocator);
             }
         } break;
 
         case JSON_VALUE_INT: {
             char buffer[40];
             sprintf_s(buffer, sizeof(buffer), "%d", value->value.int_value);
-            vector_append(vector, (void*)buffer, strlen(buffer));
+            vector_append(vector, (void*)buffer, strlen(buffer), allocator);
         } break;
 
         case JSON_VALUE_FLOAT: {
             char buffer[40];
             sprintf_s(buffer, sizeof(buffer), "%f", value->value.float_value);
-            vector_append(vector, (void*)buffer, strlen(buffer));
+            vector_append(vector, (void*)buffer, strlen(buffer), allocator);
         } break;
 
         case JSON_VALUE_STRING_CONST:
         case JSON_VALUE_STRING: {
-            vector_append(vector, (void*)"\"", 1);
-            vector_append(vector, (void*)value->value.string_value, strlen(value->value.string_value));
-            vector_append(vector, (void*)"\"", 1);
+            vector_append(vector, (void*)"\"", 1, allocator);
+            vector_append(vector, (void*)value->value.string_value, strlen(value->value.string_value), allocator);
+            vector_append(vector, (void*)"\"", 1, allocator);
         } break;
 
         case JSON_VALUE_OBJECT: {
-            json_object_to_string(value->value.object_value, vector);
+            json_object_to_string(value->value.object_value, vector, allocator);
         } break;
 
         case JSON_VALUE_ARRAY: {
-            json_array_to_string(value->value.array_value, vector);
+            json_array_to_string(value->value.array_value, vector, allocator);
         } break;
 
         case JSON_VALUE_NULL: {
-            vector_append(vector, (void*)"null", 4);
+            vector_append(vector, (void*)"null", 4, allocator);
         } break;
 
         default: break;
     }
 }
 
-static void json_destroy_value(JSONValue* value) {
+static void json_destroy_value(JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     if (value == NULL) {
         return;
     }
@@ -1146,7 +1146,7 @@ static void json_destroy_value(JSONValue* value) {
     switch (value->type) {
         case JSON_VALUE_STRING: {
             if (value->value.string_value != NULL) {
-                free(value->value.string_value);
+                allocator->free(value->value.string_value);
             }
         } break;
 
@@ -1155,11 +1155,11 @@ static void json_destroy_value(JSONValue* value) {
             if (object != NULL) {
                 for (size_t i = 0; i < object->pairs.length; i++) {
                     JSONPair* pair = (JSONPair*)vector_get(&object->pairs, i);
-                    json_destroy_value(&pair->key);
-                    json_destroy_value(&pair->value);
+                    json_destroy_value(&pair->key, allocator);
+                    json_destroy_value(&pair->value, allocator);
                 }
-                vector_destroy(&object->pairs);
-                free(object);
+                vector_destroy(&object->pairs, allocator);
+                allocator->free(object);
             }
         } break;
 
@@ -1168,10 +1168,10 @@ static void json_destroy_value(JSONValue* value) {
             if (array != NULL) {
                 for (size_t i = 0; i < array->values.length; i++) {
                     JSONValue* item = (JSONValue*)vector_get(&array->values, i);
-                    json_destroy_value(item);
+                    json_destroy_value(item, allocator);
                 }
-                vector_destroy(&array->values);
-                free(array);
+                vector_destroy(&array->values, allocator);
+                allocator->free(array);
             }
         } break;
 
@@ -1210,14 +1210,14 @@ static JSONValue json_make_float(float value) {
     return result;
 }
 
-static JSONValue json_make_string(char* value) {
+static JSONValue json_make_string(char* value, LSTalk_MemoryAllocator* allocator) {
     if (value == NULL) {
         return json_make_null();
     }
 
     JSONValue result;
     result.type = JSON_VALUE_STRING;
-    result.value.string_value = string_alloc_copy(value);
+    result.value.string_value = string_alloc_copy(value, allocator);
     return result;
 }
 
@@ -1235,19 +1235,19 @@ static JSONValue json_make_string_const(char* value) {
     return result;
 }
 
-static JSONValue json_make_object() {
+static JSONValue json_make_object(LSTalk_MemoryAllocator* allocator) {
     JSONValue result;
     result.type = JSON_VALUE_OBJECT;
-    result.value.object_value = (JSONObject*)malloc(sizeof(JSONObject));
-    result.value.object_value->pairs = vector_create(sizeof(JSONPair));
+    result.value.object_value = (JSONObject*)allocator->malloc(sizeof(JSONObject));
+    result.value.object_value->pairs = vector_create(sizeof(JSONPair), allocator);
     return result;
 }
 
-static JSONValue json_make_array() {
+static JSONValue json_make_array(LSTalk_MemoryAllocator* allocator) {
     JSONValue result;
     result.type = JSON_VALUE_ARRAY;
-    result.value.array_value = (JSONArray*)malloc(sizeof(JSONArray));
-    result.value.array_value->values = vector_create(sizeof(JSONValue));
+    result.value.array_value = (JSONArray*)allocator->malloc(sizeof(JSONArray));
+    result.value.array_value->values = vector_create(sizeof(JSONValue), allocator);
     return result;
 }
 
@@ -1291,7 +1291,7 @@ static JSONValue json_object_get(JSONValue* object, char* key) {
     return *ptr;
 }
 
-static void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
+static void json_object_set(JSONValue* object, JSONValue key, JSONValue value, LSTalk_MemoryAllocator* allocator) {
     if (object == NULL || object->value.object_value == NULL || object->type != JSON_VALUE_OBJECT) {
         return;
     }
@@ -1310,7 +1310,7 @@ static void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
         }
 
         if (strcmp(pair->key.value.string_value, key.value.string_value) == 0) {
-            json_destroy_value(&pair->value);
+            json_destroy_value(&pair->value, allocator);
             pair->value = value;
             found = 1;
             break;
@@ -1321,21 +1321,21 @@ static void json_object_set(JSONValue* object, JSONValue key, JSONValue value) {
         JSONPair pair;
         pair.key = key;
         pair.value = value;
-        vector_push(&object->value.object_value->pairs, (void*)&pair);
+        vector_push(&object->value.object_value->pairs, (void*)&pair, allocator);
     }
 }
 
-static void json_object_const_key_set(JSONValue* object, char* key, JSONValue value) {
-    json_object_set(object, json_make_string_const(key), value);
+static void json_object_const_key_set(JSONValue* object, char* key, JSONValue value, LSTalk_MemoryAllocator* allocator) {
+    json_object_set(object, json_make_string_const(key), value, allocator);
 }
 
-static void json_array_push(JSONValue* array, JSONValue value) {
+static void json_array_push(JSONValue* array, JSONValue value, LSTalk_MemoryAllocator* allocator) {
     if (array == NULL || array->type != JSON_VALUE_ARRAY) {
         return;
     }
 
     JSONArray* arr = array->value.array_value;
-    vector_push(&arr->values, (void*)&value);
+    vector_push(&arr->values, (void*)&value, allocator);
 }
 
 static JSONValue* json_array_get_ptr(JSONValue* array, size_t index) {
@@ -1373,35 +1373,35 @@ static size_t json_array_length(JSONValue* array) {
     return array->value.array_value->values.length;
 }
 
-static JSONValue json_make_string_array(char** array, int count) {
-    JSONValue result = json_make_array();
+static JSONValue json_make_string_array(char** array, int count, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
     for (int i = 0; i < count; i++) {
         // TODO: Should this be json_make_owned_string to prevent an allocation?
-        json_array_push(&result, json_make_string(array[i]));
+        json_array_push(&result, json_make_string(array[i], allocator), allocator);
     }
     return result;
 }
 
-static JSONEncoder json_encode(JSONValue* value) {
+static JSONEncoder json_encode(JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     JSONEncoder encoder;
-    encoder.string = vector_create(sizeof(char));
-    json_to_string(value, &encoder.string);
-    vector_append(&encoder.string, (void*)"\0", 1);
+    encoder.string = vector_create(sizeof(char), allocator);
+    json_to_string(value, &encoder.string, allocator);
+    vector_append(&encoder.string, (void*)"\0", 1, allocator);
     return encoder;
 }
 
-static void json_destroy_encoder(JSONEncoder* encoder) {
-    vector_destroy(&encoder->string);
+static void json_destroy_encoder(JSONEncoder* encoder, LSTalk_MemoryAllocator* allocator) {
+    vector_destroy(&encoder->string, allocator);
 }
 
-MAYBE_UNUSED static void json_print(JSONValue* value) {
+MAYBE_UNUSED static void json_print(JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     if (value == NULL) {
         return;
     }
 
-    JSONEncoder encoder = json_encode(value);
+    JSONEncoder encoder = json_encode(value, allocator);
     printf("%s\n", encoder.string.data);
-    json_destroy_encoder(&encoder);
+    json_destroy_encoder(&encoder, allocator);
 }
 
 //
@@ -1413,6 +1413,7 @@ typedef struct Lexer {
     char* buffer;
     char* delimiters;
     char* ptr;
+    LSTalk_MemoryAllocator* allocator;
 } Lexer;
 
 typedef struct Token {
@@ -1428,19 +1429,19 @@ static int token_compare(Token* token, const char* value) {
     return strncmp(token->ptr, value, token->length) == 0;
 }
 
-static char* token_make_string(Token* token) {
+static char* token_make_string(Token* token, LSTalk_MemoryAllocator* allocator) {
     if (token == NULL) {
         return NULL;
     }
 
     // TODO: Make json_unescape_string take length to prevent an additional
     // memory allocation here.
-    char* buffer = (char*)malloc(sizeof(char) * token->length + 1);
+    char* buffer = (char*)allocator->malloc(sizeof(char) * token->length + 1);
     strncpy_s(buffer, token->length + 1, token->ptr, token->length);
     buffer[token->length] = 0;
 
-    char* result = json_unescape_string(buffer);
-    free(buffer);
+    char* result = json_unescape_string(buffer, allocator);
+    allocator->free(buffer);
     return result;
 }
 
@@ -1585,30 +1586,30 @@ static JSONValue json_decode_object(Lexer* lexer) {
         return result;
     }
 
-    result = json_make_object();
+    result = json_make_object(lexer->allocator);
 
     // Could be an empty object.
     while (!token_compare(&token, "}")) {
         if (!token_compare(&token, "\"")) {
-            json_destroy_value(&result);
+            json_destroy_value(&result, lexer->allocator);
             return result;
         }
 
         token = lexer_parse_until(lexer, '"');
         JSONValue key;
         key.type = JSON_VALUE_STRING;
-        key.value.string_value = token_make_string(&token);
+        key.value.string_value = token_make_string(&token, lexer->allocator);
 
         token = lexer_get_token(lexer);
         if (!token_compare(&token, ":")) {
-            json_destroy_value(&key);
-            json_destroy_value(&result);
+            json_destroy_value(&key, lexer->allocator);
+            json_destroy_value(&result, lexer->allocator);
             return result;
         }
 
         token = lexer_get_token(lexer);
         JSONValue value = json_decode_value(&token, lexer);
-        json_object_set(&result, key, value);
+        json_object_set(&result, key, value, lexer->allocator);
 
         token = lexer_get_token(lexer);
         if (token_compare(&token, "}")) {
@@ -1616,7 +1617,7 @@ static JSONValue json_decode_object(Lexer* lexer) {
         }
 
         if (!token_compare(&token, ",")) {
-            json_destroy_value(&result);
+            json_destroy_value(&result, lexer->allocator);
             break;
         }
 
@@ -1633,12 +1634,12 @@ static JSONValue json_decode_array(Lexer* lexer) {
         return result;
     }
 
-    result = json_make_array();
+    result = json_make_array(lexer->allocator);
 
     Token token = lexer_get_token(lexer);
     while (!token_compare(&token, "]")) {
         JSONValue value = json_decode_value(&token, lexer);
-        json_array_push(&result, value);
+        json_array_push(&result, value, lexer->allocator);
 
         token = lexer_get_token(lexer);
         if (token_compare(&token, "]")) {
@@ -1646,7 +1647,7 @@ static JSONValue json_decode_array(Lexer* lexer) {
         }
 
         if (!token_compare(&token, ",")) {
-            json_destroy_value(&result);
+            json_destroy_value(&result, lexer->allocator);
             break;
         }
 
@@ -1674,7 +1675,7 @@ static JSONValue json_decode_value(Token* token, Lexer* lexer) {
             // Need to create the string value manually due to allocating a copy of the
             // token.
             result.type = JSON_VALUE_STRING;
-            result.value.string_value = token_make_string(&literal);
+            result.value.string_value = token_make_string(&literal, lexer->allocator);
         } else if (token_compare(token, "true")) {
             result = json_make_boolean(1);
         } else if (token_compare(token, "false")) {
@@ -1689,11 +1690,12 @@ static JSONValue json_decode_value(Token* token, Lexer* lexer) {
     return result;
 }
 
-static JSONValue json_decode(char* stream) {
+static JSONValue json_decode(char* stream, LSTalk_MemoryAllocator* allocator) {
     Lexer lexer;
     lexer.buffer = stream;
     lexer.delimiters = "\":{}[],";
     lexer.ptr = stream;
+    lexer.allocator = allocator;
 
     Token token = lexer_get_token(&lexer);
     return json_decode_value(&token, &lexer);
@@ -1710,40 +1712,40 @@ typedef struct Request {
     JSONValue payload;
 } Request;
 
-static void rpc_message(JSONValue* object) {
+static void rpc_message(JSONValue* object, LSTalk_MemoryAllocator* allocator) {
     if (object == NULL || object->type != JSON_VALUE_OBJECT) {
         return;
     }
 
-    json_object_const_key_set(object, "jsonrpc", json_make_string_const("2.0"));
+    json_object_const_key_set(object, "jsonrpc", json_make_string_const("2.0"), allocator);
 }
 
-static JSONValue rpc_make_notification(char* method, JSONValue params) {
+static JSONValue rpc_make_notification(char* method, JSONValue params, LSTalk_MemoryAllocator* allocator) {
     JSONValue result = json_make_null();
     
     if (method == NULL) {
         return result;
     }
 
-    result = json_make_object();
-    rpc_message(&result);
-    json_object_const_key_set(&result, "method", json_make_string_const(method));
+    result = json_make_object(allocator);
+    rpc_message(&result, allocator);
+    json_object_const_key_set(&result, "method", json_make_string_const(method), allocator);
 
     if (params.type == JSON_VALUE_OBJECT || params.type == JSON_VALUE_ARRAY) {
-        json_object_const_key_set(&result, "params", params);
+        json_object_const_key_set(&result, "params", params, allocator);
     }
 
     return result;
 }
 
-static Request rpc_make_notification_request(char* method, JSONValue params) {
+static Request rpc_make_notification_request(char* method, JSONValue params, LSTalk_MemoryAllocator* allocator) {
     Request result;
     result.id = 0;
-    result.payload = rpc_make_notification(method, params);
+    result.payload = rpc_make_notification(method, params, allocator);
     return result;
 }
 
-static Request rpc_make_request(int* id, char* method, JSONValue params) {
+static Request rpc_make_request(int* id, char* method, JSONValue params, LSTalk_MemoryAllocator* allocator) {
     Request result;
     result.id = 0;
     result.payload = json_make_null();
@@ -1752,8 +1754,8 @@ static Request rpc_make_request(int* id, char* method, JSONValue params) {
         return result;
     }
 
-    result = rpc_make_notification_request(method, params);
-    json_object_const_key_set(&result.payload, "id", json_make_int(*id));
+    result = rpc_make_notification_request(method, params, allocator);
+    json_object_const_key_set(&result.payload, "id", json_make_int(*id), allocator);
     result.id = *id;
     (*id)++;
     return result;
@@ -1772,25 +1774,25 @@ static char* rpc_get_method(Request* request) {
     return method.value.string_value;
 }
 
-static void rpc_send_request(Process* server, Request* request, int print_request) {
+static void rpc_send_request(Process* server, Request* request, int print_request, LSTalk_MemoryAllocator* allocator) {
     if (server == NULL || request == NULL) {
         return;
     }
 
-    JSONEncoder encoder = json_encode(&request->payload);
-    process_request(server, encoder.string.data);
+    JSONEncoder encoder = json_encode(&request->payload, allocator);
+    process_request(server, encoder.string.data, allocator);
     if (print_request) {
         printf("%s\n", encoder.string.data);
     }
-    json_destroy_encoder(&encoder);
+    json_destroy_encoder(&encoder, allocator);
 }
 
-static void rpc_close_request(Request* request) {
+static void rpc_close_request(Request* request, LSTalk_MemoryAllocator* allocator) {
     if (request == NULL) {
         return;
     }
 
-    json_destroy_value(&request->payload);
+    json_destroy_value(&request->payload, allocator);
 }
 
 //
@@ -1842,12 +1844,12 @@ typedef enum {
     RESOURCEOPERATIONKIND_DELETE = 1 << 2,
 } ResourceOperationKind;
 
-static JSONValue resource_operation_kind_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue resource_operation_kind_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & RESOURCEOPERATIONKIND_CREATE) { json_array_push(&result, json_make_string_const("create")); }
-    if (value & RESOURCEOPERATIONKIND_RENAME) { json_array_push(&result, json_make_string_const("rename")); }
-    if (value & RESOURCEOPERATIONKIND_DELETE) { json_array_push(&result, json_make_string_const("delete")); }
+    if (value & RESOURCEOPERATIONKIND_CREATE) { json_array_push(&result, json_make_string_const("create"), allocator); }
+    if (value & RESOURCEOPERATIONKIND_RENAME) { json_array_push(&result, json_make_string_const("rename"), allocator); }
+    if (value & RESOURCEOPERATIONKIND_DELETE) { json_array_push(&result, json_make_string_const("delete"), allocator); }
 
     return result;
 }
@@ -1886,13 +1888,13 @@ typedef enum {
     FAILUREHANDLINGKIND_UNDO = 1 << 3,
 } FailureHandlingKind;
 
-static JSONValue failure_handling_kind_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue failure_handling_kind_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & FAILUREHANDLINGKIND_ABORT) { json_array_push(&result, json_make_string_const("abort")); }
-    if (value & FAILUREHANDLINGKIND_TRANSACTIONAL) { json_array_push(&result, json_make_string_const("transactional")); }
-    if (value & FAILUREHANDLINGKIND_TEXTONLYTRANSACTIONAL) { json_array_push(&result, json_make_string_const("textOnlyTransactional")); }
-    if (value & FAILUREHANDLINGKIND_UNDO) { json_array_push(&result, json_make_string_const("undo")); }
+    if (value & FAILUREHANDLINGKIND_ABORT) { json_array_push(&result, json_make_string_const("abort"), allocator); }
+    if (value & FAILUREHANDLINGKIND_TRANSACTIONAL) { json_array_push(&result, json_make_string_const("transactional"), allocator); }
+    if (value & FAILUREHANDLINGKIND_TEXTONLYTRANSACTIONAL) { json_array_push(&result, json_make_string_const("textOnlyTransactional"), allocator); }
+    if (value & FAILUREHANDLINGKIND_UNDO) { json_array_push(&result, json_make_string_const("undo"), allocator); }
 
     return result;
 }
@@ -1926,35 +1928,35 @@ typedef enum {
     SYMBOLKIND_TypeParameter = 26,
 } SymbolKind;
 
-static JSONValue symbol_kind_make_array(long long value) {
-    JSONValue result = json_make_array();
+static JSONValue symbol_kind_make_array(long long value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & LSTALK_SYMBOLKIND_FILE) { json_array_push(&result, json_make_int(SYMBOLKIND_File)); }
-    if (value & LSTALK_SYMBOLKIND_MODULE) { json_array_push(&result, json_make_int(SYMBOLKIND_Module)); }
-    if (value & LSTALK_SYMBOLKIND_NAMESPACE) { json_array_push(&result, json_make_int(SYMBOLKIND_Namespace)); }
-    if (value & LSTALK_SYMBOLKIND_PACKAGE) { json_array_push(&result, json_make_int(SYMBOLKIND_Package)); }
-    if (value & LSTALK_SYMBOLKIND_CLASS) { json_array_push(&result, json_make_int(SYMBOLKIND_Class)); }
-    if (value & LSTALK_SYMBOLKIND_METHOD) { json_array_push(&result, json_make_int(SYMBOLKIND_Method)); }
-    if (value & LSTALK_SYMBOLKIND_PROPERTY) { json_array_push(&result, json_make_int(SYMBOLKIND_Property)); }
-    if (value & LSTALK_SYMBOLKIND_FIELD) { json_array_push(&result, json_make_int(SYMBOLKIND_Field)); }
-    if (value & LSTALK_SYMBOLKIND_CONSTRUCTOR) { json_array_push(&result, json_make_int(SYMBOLKIND_Constructor)); }
-    if (value & LSTALK_SYMBOLKIND_ENUM) { json_array_push(&result, json_make_int(SYMBOLKIND_Enum)); }
-    if (value & LSTALK_SYMBOLKIND_INTERFACE) { json_array_push(&result, json_make_int(SYMBOLKIND_Interface)); }
-    if (value & LSTALK_SYMBOLKIND_FUNCTION) { json_array_push(&result, json_make_int(SYMBOLKIND_Function)); }
-    if (value & LSTALK_SYMBOLKIND_VARIABLE) { json_array_push(&result, json_make_int(SYMBOLKIND_Variable)); }
-    if (value & LSTALK_SYMBOLKIND_CONSTANT) { json_array_push(&result, json_make_int(SYMBOLKIND_Constant)); }
-    if (value & LSTALK_SYMBOLKIND_STRING) { json_array_push(&result, json_make_int(SYMBOLKIND_String)); }
-    if (value & LSTALK_SYMBOLKIND_NUMBER) { json_array_push(&result, json_make_int(SYMBOLKIND_Number)); }
-    if (value & LSTALK_SYMBOLKIND_BOOLEAN) { json_array_push(&result, json_make_int(SYMBOLKIND_Boolean)); }
-    if (value & LSTALK_SYMBOLKIND_ARRAY) { json_array_push(&result, json_make_int(SYMBOLKIND_Array)); }
-    if (value & LSTALK_SYMBOLKIND_OBJECT) { json_array_push(&result, json_make_int(SYMBOLKIND_Object)); }
-    if (value & LSTALK_SYMBOLKIND_KEY) { json_array_push(&result, json_make_int(SYMBOLKIND_Key)); }
-    if (value & LSTALK_SYMBOLKIND_NULL) { json_array_push(&result, json_make_int(SYMBOLKIND_Null)); }
-    if (value & LSTALK_SYMBOLKIND_ENUMMEMBER) { json_array_push(&result, json_make_int(SYMBOLKIND_EnumMember)); }
-    if (value & LSTALK_SYMBOLKIND_STRUCT) { json_array_push(&result, json_make_int(SYMBOLKIND_Struct)); }
-    if (value & LSTALK_SYMBOLKIND_EVENT) { json_array_push(&result, json_make_int(SYMBOLKIND_Event)); }
-    if (value & LSTALK_SYMBOLKIND_OPERATOR) { json_array_push(&result, json_make_int(SYMBOLKIND_Operator)); }
-    if (value & LSTALK_SYMBOLKIND_TYPEPARAMETER) { json_array_push(&result, json_make_int(SYMBOLKIND_TypeParameter)); }
+    if (value & LSTALK_SYMBOLKIND_FILE) { json_array_push(&result, json_make_int(SYMBOLKIND_File), allocator); }
+    if (value & LSTALK_SYMBOLKIND_MODULE) { json_array_push(&result, json_make_int(SYMBOLKIND_Module), allocator); }
+    if (value & LSTALK_SYMBOLKIND_NAMESPACE) { json_array_push(&result, json_make_int(SYMBOLKIND_Namespace), allocator); }
+    if (value & LSTALK_SYMBOLKIND_PACKAGE) { json_array_push(&result, json_make_int(SYMBOLKIND_Package), allocator); }
+    if (value & LSTALK_SYMBOLKIND_CLASS) { json_array_push(&result, json_make_int(SYMBOLKIND_Class), allocator); }
+    if (value & LSTALK_SYMBOLKIND_METHOD) { json_array_push(&result, json_make_int(SYMBOLKIND_Method), allocator); }
+    if (value & LSTALK_SYMBOLKIND_PROPERTY) { json_array_push(&result, json_make_int(SYMBOLKIND_Property), allocator); }
+    if (value & LSTALK_SYMBOLKIND_FIELD) { json_array_push(&result, json_make_int(SYMBOLKIND_Field), allocator); }
+    if (value & LSTALK_SYMBOLKIND_CONSTRUCTOR) { json_array_push(&result, json_make_int(SYMBOLKIND_Constructor), allocator); }
+    if (value & LSTALK_SYMBOLKIND_ENUM) { json_array_push(&result, json_make_int(SYMBOLKIND_Enum), allocator); }
+    if (value & LSTALK_SYMBOLKIND_INTERFACE) { json_array_push(&result, json_make_int(SYMBOLKIND_Interface), allocator); }
+    if (value & LSTALK_SYMBOLKIND_FUNCTION) { json_array_push(&result, json_make_int(SYMBOLKIND_Function), allocator); }
+    if (value & LSTALK_SYMBOLKIND_VARIABLE) { json_array_push(&result, json_make_int(SYMBOLKIND_Variable), allocator); }
+    if (value & LSTALK_SYMBOLKIND_CONSTANT) { json_array_push(&result, json_make_int(SYMBOLKIND_Constant), allocator); }
+    if (value & LSTALK_SYMBOLKIND_STRING) { json_array_push(&result, json_make_int(SYMBOLKIND_String), allocator); }
+    if (value & LSTALK_SYMBOLKIND_NUMBER) { json_array_push(&result, json_make_int(SYMBOLKIND_Number), allocator); }
+    if (value & LSTALK_SYMBOLKIND_BOOLEAN) { json_array_push(&result, json_make_int(SYMBOLKIND_Boolean), allocator); }
+    if (value & LSTALK_SYMBOLKIND_ARRAY) { json_array_push(&result, json_make_int(SYMBOLKIND_Array), allocator); }
+    if (value & LSTALK_SYMBOLKIND_OBJECT) { json_array_push(&result, json_make_int(SYMBOLKIND_Object), allocator); }
+    if (value & LSTALK_SYMBOLKIND_KEY) { json_array_push(&result, json_make_int(SYMBOLKIND_Key), allocator); }
+    if (value & LSTALK_SYMBOLKIND_NULL) { json_array_push(&result, json_make_int(SYMBOLKIND_Null), allocator); }
+    if (value & LSTALK_SYMBOLKIND_ENUMMEMBER) { json_array_push(&result, json_make_int(SYMBOLKIND_EnumMember), allocator); }
+    if (value & LSTALK_SYMBOLKIND_STRUCT) { json_array_push(&result, json_make_int(SYMBOLKIND_Struct), allocator); }
+    if (value & LSTALK_SYMBOLKIND_EVENT) { json_array_push(&result, json_make_int(SYMBOLKIND_Event), allocator); }
+    if (value & LSTALK_SYMBOLKIND_OPERATOR) { json_array_push(&result, json_make_int(SYMBOLKIND_Operator), allocator); }
+    if (value & LSTALK_SYMBOLKIND_TYPEPARAMETER) { json_array_push(&result, json_make_int(SYMBOLKIND_TypeParameter), allocator); }
 
     return result;
 }
@@ -2002,10 +2004,10 @@ typedef enum {
     SYMBOLTAG_Deprecated = 1,
 } SymbolTag;
 
-static JSONValue symbol_tags_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue symbol_tags_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & LSTALK_SYMBOLTAG_DEPRECATED) { json_array_push(&result, json_make_int(SYMBOLTAG_Deprecated)); }
+    if (value & LSTALK_SYMBOLTAG_DEPRECATED) { json_array_push(&result, json_make_int(SYMBOLTAG_Deprecated), allocator); }
 
     return result;
 }
@@ -2041,11 +2043,11 @@ MAYBE_UNUSED static MarkupKind markup_kind_parse(JSONValue* value) {
     return MARKUPKIND_PLAINTEXT;
 }
 
-static JSONValue markup_kind_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue markup_kind_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & MARKUPKIND_PLAINTEXT) { json_array_push(&result, json_make_string_const("plaintext")); }
-    if (value & MARKUPKIND_MARKDOWN) { json_array_push(&result, json_make_string_const("markdown")); }
+    if (value & MARKUPKIND_PLAINTEXT) { json_array_push(&result, json_make_string_const("plaintext"), allocator); }
+    if (value & MARKUPKIND_MARKDOWN) { json_array_push(&result, json_make_string_const("markdown"), allocator); }
 
     return result;
 }
@@ -2067,10 +2069,10 @@ typedef enum {
     COMPLETIONITEMTAG_DEPRECATED = 1,
 } CompletionItemTag;
 
-static JSONValue completion_item_tag_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue completion_item_tag_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & COMPLETIONITEMTAGMASK_DEPRECATED) { json_array_push(&result, json_make_int(COMPLETIONITEMTAG_DEPRECATED)); }
+    if (value & COMPLETIONITEMTAGMASK_DEPRECATED) { json_array_push(&result, json_make_int(COMPLETIONITEMTAG_DEPRECATED), allocator); }
 
     return result;
 }
@@ -2108,11 +2110,11 @@ typedef enum {
     INSERTTEXTMODE_ADJUSTINDENTATION = 2,
 } InsertTextMode;
 
-static JSONValue insert_text_mode_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue insert_text_mode_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & INSERTTEXTMODEMASK_ASIS) { json_array_push(&result, json_make_int(INSERTTEXTMODE_ASIS)); }
-    if (value & INSERTTEXTMODEMASK_ADJUSTINDENTATION) { json_array_push(&result, json_make_int(INSERTTEXTMODE_ADJUSTINDENTATION)); }
+    if (value & INSERTTEXTMODEMASK_ASIS) { json_array_push(&result, json_make_int(INSERTTEXTMODE_ASIS), allocator); }
+    if (value & INSERTTEXTMODEMASK_ADJUSTINDENTATION) { json_array_push(&result, json_make_int(INSERTTEXTMODE_ADJUSTINDENTATION), allocator); }
 
     return result;
 }
@@ -2176,34 +2178,34 @@ typedef enum {
     COMPLETIONITEMKIND_TYPEPARAMETER = 25,
 } CompletionItemKind;
 
-static JSONValue completion_item_kind_make_array(long long value) {
-    JSONValue result = json_make_array();
+static JSONValue completion_item_kind_make_array(long long value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & COMPLETIONITEMKINDMASK_TEXT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_TEXT)); }
-    if (value & COMPLETIONITEMKINDMASK_METHOD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_METHOD)); }
-    if (value & COMPLETIONITEMKINDMASK_FUNCTION) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FUNCTION)); }
-    if (value & COMPLETIONITEMKINDMASK_CONSTRUCTOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_CONSTRUCTOR)); }
-    if (value & COMPLETIONITEMKINDMASK_FIELD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FIELD)); }
-    if (value & COMPLETIONITEMKINDMASK_VARIABLE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_VARIABLE)); }
-    if (value & COMPLETIONITEMKINDMASK_CLASS) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_CLASS)); }
-    if (value & COMPLETIONITEMKINDMASK_INTERFACE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_INTERFACE)); }
-    if (value & COMPLETIONITEMKINDMASK_MODULE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_MODULE)); }
-    if (value & COMPLETIONITEMKINDMASK_PROPERTY) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_PROPERTY)); }
-    if (value & COMPLETIONITEMKINDMASK_UNIT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_UNIT)); }
-    if (value & COMPLETIONITEMKINDMASK_VALUE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_VALUE)); }
-    if (value & COMPLETIONITEMKINDMASK_ENUM) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_ENUM)); }
-    if (value & COMPLETIONITEMKINDMASK_KEYWORD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_KEYWORD)); }
-    if (value & COMPLETIONITEMKINDMASK_SNIPPET) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_SNIPPET)); }
-    if (value & COMPLETIONITEMKINDMASK_COLOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_COLOR)); }
-    if (value & COMPLETIONITEMKINDMASK_FILE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FILE)); }
-    if (value & COMPLETIONITEMKINDMASK_REFERENCE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_REFERENCE)); }
-    if (value & COMPLETIONITEMKINDMASK_FOLDER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FOLDER)); }
-    if (value & COMPLETIONITEMKINDMASK_ENUMMEMBER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_ENUMMEMBER)); }
-    if (value & COMPLETIONITEMKINDMASK_CONSTANT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_CONSTANT)); }
-    if (value & COMPLETIONITEMKINDMASK_STRUCT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_STRUCT)); }
-    if (value & COMPLETIONITEMKINDMASK_EVENT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_EVENT)); }
-    if (value & COMPLETIONITEMKINDMASK_OPERATOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_OPERATOR)); }
-    if (value & COMPLETIONITEMKINDMASK_TYPEPARAMETER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_TYPEPARAMETER)); }
+    if (value & COMPLETIONITEMKINDMASK_TEXT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_TEXT), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_METHOD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_METHOD), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_FUNCTION) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FUNCTION), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_CONSTRUCTOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_CONSTRUCTOR), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_FIELD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FIELD), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_VARIABLE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_VARIABLE), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_CLASS) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_CLASS), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_INTERFACE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_INTERFACE), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_MODULE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_MODULE), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_PROPERTY) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_PROPERTY), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_UNIT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_UNIT), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_VALUE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_VALUE), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_ENUM) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_ENUM), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_KEYWORD) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_KEYWORD), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_SNIPPET) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_SNIPPET), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_COLOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_COLOR), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_FILE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FILE), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_REFERENCE) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_REFERENCE), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_FOLDER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_FOLDER), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_ENUMMEMBER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_ENUMMEMBER), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_CONSTANT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_CONSTANT), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_STRUCT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_STRUCT), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_EVENT) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_EVENT), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_OPERATOR) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_OPERATOR), allocator); }
+    if (value & COMPLETIONITEMKINDMASK_TYPEPARAMETER) { json_array_push(&result, json_make_int(COMPLETIONITEMKIND_TYPEPARAMETER), allocator); }
 
     return result;
 }
@@ -2291,18 +2293,18 @@ typedef enum {
     CODEACTIONKIND_SOURCEFIXALL = 1 << 8,
 } CodeActionKind;
 
-static JSONValue code_action_kind_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue code_action_kind_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & CODEACTIONKIND_EMPTY) { json_array_push(&result, json_make_string_const("")); }
-    if (value & CODEACTIONKIND_QUICKFIX) { json_array_push(&result, json_make_string_const("quickfix")); }
-    if (value & CODEACTIONKIND_REFACTOR) { json_array_push(&result, json_make_string_const("refactor")); }
-    if (value & CODEACTIONKIND_REFACTOREXTRACT) { json_array_push(&result, json_make_string_const("refactor.extract")); }
-    if (value & CODEACTIONKIND_REFACTORINLINE) { json_array_push(&result, json_make_string_const("refactor.inline")); }
-    if (value & CODEACTIONKIND_REFACTORREWRITE) { json_array_push(&result, json_make_string_const("refactor.rewrite")); }
-    if (value & CODEACTIONKIND_SOURCE) { json_array_push(&result, json_make_string_const("source")); }
-    if (value & CODEACTIONKIND_SOURCEORGANIZEIMPORTS) { json_array_push(&result, json_make_string_const("source.organizeImports")); }
-    if (value & CODEACTIONKIND_SOURCEFIXALL) { json_array_push(&result, json_make_string_const("source.fixAll")); }
+    if (value & CODEACTIONKIND_EMPTY) { json_array_push(&result, json_make_string_const(""), allocator); }
+    if (value & CODEACTIONKIND_QUICKFIX) { json_array_push(&result, json_make_string_const("quickfix"), allocator); }
+    if (value & CODEACTIONKIND_REFACTOR) { json_array_push(&result, json_make_string_const("refactor"), allocator); }
+    if (value & CODEACTIONKIND_REFACTOREXTRACT) { json_array_push(&result, json_make_string_const("refactor.extract"), allocator); }
+    if (value & CODEACTIONKIND_REFACTORINLINE) { json_array_push(&result, json_make_string_const("refactor.inline"), allocator); }
+    if (value & CODEACTIONKIND_REFACTORREWRITE) { json_array_push(&result, json_make_string_const("refactor.rewrite"), allocator); }
+    if (value & CODEACTIONKIND_SOURCE) { json_array_push(&result, json_make_string_const("source"), allocator); }
+    if (value & CODEACTIONKIND_SOURCEORGANIZEIMPORTS) { json_array_push(&result, json_make_string_const("source.organizeImports"), allocator); }
+    if (value & CODEACTIONKIND_SOURCEFIXALL) { json_array_push(&result, json_make_string_const("source.fixAll"), allocator); }
 
     return result;
 }
@@ -2369,11 +2371,11 @@ typedef enum {
     DIAGNOSTICTAG_DEPRECATED = 2,
 } DiagnosticTag;
 
-static JSONValue diagnostic_tags_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue diagnostic_tags_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & DIAGNOSTICTAGMASK_UNNECESSARY) { json_array_push(&result, json_make_int(DIAGNOSTICTAG_UNNECESSARY)); }
-    if (value & DIAGNOSTICTAGMASK_DEPRECATED) { json_array_push(&result, json_make_int(DIAGNOSTICTAG_DEPRECATED)); }
+    if (value & DIAGNOSTICTAGMASK_UNNECESSARY) { json_array_push(&result, json_make_int(DIAGNOSTICTAG_UNNECESSARY), allocator); }
+    if (value & DIAGNOSTICTAGMASK_DEPRECATED) { json_array_push(&result, json_make_int(DIAGNOSTICTAG_DEPRECATED), allocator); }
 
     return result;
 }
@@ -2419,12 +2421,12 @@ typedef enum {
     FOLDINGRANGEKIND_REGION = 1 << 2,
 } FoldingRangeKind;
 
-static JSONValue folding_range_kind_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue folding_range_kind_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & FOLDINGRANGEKIND_COMMENT) { json_array_push(&result, json_make_string_const("comment")); }
-    if (value & FOLDINGRANGEKIND_IMPORTS) { json_array_push(&result, json_make_string_const("imports")); }
-    if (value & FOLDINGRANGEKIND_REGION) { json_array_push(&result, json_make_string_const("region")); }
+    if (value & FOLDINGRANGEKIND_COMMENT) { json_array_push(&result, json_make_string_const("comment"), allocator); }
+    if (value & FOLDINGRANGEKIND_IMPORTS) { json_array_push(&result, json_make_string_const("imports"), allocator); }
+    if (value & FOLDINGRANGEKIND_REGION) { json_array_push(&result, json_make_string_const("region"), allocator); }
 
     return result;
 }
@@ -2433,10 +2435,10 @@ typedef enum {
     TOKENFORMAT_RELATIVE = 1 << 0,
 } TokenFormat;
 
-static JSONValue token_format_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue token_format_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & TOKENFORMAT_RELATIVE) { json_array_push(&result, json_make_string_const("relative")); }
+    if (value & TOKENFORMAT_RELATIVE) { json_array_push(&result, json_make_string_const("relative"), allocator); }
 
     return result;
 }
@@ -2470,12 +2472,12 @@ typedef enum {
     POSITIONENCODINGKIND_UTF32 = 1 << 2,
 } PositionEncodingKind;
 
-static JSONValue position_encoding_kind_make_array(int value) {
-    JSONValue result = json_make_array();
+static JSONValue position_encoding_kind_make_array(int value, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_array(allocator);
 
-    if (value & POSITIONENCODINGKIND_UTF8) { json_array_push(&result, json_make_string_const("utf-8")); }
-    if (value & POSITIONENCODINGKIND_UTF16) { json_array_push(&result, json_make_string_const("utf-16")); }
-    if (value & POSITIONENCODINGKIND_UTF32) { json_array_push(&result, json_make_string_const("utf-32")); }
+    if (value & POSITIONENCODINGKIND_UTF8) { json_array_push(&result, json_make_string_const("utf-8"), allocator); }
+    if (value & POSITIONENCODINGKIND_UTF16) { json_array_push(&result, json_make_string_const("utf-16"), allocator); }
+    if (value & POSITIONENCODINGKIND_UTF32) { json_array_push(&result, json_make_string_const("utf-32"), allocator); }
 
     return result;
 }
@@ -2542,15 +2544,15 @@ typedef struct WorkspaceEditClientCapabilities {
     lstalk_bool groups_on_label;
 } WorkspaceEditClientCapabilities;
 
-static JSONValue workspace_edit_client_capabilities_make(WorkspaceEditClientCapabilities* workspace_edit) {
-    JSONValue result = json_make_object();
-    json_object_const_key_set(&result, "documentChanges", json_make_boolean(workspace_edit->document_changes));
-    json_object_const_key_set(&result, "resourceOperations", resource_operation_kind_make_array(workspace_edit->resource_operations));
-    json_object_const_key_set(&result, "failureHandling", failure_handling_kind_make_array(workspace_edit->failure_handling));
-    json_object_const_key_set(&result, "normalizesLineEndings", json_make_boolean(workspace_edit->normalizes_line_endings));
-    JSONValue change_annotation_support = json_make_object();
-    json_object_const_key_set(&change_annotation_support, "groupsOnLabel", json_make_boolean(workspace_edit->groups_on_label));
-    json_object_const_key_set(&result, "changeAnnotationSupport", change_annotation_support);
+static JSONValue workspace_edit_client_capabilities_make(WorkspaceEditClientCapabilities* workspace_edit, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    json_object_const_key_set(&result, "documentChanges", json_make_boolean(workspace_edit->document_changes), allocator);
+    json_object_const_key_set(&result, "resourceOperations", resource_operation_kind_make_array(workspace_edit->resource_operations, allocator), allocator);
+    json_object_const_key_set(&result, "failureHandling", failure_handling_kind_make_array(workspace_edit->failure_handling, allocator), allocator);
+    json_object_const_key_set(&result, "normalizesLineEndings", json_make_boolean(workspace_edit->normalizes_line_endings), allocator);
+    JSONValue change_annotation_support = json_make_object(allocator);
+    json_object_const_key_set(&change_annotation_support, "groupsOnLabel", json_make_boolean(workspace_edit->groups_on_label), allocator);
+    json_object_const_key_set(&result, "changeAnnotationSupport", change_annotation_support, allocator);
     return result;
 }
 
@@ -2558,17 +2560,17 @@ typedef struct DynamicRegistration {
     lstalk_bool value;
 } DynamicRegistration;
 
-static void dynamic_registration_set(JSONValue* root, DynamicRegistration* dynamic_registration) {
+static void dynamic_registration_set(JSONValue* root, DynamicRegistration* dynamic_registration, LSTalk_MemoryAllocator* allocator) {
     if (root == NULL || root->type != JSON_VALUE_OBJECT || dynamic_registration == NULL) {
         return;
     }
 
-    json_object_const_key_set(root, "dynamicRegistration", json_make_boolean(dynamic_registration->value));
+    json_object_const_key_set(root, "dynamicRegistration", json_make_boolean(dynamic_registration->value), allocator);
 }
 
-static JSONValue dynamic_registration_make(DynamicRegistration* dynamic_registration) {
-    JSONValue result = json_make_object();
-    json_object_const_key_set(&result, "dynamicRegistration", json_make_boolean(dynamic_registration->value));
+static JSONValue dynamic_registration_make(DynamicRegistration* dynamic_registration, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    json_object_const_key_set(&result, "dynamicRegistration", json_make_boolean(dynamic_registration->value), allocator);
     return result;
 }
 
@@ -2644,19 +2646,19 @@ typedef struct WorkspaceSymbolClientCapabilities {
     int resolve_support_count;
 } WorkspaceSymbolClientCapabilities;
 
-static JSONValue workspace_symbol_client_capabilities_make(WorkspaceSymbolClientCapabilities* symbol) {
-    JSONValue result = json_make_object();
+static JSONValue workspace_symbol_client_capabilities_make(WorkspaceSymbolClientCapabilities* symbol, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
 
-    dynamic_registration_set(&result, &symbol->dynamic_registration);
-    JSONValue symbol_kind = json_make_object();
-    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_make_array(symbol->symbol_kind_value_set));
-    json_object_const_key_set(&result, "symbolKind", symbol_kind);
-    JSONValue tag_support = json_make_object();
-    json_object_const_key_set(&tag_support, "valueSet", symbol_tags_make_array(symbol->tag_support_value_set));
-    json_object_const_key_set(&result, "tagSupport", tag_support);
-    JSONValue resolve_support = json_make_object();
-    json_object_const_key_set(&resolve_support, "properties", json_make_string_array(symbol->resolve_support_properties, symbol->resolve_support_count));
-    json_object_const_key_set(&result, "resolveSupport", resolve_support);
+    dynamic_registration_set(&result, &symbol->dynamic_registration, allocator);
+    JSONValue symbol_kind = json_make_object(allocator);
+    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_make_array(symbol->symbol_kind_value_set, allocator), allocator);
+    json_object_const_key_set(&result, "symbolKind", symbol_kind, allocator);
+    JSONValue tag_support = json_make_object(allocator);
+    json_object_const_key_set(&tag_support, "valueSet", symbol_tags_make_array(symbol->tag_support_value_set, allocator), allocator);
+    json_object_const_key_set(&result, "tagSupport", tag_support, allocator);
+    JSONValue resolve_support = json_make_object(allocator);
+    json_object_const_key_set(&resolve_support, "properties", json_make_string_array(symbol->resolve_support_properties, symbol->resolve_support_count, allocator), allocator);
+    json_object_const_key_set(&result, "resolveSupport", resolve_support, allocator);
 
     return result;
 }
@@ -2671,9 +2673,9 @@ typedef struct RefreshSupport {
     lstalk_bool value;
 } RefreshSupport;
 
-static JSONValue refresh_support_make(RefreshSupport* refresh_support) {
-    JSONValue result = json_make_object();
-    json_object_const_key_set(&result, "refreshSupport", json_make_boolean(refresh_support->value));
+static JSONValue refresh_support_make(RefreshSupport* refresh_support, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    json_object_const_key_set(&result, "refreshSupport", json_make_boolean(refresh_support->value), allocator);
     return result;
 }
 
@@ -2720,15 +2722,15 @@ typedef struct FileOperations {
     lstalk_bool will_delete;
 } FileOperations;
 
-static JSONValue file_operations_make(FileOperations* file_ops) {
-    JSONValue result = json_make_object();
-    dynamic_registration_set(&result, &file_ops->dynamic_registration);
-    json_object_const_key_set(&result, "didCreate", json_make_boolean(file_ops->did_create));
-    json_object_const_key_set(&result, "willCreate", json_make_boolean(file_ops->will_create));
-    json_object_const_key_set(&result, "didRename", json_make_boolean(file_ops->did_rename));
-    json_object_const_key_set(&result, "willRename", json_make_boolean(file_ops->will_rename));
-    json_object_const_key_set(&result, "didDelete", json_make_boolean(file_ops->did_delete));
-    json_object_const_key_set(&result, "willDelete", json_make_boolean(file_ops->will_delete));
+static JSONValue file_operations_make(FileOperations* file_ops, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    dynamic_registration_set(&result, &file_ops->dynamic_registration, allocator);
+    json_object_const_key_set(&result, "didCreate", json_make_boolean(file_ops->did_create), allocator);
+    json_object_const_key_set(&result, "willCreate", json_make_boolean(file_ops->will_create), allocator);
+    json_object_const_key_set(&result, "didRename", json_make_boolean(file_ops->did_rename), allocator);
+    json_object_const_key_set(&result, "willRename", json_make_boolean(file_ops->will_rename), allocator);
+    json_object_const_key_set(&result, "didDelete", json_make_boolean(file_ops->did_delete), allocator);
+    json_object_const_key_set(&result, "willDelete", json_make_boolean(file_ops->will_delete), allocator);
     return result;
 }
 
@@ -2829,27 +2831,27 @@ typedef struct Workspace {
     RefreshSupport diagnostics;
 } Workspace;
 
-static JSONValue workspace_make(Workspace* workspace) {
-    JSONValue result = json_make_object();
+static JSONValue workspace_make(Workspace* workspace, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
 
-    JSONValue did_change_watched_files = json_make_object();
-    dynamic_registration_set(&did_change_watched_files, &workspace->did_change_watched_files.dynamic_registration);
-    json_object_const_key_set(&did_change_watched_files, "relativePatternSupport", json_make_boolean(workspace->did_change_watched_files.relative_pattern_support));
+    JSONValue did_change_watched_files = json_make_object(allocator);
+    dynamic_registration_set(&did_change_watched_files, &workspace->did_change_watched_files.dynamic_registration, allocator);
+    json_object_const_key_set(&did_change_watched_files, "relativePatternSupport", json_make_boolean(workspace->did_change_watched_files.relative_pattern_support), allocator);
 
-    json_object_const_key_set(&result, "applyEdit", json_make_boolean(workspace->apply_edit));
-    json_object_const_key_set(&result, "workspaceEdit", workspace_edit_client_capabilities_make(&workspace->workspace_edit));
-    json_object_const_key_set(&result, "didChangeConfiguration", dynamic_registration_make(&workspace->did_change_configuration));
-    json_object_const_key_set(&result, "didChangeWatchedFiles", did_change_watched_files);
-    json_object_const_key_set(&result, "symbol", workspace_symbol_client_capabilities_make(&workspace->symbol));
-    json_object_const_key_set(&result, "executeCommand", dynamic_registration_make(&workspace->execute_command));
-    json_object_const_key_set(&result, "workspaceFolders", json_make_boolean(workspace->workspace_folders));
-    json_object_const_key_set(&result, "configuration", json_make_boolean(workspace->configuration));
-    json_object_const_key_set(&result, "semanticTokens", refresh_support_make(&workspace->semantic_tokens));
-    json_object_const_key_set(&result, "codeLens", refresh_support_make(&workspace->code_lens));
-    json_object_const_key_set(&result, "fileOperations", file_operations_make(&workspace->file_operations));
-    json_object_const_key_set(&result, "inlineValue", refresh_support_make(&workspace->inline_value));
-    json_object_const_key_set(&result, "inlayHint", refresh_support_make(&workspace->inlay_hint));
-    json_object_const_key_set(&result, "diagnostics", refresh_support_make(&workspace->diagnostics));
+    json_object_const_key_set(&result, "applyEdit", json_make_boolean(workspace->apply_edit), allocator);
+    json_object_const_key_set(&result, "workspaceEdit", workspace_edit_client_capabilities_make(&workspace->workspace_edit, allocator), allocator);
+    json_object_const_key_set(&result, "didChangeConfiguration", dynamic_registration_make(&workspace->did_change_configuration, allocator), allocator);
+    json_object_const_key_set(&result, "didChangeWatchedFiles", did_change_watched_files, allocator);
+    json_object_const_key_set(&result, "symbol", workspace_symbol_client_capabilities_make(&workspace->symbol, allocator), allocator);
+    json_object_const_key_set(&result, "executeCommand", dynamic_registration_make(&workspace->execute_command, allocator), allocator);
+    json_object_const_key_set(&result, "workspaceFolders", json_make_boolean(workspace->workspace_folders), allocator);
+    json_object_const_key_set(&result, "configuration", json_make_boolean(workspace->configuration), allocator);
+    json_object_const_key_set(&result, "semanticTokens", refresh_support_make(&workspace->semantic_tokens, allocator), allocator);
+    json_object_const_key_set(&result, "codeLens", refresh_support_make(&workspace->code_lens, allocator), allocator);
+    json_object_const_key_set(&result, "fileOperations", file_operations_make(&workspace->file_operations, allocator), allocator);
+    json_object_const_key_set(&result, "inlineValue", refresh_support_make(&workspace->inline_value, allocator), allocator);
+    json_object_const_key_set(&result, "inlayHint", refresh_support_make(&workspace->inlay_hint, allocator), allocator);
+    json_object_const_key_set(&result, "diagnostics", refresh_support_make(&workspace->diagnostics, allocator), allocator);
 
     return result;
 }
@@ -2878,12 +2880,12 @@ typedef struct TextDocumentSyncClientCapabilities {
     lstalk_bool did_save;
 } TextDocumentSyncClientCapabilities;
 
-static JSONValue text_document_sync_client_capabilities_make(TextDocumentSyncClientCapabilities* sync) {
-    JSONValue result = json_make_object();
-    dynamic_registration_set(&result, &sync->dynamic_registration);
-    json_object_const_key_set(&result, "willSave", json_make_boolean(sync->will_save));
-    json_object_const_key_set(&result, "willSaveWaitUntil", json_make_boolean(sync->will_save_wait_until));
-    json_object_const_key_set(&result, "didSave", json_make_boolean(sync->did_save));
+static JSONValue text_document_sync_client_capabilities_make(TextDocumentSyncClientCapabilities* sync, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    dynamic_registration_set(&result, &sync->dynamic_registration, allocator);
+    json_object_const_key_set(&result, "willSave", json_make_boolean(sync->will_save), allocator);
+    json_object_const_key_set(&result, "willSaveWaitUntil", json_make_boolean(sync->will_save_wait_until), allocator);
+    json_object_const_key_set(&result, "didSave", json_make_boolean(sync->did_save), allocator);
     return result;
 }
 
@@ -2980,26 +2982,26 @@ typedef struct CompletionItem {
     lstalk_bool label_details_support;
 } CompletionItem;
 
-static JSONValue completion_item_make(CompletionItem* completion_item) {
-    JSONValue result = json_make_object();
+static JSONValue completion_item_make(CompletionItem* completion_item, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
 
-    json_object_const_key_set(&result, "snippetSupport", json_make_boolean(completion_item->snippet_support));
-    json_object_const_key_set(&result, "commitCharactersSupport", json_make_boolean(completion_item->commit_characters_support));
-    json_object_const_key_set(&result, "documentationFormat", markup_kind_make_array(completion_item->documentation_format));
-    json_object_const_key_set(&result, "deprecatedSupport", json_make_boolean(completion_item->deprecated_support));
-    json_object_const_key_set(&result, "preselectSupport", json_make_boolean(completion_item->preselect_support));
-    JSONValue item_tag_support = json_make_object();
-    json_object_const_key_set(&item_tag_support, "valueSet", completion_item_tag_make_array(completion_item->tag_support_value_set));
-    json_object_const_key_set(&result, "tagSupport", item_tag_support);
-    json_object_const_key_set(&result, "insertReplaceSupport", json_make_boolean(completion_item->insert_replace_support));
-    JSONValue item_resolve_properties = json_make_object();
+    json_object_const_key_set(&result, "snippetSupport", json_make_boolean(completion_item->snippet_support), allocator);
+    json_object_const_key_set(&result, "commitCharactersSupport", json_make_boolean(completion_item->commit_characters_support), allocator);
+    json_object_const_key_set(&result, "documentationFormat", markup_kind_make_array(completion_item->documentation_format, allocator), allocator);
+    json_object_const_key_set(&result, "deprecatedSupport", json_make_boolean(completion_item->deprecated_support), allocator);
+    json_object_const_key_set(&result, "preselectSupport", json_make_boolean(completion_item->preselect_support), allocator);
+    JSONValue item_tag_support = json_make_object(allocator);
+    json_object_const_key_set(&item_tag_support, "valueSet", completion_item_tag_make_array(completion_item->tag_support_value_set, allocator), allocator);
+    json_object_const_key_set(&result, "tagSupport", item_tag_support, allocator);
+    json_object_const_key_set(&result, "insertReplaceSupport", json_make_boolean(completion_item->insert_replace_support), allocator);
+    JSONValue item_resolve_properties = json_make_object(allocator);
     json_object_const_key_set(&item_resolve_properties, "properties",
-        json_make_string_array(completion_item->resolve_support_properties, completion_item->resolve_support_count));
-    json_object_const_key_set(&result, "resolveSupport", item_resolve_properties);
-    JSONValue insert_text_mode = json_make_object();
-    json_object_const_key_set(&insert_text_mode, "valueSet", insert_text_mode_make_array(completion_item->insert_text_mode_support_value_set));
-    json_object_const_key_set(&result, "insertTextModeSupport", insert_text_mode);
-    json_object_const_key_set(&result, "labelDetailsSupport", json_make_boolean(completion_item->label_details_support));
+        json_make_string_array(completion_item->resolve_support_properties, completion_item->resolve_support_count, allocator), allocator);
+    json_object_const_key_set(&result, "resolveSupport", item_resolve_properties, allocator);
+    JSONValue insert_text_mode = json_make_object(allocator);
+    json_object_const_key_set(&insert_text_mode, "valueSet", insert_text_mode_make_array(completion_item->insert_text_mode_support_value_set, allocator), allocator);
+    json_object_const_key_set(&result, "insertTextModeSupport", insert_text_mode, allocator);
+    json_object_const_key_set(&result, "labelDetailsSupport", json_make_boolean(completion_item->label_details_support), allocator);
 
     return result;
 }
@@ -3068,20 +3070,20 @@ typedef struct CompletionClientCapabilities {
     int completion_list_item_defaults_count;
 } CompletionClientCapabilities;
 
-static JSONValue completion_client_capabilities_make(CompletionClientCapabilities* completion) {
-    JSONValue result = json_make_object();
+static JSONValue completion_client_capabilities_make(CompletionClientCapabilities* completion, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
 
-    dynamic_registration_set(&result, &completion->dynamic_registration);
-    json_object_const_key_set(&result, "completionItem", completion_item_make(&completion->completion_item));
-    JSONValue item_kind = json_make_object();
-    json_object_const_key_set(&item_kind, "valueSet", completion_item_kind_make_array(completion->completion_item_kind_value_set));
-    json_object_const_key_set(&result, "completionItemKind", item_kind);
-    json_object_const_key_set(&result, "contextSupport", json_make_boolean(completion->context_support));
-    json_object_const_key_set(&result, "insertTextMode", json_make_int(completion->insert_text_mode));
-    JSONValue item_defaults = json_make_object();
+    dynamic_registration_set(&result, &completion->dynamic_registration, allocator);
+    json_object_const_key_set(&result, "completionItem", completion_item_make(&completion->completion_item, allocator), allocator);
+    JSONValue item_kind = json_make_object(allocator);
+    json_object_const_key_set(&item_kind, "valueSet", completion_item_kind_make_array(completion->completion_item_kind_value_set, allocator), allocator);
+    json_object_const_key_set(&result, "completionItemKind", item_kind, allocator);
+    json_object_const_key_set(&result, "contextSupport", json_make_boolean(completion->context_support), allocator);
+    json_object_const_key_set(&result, "insertTextMode", json_make_int(completion->insert_text_mode), allocator);
+    JSONValue item_defaults = json_make_object(allocator);
     json_object_const_key_set(&item_defaults, "itemDefaults",
-        json_make_string_array(completion->completion_list_item_defaults, completion->completion_list_item_defaults_count));
-    json_object_const_key_set(&result, "completionList", item_defaults);
+        json_make_string_array(completion->completion_list_item_defaults, completion->completion_list_item_defaults_count, allocator), allocator);
+    json_object_const_key_set(&result, "completionList", item_defaults, allocator);
 
     return result;
 }
@@ -3161,17 +3163,17 @@ typedef struct SignatureHelpClientCapabilities {
     lstalk_bool context_support;
 } SignatureHelpClientCapabilities;
 
-static JSONValue signature_help_client_capabilities_make(SignatureHelpClientCapabilities* signature_help) {
-    JSONValue result = json_make_object();
-    dynamic_registration_set(&result, &signature_help->dynamic_registration);
-    JSONValue info = json_make_object();
-    json_object_const_key_set(&info, "documentationFormat", markup_kind_make_array(signature_help->signature_information.documentation_format));
-    JSONValue parameter_info = json_make_object();
-    json_object_const_key_set(&parameter_info, "labelOffsetSupport", json_make_boolean(signature_help->signature_information.label_offset_support));
-    json_object_const_key_set(&info, "parameterInformation", parameter_info);
-    json_object_const_key_set(&info, "activeParameterSupport", json_make_boolean(signature_help->signature_information.active_parameter_support));
-    json_object_const_key_set(&result, "signatureInformation", info);
-    json_object_const_key_set(&result, "contextSupport", json_make_boolean(signature_help->context_support));
+static JSONValue signature_help_client_capabilities_make(SignatureHelpClientCapabilities* signature_help, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    dynamic_registration_set(&result, &signature_help->dynamic_registration, allocator);
+    JSONValue info = json_make_object(allocator);
+    json_object_const_key_set(&info, "documentationFormat", markup_kind_make_array(signature_help->signature_information.documentation_format, allocator), allocator);
+    JSONValue parameter_info = json_make_object(allocator);
+    json_object_const_key_set(&parameter_info, "labelOffsetSupport", json_make_boolean(signature_help->signature_information.label_offset_support), allocator);
+    json_object_const_key_set(&info, "parameterInformation", parameter_info, allocator);
+    json_object_const_key_set(&info, "activeParameterSupport", json_make_boolean(signature_help->signature_information.active_parameter_support), allocator);
+    json_object_const_key_set(&result, "signatureInformation", info, allocator);
+    json_object_const_key_set(&result, "contextSupport", json_make_boolean(signature_help->context_support), allocator);
     return result;
 }
 
@@ -3180,10 +3182,10 @@ typedef struct DynamicRegistrationLink {
     lstalk_bool link_support;
 } DynamicRegistrationLink;
 
-static JSONValue dynamic_registration_link_make(DynamicRegistrationLink* dynamic_registration_link) {
-    JSONValue result = json_make_object();
-    dynamic_registration_set(&result, &dynamic_registration_link->dynamic_registration);
-    json_object_const_key_set(&result, "linkSupport", json_make_boolean(dynamic_registration_link->link_support));
+static JSONValue dynamic_registration_link_make(DynamicRegistrationLink* dynamic_registration_link, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    dynamic_registration_set(&result, &dynamic_registration_link->dynamic_registration, allocator);
+    json_object_const_key_set(&result, "linkSupport", json_make_boolean(dynamic_registration_link->link_support), allocator);
     return result;
 }
 
@@ -3240,17 +3242,17 @@ typedef struct DocumentSymbolClientCapabilities {
     lstalk_bool label_support;
 } DocumentSymbolClientCapabilities;
 
-static JSONValue document_symbol_client_capabilities_make(DocumentSymbolClientCapabilities* symbol) {
-    JSONValue result = json_make_object();
-    dynamic_registration_set(&result, &symbol->dynamic_registration);
-    JSONValue symbol_kind = json_make_object();
-    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_make_array(symbol->symbol_kind_value_set));
-    json_object_const_key_set(&result, "symbolKind", symbol_kind);
-    json_object_const_key_set(&result, "hierarchicalDocumentSymbolSupport", json_make_boolean(symbol->hierarchical_document_symbol_support));
-    JSONValue tag_support = json_make_object();
-    json_object_const_key_set(&tag_support, "valueSet", symbol_tags_make_array(symbol->tag_support_value_set));
-    json_object_const_key_set(&result, "tagSupport", tag_support);
-    json_object_const_key_set(&result, "labelSupport", json_make_boolean(symbol->label_support));
+static JSONValue document_symbol_client_capabilities_make(DocumentSymbolClientCapabilities* symbol, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    dynamic_registration_set(&result, &symbol->dynamic_registration, allocator);
+    JSONValue symbol_kind = json_make_object(allocator);
+    json_object_const_key_set(&symbol_kind, "valueSet", symbol_kind_make_array(symbol->symbol_kind_value_set, allocator), allocator);
+    json_object_const_key_set(&result, "symbolKind", symbol_kind, allocator);
+    json_object_const_key_set(&result, "hierarchicalDocumentSymbolSupport", json_make_boolean(symbol->hierarchical_document_symbol_support), allocator);
+    JSONValue tag_support = json_make_object(allocator);
+    json_object_const_key_set(&tag_support, "valueSet", symbol_tags_make_array(symbol->tag_support_value_set, allocator), allocator);
+    json_object_const_key_set(&result, "tagSupport", tag_support, allocator);
+    json_object_const_key_set(&result, "labelSupport", json_make_boolean(symbol->label_support), allocator);
     return result;
 }
 
@@ -3331,22 +3333,22 @@ typedef struct CodeActionClientCapabilities {
     lstalk_bool honors_change_annotations;
 } CodeActionClientCapabilities;
 
-static JSONValue code_action_client_capabilities_make(CodeActionClientCapabilities* code_action) {
-    JSONValue result = json_make_object();
-    dynamic_registration_set(&result, &code_action->dynamic_registration);
-    JSONValue kind = json_make_object();
-    json_object_const_key_set(&kind, "valueSet", code_action_kind_make_array(code_action->code_action_value_set));
-    JSONValue literal_support = json_make_object();
-    json_object_const_key_set(&literal_support, "codeActionKind", kind);
-    json_object_const_key_set(&result, "codeActionLiteralSupport", literal_support);
-    json_object_const_key_set(&result, "isPreferredSupport", json_make_boolean(code_action->is_preferred_support));
-    json_object_const_key_set(&result, "disabledSupport", json_make_boolean(code_action->disabled_support));
-    json_object_const_key_set(&result, "dataSupport", json_make_boolean(code_action->data_support));
-    JSONValue resolve_support = json_make_object();
+static JSONValue code_action_client_capabilities_make(CodeActionClientCapabilities* code_action, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    dynamic_registration_set(&result, &code_action->dynamic_registration, allocator);
+    JSONValue kind = json_make_object(allocator);
+    json_object_const_key_set(&kind, "valueSet", code_action_kind_make_array(code_action->code_action_value_set, allocator), allocator);
+    JSONValue literal_support = json_make_object(allocator);
+    json_object_const_key_set(&literal_support, "codeActionKind", kind, allocator);
+    json_object_const_key_set(&result, "codeActionLiteralSupport", literal_support, allocator);
+    json_object_const_key_set(&result, "isPreferredSupport", json_make_boolean(code_action->is_preferred_support), allocator);
+    json_object_const_key_set(&result, "disabledSupport", json_make_boolean(code_action->disabled_support), allocator);
+    json_object_const_key_set(&result, "dataSupport", json_make_boolean(code_action->data_support), allocator);
+    JSONValue resolve_support = json_make_object(allocator);
     json_object_const_key_set(&resolve_support, "properties",
-        json_make_string_array(code_action->resolve_support_properties, code_action->resolve_support_count));
-    json_object_const_key_set(&result, "resolveSupport", resolve_support);
-    json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(code_action->honors_change_annotations));
+        json_make_string_array(code_action->resolve_support_properties, code_action->resolve_support_count, allocator), allocator);
+    json_object_const_key_set(&result, "resolveSupport", resolve_support, allocator);
+    json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(code_action->honors_change_annotations), allocator);
     return result;
 }
 
@@ -3415,12 +3417,12 @@ typedef struct RenameClientCapabilities {
     lstalk_bool honors_change_annotations;
 } RenameClientCapabilities;
 
-static JSONValue rename_client_capabilities_make(RenameClientCapabilities* rename) {
-    JSONValue result = json_make_object();
-    dynamic_registration_set(&result, &rename->dynamic_registration);
-    json_object_const_key_set(&result, "prepareSupport", json_make_boolean(rename->prepare_support));
-    json_object_const_key_set(&result, "prepareSupportDefaultBehavior", json_make_int(rename->prepare_support_default_behavior));
-    json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(rename->honors_change_annotations));
+static JSONValue rename_client_capabilities_make(RenameClientCapabilities* rename, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    dynamic_registration_set(&result, &rename->dynamic_registration, allocator);
+    json_object_const_key_set(&result, "prepareSupport", json_make_boolean(rename->prepare_support), allocator);
+    json_object_const_key_set(&result, "prepareSupportDefaultBehavior", json_make_int(rename->prepare_support_default_behavior), allocator);
+    json_object_const_key_set(&result, "honorsChangeAnnotations", json_make_boolean(rename->honors_change_annotations), allocator);
     return result;
 }
 
@@ -3471,15 +3473,15 @@ typedef struct PublishDiagnosticsClientCapabilities {
     lstalk_bool data_support;
 } PublishDiagnosticsClientCapabilities;
 
-static JSONValue publish_diagnostics_client_capabilities_make(PublishDiagnosticsClientCapabilities* publish) {
-    JSONValue result = json_make_object();
-    json_object_const_key_set(&result, "relatedInformation", json_make_boolean(publish->related_information));
-    JSONValue tag_support = json_make_object();
-    json_object_const_key_set(&tag_support, "valueSet", diagnostic_tags_make_array(publish->value_set));
-    json_object_const_key_set(&result, "tagSupport", tag_support);
-    json_object_const_key_set(&result, "versionSupport", json_make_boolean(publish->version_support));
-    json_object_const_key_set(&result, "codeDescriptionSupport", json_make_boolean(publish->code_description_support));
-    json_object_const_key_set(&result, "dataSupport", json_make_boolean(publish->data_support));
+static JSONValue publish_diagnostics_client_capabilities_make(PublishDiagnosticsClientCapabilities* publish, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    json_object_const_key_set(&result, "relatedInformation", json_make_boolean(publish->related_information), allocator);
+    JSONValue tag_support = json_make_object(allocator);
+    json_object_const_key_set(&tag_support, "valueSet", diagnostic_tags_make_array(publish->value_set, allocator), allocator);
+    json_object_const_key_set(&result, "tagSupport", tag_support, allocator);
+    json_object_const_key_set(&result, "versionSupport", json_make_boolean(publish->version_support), allocator);
+    json_object_const_key_set(&result, "codeDescriptionSupport", json_make_boolean(publish->code_description_support), allocator);
+    json_object_const_key_set(&result, "dataSupport", json_make_boolean(publish->data_support), allocator);
     return result;
 }
 
@@ -3539,17 +3541,17 @@ typedef struct FoldingRangeClientCapabilities {
     lstalk_bool collapsed_text;
 } FoldingRangeClientCapabilities;
 
-static JSONValue folding_range_client_capabilities_make(FoldingRangeClientCapabilities* folding_range) {
-    JSONValue result = json_make_object();
-    dynamic_registration_set(&result, &folding_range->dynamic_registration);
-    json_object_const_key_set(&result, "rangeLimit", json_make_int(folding_range->range_limit));
-    json_object_const_key_set(&result, "lineFoldingOnly", json_make_boolean(folding_range->line_folding_only));
-    JSONValue kind = json_make_object();
-    json_object_const_key_set(&kind, "valueSet", folding_range_kind_make_array(folding_range->value_set));
-    json_object_const_key_set(&result, "foldingRangeKind", kind);
-    JSONValue range = json_make_object();
-    json_object_const_key_set(&range, "collapsedText", json_make_boolean(folding_range->collapsed_text));
-    json_object_const_key_set(&result, "foldingRange", range);
+static JSONValue folding_range_client_capabilities_make(FoldingRangeClientCapabilities* folding_range, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    dynamic_registration_set(&result, &folding_range->dynamic_registration, allocator);
+    json_object_const_key_set(&result, "rangeLimit", json_make_int(folding_range->range_limit), allocator);
+    json_object_const_key_set(&result, "lineFoldingOnly", json_make_boolean(folding_range->line_folding_only), allocator);
+    JSONValue kind = json_make_object(allocator);
+    json_object_const_key_set(&kind, "valueSet", folding_range_kind_make_array(folding_range->value_set, allocator), allocator);
+    json_object_const_key_set(&result, "foldingRangeKind", kind, allocator);
+    JSONValue range = json_make_object(allocator);
+    json_object_const_key_set(&range, "collapsedText", json_make_boolean(folding_range->collapsed_text), allocator);
+    json_object_const_key_set(&result, "foldingRange", range, allocator);
     return result;
 }
 
@@ -3651,24 +3653,24 @@ typedef struct SemanticTokensClientCapabilities {
     lstalk_bool augments_syntax_tokens;
 } SemanticTokensClientCapabilities;
 
-static JSONValue semantic_tokens_client_capabilities_make(SemanticTokensClientCapabilities* semantic_tokens) {
-    JSONValue result = json_make_object();
-    dynamic_registration_set(&result, &semantic_tokens->dynamic_registration);
-    JSONValue requests_full = json_make_object();
-    json_object_const_key_set(&requests_full, "delta", json_make_boolean(semantic_tokens->delta));
-    JSONValue requests = json_make_object();
-    json_object_const_key_set(&requests, "range", json_make_boolean(semantic_tokens->range));
-    json_object_const_key_set(&requests, "full", requests_full);
-    json_object_const_key_set(&result, "requests", requests);
+static JSONValue semantic_tokens_client_capabilities_make(SemanticTokensClientCapabilities* semantic_tokens, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    dynamic_registration_set(&result, &semantic_tokens->dynamic_registration, allocator);
+    JSONValue requests_full = json_make_object(allocator);
+    json_object_const_key_set(&requests_full, "delta", json_make_boolean(semantic_tokens->delta), allocator);
+    JSONValue requests = json_make_object(allocator);
+    json_object_const_key_set(&requests, "range", json_make_boolean(semantic_tokens->range), allocator);
+    json_object_const_key_set(&requests, "full", requests_full, allocator);
+    json_object_const_key_set(&result, "requests", requests, allocator);
     json_object_const_key_set(&result, "tokenTypes",
-        json_make_string_array(semantic_tokens->token_types, semantic_tokens->token_types_count));
+        json_make_string_array(semantic_tokens->token_types, semantic_tokens->token_types_count, allocator), allocator);
     json_object_const_key_set(&result, "tokenModifiers",
-        json_make_string_array(semantic_tokens->token_modifiers, semantic_tokens->token_modifiers_count));
-    json_object_const_key_set(&result, "formats", token_format_make_array(semantic_tokens->formats));
-    json_object_const_key_set(&result, "overlappingTokenSupport", json_make_boolean(semantic_tokens->overlapping_token_support));
-    json_object_const_key_set(&result, "multilineTokenSupport", json_make_boolean(semantic_tokens->multiline_token_support));
-    json_object_const_key_set(&result, "serverCancelSupport", json_make_boolean(semantic_tokens->server_cancel_support));
-    json_object_const_key_set(&result, "augmentsSyntaxTokens", json_make_boolean(semantic_tokens->augments_syntax_tokens));
+        json_make_string_array(semantic_tokens->token_modifiers, semantic_tokens->token_modifiers_count, allocator), allocator);
+    json_object_const_key_set(&result, "formats", token_format_make_array(semantic_tokens->formats, allocator), allocator);
+    json_object_const_key_set(&result, "overlappingTokenSupport", json_make_boolean(semantic_tokens->overlapping_token_support), allocator);
+    json_object_const_key_set(&result, "multilineTokenSupport", json_make_boolean(semantic_tokens->multiline_token_support), allocator);
+    json_object_const_key_set(&result, "serverCancelSupport", json_make_boolean(semantic_tokens->server_cancel_support), allocator);
+    json_object_const_key_set(&result, "augmentsSyntaxTokens", json_make_boolean(semantic_tokens->augments_syntax_tokens), allocator);
     return result;
 }
 
@@ -3898,58 +3900,58 @@ typedef struct TextDocumentClientCapabilities {
     DiagnosticClientCapabilities diagnostic;
 } TextDocumentClientCapabilities;
 
-static JSONValue text_document_client_capabilities_make(TextDocumentClientCapabilities* text_document) {
-    JSONValue result = json_make_object();
+static JSONValue text_document_client_capabilities_make(TextDocumentClientCapabilities* text_document, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
 
-    JSONValue hover = json_make_object();
-    dynamic_registration_set(&hover, &text_document->hover.dynamic_registration);
-    json_object_const_key_set(&hover, "contentFormat", markup_kind_make_array(text_document->hover.content_format));
+    JSONValue hover = json_make_object(allocator);
+    dynamic_registration_set(&hover, &text_document->hover.dynamic_registration, allocator);
+    json_object_const_key_set(&hover, "contentFormat", markup_kind_make_array(text_document->hover.content_format, allocator), allocator);
 
-    JSONValue document_link = json_make_object();
-    dynamic_registration_set(&document_link, &text_document->document_link.dynamic_registration);
-    json_object_const_key_set(&document_link, "tooltipSupport", json_make_boolean(text_document->document_link.tooltip_support));
+    JSONValue document_link = json_make_object(allocator);
+    dynamic_registration_set(&document_link, &text_document->document_link.dynamic_registration, allocator);
+    json_object_const_key_set(&document_link, "tooltipSupport", json_make_boolean(text_document->document_link.tooltip_support), allocator);
 
-    JSONValue inlay_hint = json_make_object();
-    dynamic_registration_set(&inlay_hint, &text_document->inlay_hint.dynamic_registration);
-    JSONValue inlay_hint_resolve_support = json_make_object();
+    JSONValue inlay_hint = json_make_object(allocator);
+    dynamic_registration_set(&inlay_hint, &text_document->inlay_hint.dynamic_registration, allocator);
+    JSONValue inlay_hint_resolve_support = json_make_object(allocator);
     json_object_const_key_set(&inlay_hint_resolve_support, "properties",
-        json_make_string_array(text_document->inlay_hint.properties, text_document->inlay_hint.properties_count));
-    json_object_const_key_set(&inlay_hint, "resolveSupport", inlay_hint_resolve_support);
+        json_make_string_array(text_document->inlay_hint.properties, text_document->inlay_hint.properties_count, allocator), allocator);
+    json_object_const_key_set(&inlay_hint, "resolveSupport", inlay_hint_resolve_support, allocator);
 
-    JSONValue diagnostic = json_make_object();
-    dynamic_registration_set(&diagnostic, &text_document->diagnostic.dynamic_registration);
-    json_object_const_key_set(&diagnostic, "relatedDocumentSupport", json_make_boolean(text_document->diagnostic.related_document_support));
+    JSONValue diagnostic = json_make_object(allocator);
+    dynamic_registration_set(&diagnostic, &text_document->diagnostic.dynamic_registration, allocator);
+    json_object_const_key_set(&diagnostic, "relatedDocumentSupport", json_make_boolean(text_document->diagnostic.related_document_support), allocator);
 
-    json_object_const_key_set(&result, "synchronization", text_document_sync_client_capabilities_make(&text_document->synchronization));
-    json_object_const_key_set(&result, "completion", completion_client_capabilities_make(&text_document->completion));
-    json_object_const_key_set(&result, "hover", hover);
-    json_object_const_key_set(&result, "signatureHelp", signature_help_client_capabilities_make(&text_document->signature_help));
-    json_object_const_key_set(&result, "declaration", dynamic_registration_link_make(&text_document->declaration));
-    json_object_const_key_set(&result, "definition", dynamic_registration_link_make(&text_document->definition));
-    json_object_const_key_set(&result, "typeDefinition", dynamic_registration_link_make(&text_document->type_definition));
-    json_object_const_key_set(&result, "implementation", dynamic_registration_link_make(&text_document->implementation));
-    json_object_const_key_set(&result, "references", dynamic_registration_make(&text_document->references));
-    json_object_const_key_set(&result, "documentHighlight", dynamic_registration_make(&text_document->document_highlight));
-    json_object_const_key_set(&result, "documentSymbol", document_symbol_client_capabilities_make(&text_document->document_symbol));
-    json_object_const_key_set(&result, "codeAction", code_action_client_capabilities_make(&text_document->code_action));
-    json_object_const_key_set(&result, "codeLens", dynamic_registration_make(&text_document->code_lens));
-    json_object_const_key_set(&result, "documentLink", document_link);
-    json_object_const_key_set(&result, "colorProvider", dynamic_registration_make(&text_document->color_provider));
-    json_object_const_key_set(&result, "formatting", dynamic_registration_make(&text_document->formatting));
-    json_object_const_key_set(&result, "rangeFormatting", dynamic_registration_make(&text_document->range_formatting));
-    json_object_const_key_set(&result, "onTypeFormatting", dynamic_registration_make(&text_document->on_type_formatting));
-    json_object_const_key_set(&result, "rename", rename_client_capabilities_make(&text_document->rename));
-    json_object_const_key_set(&result, "publishDiagnostics", publish_diagnostics_client_capabilities_make(&text_document->publish_diagnostics));
-    json_object_const_key_set(&result, "foldingRange", folding_range_client_capabilities_make(&text_document->folding_range));
-    json_object_const_key_set(&result, "selectionRange", dynamic_registration_make(&text_document->selection_range));
-    json_object_const_key_set(&result, "linkedEditingRange", dynamic_registration_make(&text_document->linked_editing_range));
-    json_object_const_key_set(&result, "callHierarchy", dynamic_registration_make(&text_document->call_hierarchy));
-    json_object_const_key_set(&result, "semanticTokens", semantic_tokens_client_capabilities_make(&text_document->semantic_tokens));
-    json_object_const_key_set(&result, "moniker", dynamic_registration_make(&text_document->moniker));
-    json_object_const_key_set(&result, "typeHierarchy", dynamic_registration_make(&text_document->type_hierarchy));
-    json_object_const_key_set(&result, "inlineValue", dynamic_registration_make(&text_document->inline_value));
-    json_object_const_key_set(&result, "inlayHint", inlay_hint);
-    json_object_const_key_set(&result, "diagnostic", diagnostic);
+    json_object_const_key_set(&result, "synchronization", text_document_sync_client_capabilities_make(&text_document->synchronization, allocator), allocator);
+    json_object_const_key_set(&result, "completion", completion_client_capabilities_make(&text_document->completion, allocator), allocator);
+    json_object_const_key_set(&result, "hover", hover, allocator);
+    json_object_const_key_set(&result, "signatureHelp", signature_help_client_capabilities_make(&text_document->signature_help, allocator), allocator);
+    json_object_const_key_set(&result, "declaration", dynamic_registration_link_make(&text_document->declaration, allocator), allocator);
+    json_object_const_key_set(&result, "definition", dynamic_registration_link_make(&text_document->definition, allocator), allocator);
+    json_object_const_key_set(&result, "typeDefinition", dynamic_registration_link_make(&text_document->type_definition, allocator), allocator);
+    json_object_const_key_set(&result, "implementation", dynamic_registration_link_make(&text_document->implementation, allocator), allocator);
+    json_object_const_key_set(&result, "references", dynamic_registration_make(&text_document->references, allocator), allocator);
+    json_object_const_key_set(&result, "documentHighlight", dynamic_registration_make(&text_document->document_highlight, allocator), allocator);
+    json_object_const_key_set(&result, "documentSymbol", document_symbol_client_capabilities_make(&text_document->document_symbol, allocator), allocator);
+    json_object_const_key_set(&result, "codeAction", code_action_client_capabilities_make(&text_document->code_action, allocator), allocator);
+    json_object_const_key_set(&result, "codeLens", dynamic_registration_make(&text_document->code_lens, allocator), allocator);
+    json_object_const_key_set(&result, "documentLink", document_link, allocator);
+    json_object_const_key_set(&result, "colorProvider", dynamic_registration_make(&text_document->color_provider, allocator), allocator);
+    json_object_const_key_set(&result, "formatting", dynamic_registration_make(&text_document->formatting, allocator), allocator);
+    json_object_const_key_set(&result, "rangeFormatting", dynamic_registration_make(&text_document->range_formatting, allocator), allocator);
+    json_object_const_key_set(&result, "onTypeFormatting", dynamic_registration_make(&text_document->on_type_formatting, allocator), allocator);
+    json_object_const_key_set(&result, "rename", rename_client_capabilities_make(&text_document->rename, allocator), allocator);
+    json_object_const_key_set(&result, "publishDiagnostics", publish_diagnostics_client_capabilities_make(&text_document->publish_diagnostics, allocator), allocator);
+    json_object_const_key_set(&result, "foldingRange", folding_range_client_capabilities_make(&text_document->folding_range, allocator), allocator);
+    json_object_const_key_set(&result, "selectionRange", dynamic_registration_make(&text_document->selection_range, allocator), allocator);
+    json_object_const_key_set(&result, "linkedEditingRange", dynamic_registration_make(&text_document->linked_editing_range, allocator), allocator);
+    json_object_const_key_set(&result, "callHierarchy", dynamic_registration_make(&text_document->call_hierarchy, allocator), allocator);
+    json_object_const_key_set(&result, "semanticTokens", semantic_tokens_client_capabilities_make(&text_document->semantic_tokens, allocator), allocator);
+    json_object_const_key_set(&result, "moniker", dynamic_registration_make(&text_document->moniker, allocator), allocator);
+    json_object_const_key_set(&result, "typeHierarchy", dynamic_registration_make(&text_document->type_hierarchy, allocator), allocator);
+    json_object_const_key_set(&result, "inlineValue", dynamic_registration_make(&text_document->inline_value, allocator), allocator);
+    json_object_const_key_set(&result, "inlayHint", inlay_hint, allocator);
+    json_object_const_key_set(&result, "diagnostic", diagnostic, allocator);
 
     return result;
 }
@@ -4049,17 +4051,17 @@ typedef struct WindowClientCapabilities {
     ShowDocumentClientCapabilities show_document;
 } WindowClientCapabilities;
 
-static JSONValue window_client_capabilities_make(WindowClientCapabilities* window) {
-    JSONValue result = json_make_object();
-    JSONValue show_message_message_action_item = json_make_object();
-    json_object_const_key_set(&show_message_message_action_item, "additionalPropertiesSupport", json_make_boolean(window->show_message.message_action_item_additional_properties_support));
-    JSONValue show_message = json_make_object();
-    json_object_const_key_set(&show_message, "messageActionItem", show_message_message_action_item);
-    JSONValue show_document = json_make_object();
-    json_object_const_key_set(&show_document, "support", json_make_boolean(window->show_document.support));
-    json_object_const_key_set(&result, "workDoneProgress", json_make_boolean(window->work_done_progress));
-    json_object_const_key_set(&result, "showMessage", show_message);
-    json_object_const_key_set(&result, "showDocument", show_document);
+static JSONValue window_client_capabilities_make(WindowClientCapabilities* window, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    JSONValue show_message_message_action_item = json_make_object(allocator);
+    json_object_const_key_set(&show_message_message_action_item, "additionalPropertiesSupport", json_make_boolean(window->show_message.message_action_item_additional_properties_support), allocator);
+    JSONValue show_message = json_make_object(allocator);
+    json_object_const_key_set(&show_message, "messageActionItem", show_message_message_action_item, allocator);
+    JSONValue show_document = json_make_object(allocator);
+    json_object_const_key_set(&show_document, "support", json_make_boolean(window->show_document.support), allocator);
+    json_object_const_key_set(&result, "workDoneProgress", json_make_boolean(window->work_done_progress), allocator);
+    json_object_const_key_set(&result, "showMessage", show_message, allocator);
+    json_object_const_key_set(&result, "showDocument", show_document, allocator);
     return result;
 }
 
@@ -4171,24 +4173,24 @@ typedef struct GeneralClientCapabilities {
     int position_encodings;
 } GeneralClientCapabilities;
 
-static JSONValue general_client_capabilities_make(GeneralClientCapabilities* general) {
-    JSONValue result = json_make_object();
-    JSONValue stale_request_support = json_make_object();
-    json_object_const_key_set(&stale_request_support, "cancel", json_make_boolean(general->cancel));
+static JSONValue general_client_capabilities_make(GeneralClientCapabilities* general, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    JSONValue stale_request_support = json_make_object(allocator);
+    json_object_const_key_set(&stale_request_support, "cancel", json_make_boolean(general->cancel), allocator);
     json_object_const_key_set(&stale_request_support, "retryOnContentModified",
-        json_make_string_array(general->retry_on_content_modified, general->retry_on_content_modified_count));
-    JSONValue regular_expressions = json_make_object();
-    json_object_const_key_set(&regular_expressions, "engine", json_make_string(general->regular_expressions.engine));
-    json_object_const_key_set(&regular_expressions, "version", json_make_string(general->regular_expressions.version));
-    JSONValue markdown = json_make_object();
-    json_object_const_key_set(&markdown, "parser", json_make_string(general->markdown.parser));
-    json_object_const_key_set(&markdown, "version", json_make_string(general->markdown.version));
+        json_make_string_array(general->retry_on_content_modified, general->retry_on_content_modified_count, allocator), allocator);
+    JSONValue regular_expressions = json_make_object(allocator);
+    json_object_const_key_set(&regular_expressions, "engine", json_make_string(general->regular_expressions.engine, allocator), allocator);
+    json_object_const_key_set(&regular_expressions, "version", json_make_string(general->regular_expressions.version, allocator), allocator);
+    JSONValue markdown = json_make_object(allocator);
+    json_object_const_key_set(&markdown, "parser", json_make_string(general->markdown.parser, allocator), allocator);
+    json_object_const_key_set(&markdown, "version", json_make_string(general->markdown.version, allocator), allocator);
     json_object_const_key_set(&markdown, "allowedTags",
-        json_make_string_array(general->markdown.allowed_tags, general->markdown.allowed_tags_count));
-    json_object_const_key_set(&result, "staleRequestSupport", stale_request_support);
-    json_object_const_key_set(&result, "regularExpressions", regular_expressions);
-    json_object_const_key_set(&result, "markdown", markdown);
-    json_object_const_key_set(&result, "positionEncodings", position_encoding_kind_make_array(general->position_encodings));
+        json_make_string_array(general->markdown.allowed_tags, general->markdown.allowed_tags_count, allocator), allocator);
+    json_object_const_key_set(&result, "staleRequestSupport", stale_request_support, allocator);
+    json_object_const_key_set(&result, "regularExpressions", regular_expressions, allocator);
+    json_object_const_key_set(&result, "markdown", markdown, allocator);
+    json_object_const_key_set(&result, "positionEncodings", position_encoding_kind_make_array(general->position_encodings, allocator), allocator);
     return result;
 }
 
@@ -4226,18 +4228,18 @@ typedef struct ClientCapabilities {
     GeneralClientCapabilities general;
 } ClientCapabilities;
 
-static JSONValue client_capabilities_make(ClientCapabilities* capabilities) {
-    JSONValue result = json_make_object();
-    JSONValue notebook_sync = json_make_object();
-    dynamic_registration_set(&notebook_sync, &capabilities->notebook_document.synchronization.dynamic_registration);
-    json_object_const_key_set(&notebook_sync, "executionSummarySupport", json_make_boolean(capabilities->notebook_document.synchronization.execution_summary_support));
-    JSONValue notebook_document = json_make_object();
-    json_object_const_key_set(&notebook_document, "synchronization", notebook_sync);
-    json_object_const_key_set(&result, "workspace", workspace_make(&capabilities->workspace));
-    json_object_const_key_set(&result, "textDocument", text_document_client_capabilities_make(&capabilities->text_document));
-    json_object_const_key_set(&result, "notebookDocument", notebook_document);
-    json_object_const_key_set(&result, "window", window_client_capabilities_make(&capabilities->window));
-    json_object_const_key_set(&result, "general", general_client_capabilities_make(&capabilities->general));
+static JSONValue client_capabilities_make(ClientCapabilities* capabilities, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
+    JSONValue notebook_sync = json_make_object(allocator);
+    dynamic_registration_set(&notebook_sync, &capabilities->notebook_document.synchronization.dynamic_registration, allocator);
+    json_object_const_key_set(&notebook_sync, "executionSummarySupport", json_make_boolean(capabilities->notebook_document.synchronization.execution_summary_support), allocator);
+    JSONValue notebook_document = json_make_object(allocator);
+    json_object_const_key_set(&notebook_document, "synchronization", notebook_sync, allocator);
+    json_object_const_key_set(&result, "workspace", workspace_make(&capabilities->workspace, allocator), allocator);
+    json_object_const_key_set(&result, "textDocument", text_document_client_capabilities_make(&capabilities->text_document, allocator), allocator);
+    json_object_const_key_set(&result, "notebookDocument", notebook_document, allocator);
+    json_object_const_key_set(&result, "window", window_client_capabilities_make(&capabilities->window, allocator), allocator);
+    json_object_const_key_set(&result, "general", general_client_capabilities_make(&capabilities->general, allocator), allocator);
     return result;
 }
 
@@ -4249,7 +4251,7 @@ static JSONValue client_capabilities_make(ClientCapabilities* capabilities) {
 // Begin Server Capabilities
 //
 
-static char** parse_string_array(JSONValue* value, char* key, int* count) {
+static char** parse_string_array(JSONValue* value, char* key, int* count, LSTalk_MemoryAllocator* allocator) {
     if (value == NULL || value->type != JSON_VALUE_OBJECT || count == NULL) {
         return NULL;
     }
@@ -4260,7 +4262,7 @@ static char** parse_string_array(JSONValue* value, char* key, int* count) {
     }
 
     size_t length = json_array_length(array);
-    char** result = (char**)calloc(length, sizeof(char*));
+    char** result = (char**)allocator->calloc(length, sizeof(char*));
     for (size_t i = 0; i < length; i++) {
         JSONValue* item = json_array_get_ptr(array, i);
         if (item != NULL && item->type == JSON_VALUE_STRING) {
@@ -4297,22 +4299,22 @@ static WorkDoneProgressOptions work_done_progress_parse(JSONValue* value) {
 
 #if LSTALK_TESTS
 // These functions are currently only used in testing. Add to main library when needed.
-static JSONValue work_done_progress_json_make(WorkDoneProgressOptions* options) {
+static JSONValue work_done_progress_json_make(WorkDoneProgressOptions* options, LSTalk_MemoryAllocator* allocator) {
     if (options == NULL) {
         return json_make_null();
     }
 
-    JSONValue result = json_make_object();
-    json_object_const_key_set(&result, WORK_DONE_PROGRESS_NAME, json_make_boolean(options->value));
+    JSONValue result = json_make_object(allocator);
+    json_object_const_key_set(&result, WORK_DONE_PROGRESS_NAME, json_make_boolean(options->value), allocator);
     return result;
 }
 
-static void work_done_progress_json_set(WorkDoneProgressOptions* options, JSONValue* value) {
+static void work_done_progress_json_set(WorkDoneProgressOptions* options, JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     if (options == NULL || value == NULL || value->type != JSON_VALUE_OBJECT) {
         return;
     }
 
-    json_object_const_key_set(value, WORK_DONE_PROGRESS_NAME, json_make_boolean(options->value));
+    json_object_const_key_set(value, WORK_DONE_PROGRESS_NAME, json_make_boolean(options->value), allocator);
 }
 #endif
 
@@ -4346,21 +4348,21 @@ static StaticRegistrationOptions static_registration_options_parse(JSONValue* va
 
 #if LSTALK_TESTS
 // This function is currently only used in testing. Add to main library when needed.
-static void static_registration_options_json_set(StaticRegistrationOptions* options, JSONValue* value) {
+static void static_registration_options_json_set(StaticRegistrationOptions* options, JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     if (options == NULL || value == NULL) {
         return;
     }
 
-    json_object_const_key_set(value, "id", json_make_string(options->id));
+    json_object_const_key_set(value, "id", json_make_string(options->id, allocator), allocator);
 }
 #endif
 
-static void static_registration_options_free(StaticRegistrationOptions* static_registration) {
+static void static_registration_options_free(StaticRegistrationOptions* static_registration, LSTalk_MemoryAllocator* allocator) {
     if (static_registration == NULL || static_registration->id == NULL) {
         return;
     }
 
-    free(static_registration->id);
+    allocator->free(static_registration->id);
 }
 
 /**
@@ -4606,7 +4608,7 @@ typedef struct TextDocumentRegistrationOptions {
     int document_selector_count;
 } TextDocumentRegistrationOptions;
 
-static TextDocumentRegistrationOptions text_document_registration_options_parse(JSONValue* value) {
+static TextDocumentRegistrationOptions text_document_registration_options_parse(JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     TextDocumentRegistrationOptions result;
     memset(&result, 0, sizeof(result));
 
@@ -4621,7 +4623,7 @@ static TextDocumentRegistrationOptions text_document_registration_options_parse(
 
     size_t length = json_array_length(document_selector);
     result.document_selector_count = (int)length;
-    result.document_selector = (DocumentFilter*)calloc(length, sizeof(DocumentFilter));
+    result.document_selector = (DocumentFilter*)allocator->calloc(length, sizeof(DocumentFilter));
     for (size_t i = 0; i < length; i++) {
         JSONValue* item = json_array_get_ptr(document_selector, i);
         DocumentFilter* filter = &result.document_selector[i];
@@ -4647,36 +4649,36 @@ static TextDocumentRegistrationOptions text_document_registration_options_parse(
 
 #if LSTALK_TESTS
 // This function is currently only used in testing. Add to main library when needed.
-static void text_document_registration_options_json_set(TextDocumentRegistrationOptions* options, JSONValue* value) {
+static void text_document_registration_options_json_set(TextDocumentRegistrationOptions* options, JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     if (options == NULL || value == NULL || value->type != JSON_VALUE_OBJECT) {
         return;
     }
 
     if (options->document_selector_count == 0) {
-        json_object_const_key_set(value, "documentFilter", json_make_null());
+        json_object_const_key_set(value, "documentFilter", json_make_null(), allocator);
         return;
     }
 
-    JSONValue array = json_make_array();
+    JSONValue array = json_make_array(allocator);
     for (int i = 0; i < options->document_selector_count; i++) {
         DocumentFilter* filter = &options->document_selector[i];
-        JSONValue item = json_make_object();
+        JSONValue item = json_make_object(allocator);
         if (filter->language != NULL) { 
-            json_object_const_key_set(&item, "language", json_make_string(filter->language));
+            json_object_const_key_set(&item, "language", json_make_string(filter->language, allocator), allocator);
         }
         if (filter->scheme != NULL) {
-            json_object_const_key_set(&item, "scheme", json_make_string(filter->scheme));
+            json_object_const_key_set(&item, "scheme", json_make_string(filter->scheme, allocator), allocator);
         }
         if (filter->pattern != NULL) {
-            json_object_const_key_set(&item, "pattern", json_make_string(filter->pattern));
+            json_object_const_key_set(&item, "pattern", json_make_string(filter->pattern, allocator), allocator);
         }
-        json_array_push(&array, item);
+        json_array_push(&array, item, allocator);
     }
-    json_object_const_key_set(value, "documentFilter", array);
+    json_object_const_key_set(value, "documentFilter", array, allocator);
 }
 #endif
 
-static void text_document_registration_options_free(TextDocumentRegistrationOptions* text_document_registration) {
+static void text_document_registration_options_free(TextDocumentRegistrationOptions* text_document_registration, LSTalk_MemoryAllocator* allocator) {
     if (text_document_registration == NULL) {
         return;
     }
@@ -4686,19 +4688,19 @@ static void text_document_registration_options_free(TextDocumentRegistrationOpti
             DocumentFilter* filter = &text_document_registration->document_selector[i];
 
             if (filter->language != NULL) {
-                free(filter->language);
+                allocator->free(filter->language);
             }
 
             if (filter->scheme != NULL) {
-                free(filter->scheme);
+                allocator->free(filter->scheme);
             }
 
             if (filter->pattern != NULL) {
-                free(filter->pattern);
+                allocator->free(filter->pattern);
             }
         }
 
-        free(text_document_registration->document_selector);
+        allocator->free(text_document_registration->document_selector);
     }
 }
 
@@ -5215,7 +5217,7 @@ typedef struct FileOperationRegistrationOptions {
     int filters_count;
 } FileOperationRegistrationOptions;
 
-static FileOperationRegistrationOptions file_operation_registration_options_parse(JSONValue* value, char* key) {
+static FileOperationRegistrationOptions file_operation_registration_options_parse(JSONValue* value, char* key, LSTalk_MemoryAllocator* allocator) {
     FileOperationRegistrationOptions result;
     memset(&result, 0, sizeof(result));
 
@@ -5229,7 +5231,7 @@ static FileOperationRegistrationOptions file_operation_registration_options_pars
         if (filters != NULL && filters->type == JSON_VALUE_ARRAY) {
             size_t length = json_array_length(filters);
             result.filters_count = (int)length;
-            result.filters = (FileOperationFilter*)calloc(length, sizeof(FileOperationFilter));
+            result.filters = (FileOperationFilter*)allocator->calloc(length, sizeof(FileOperationFilter));
             for (size_t i = 0; i < length; i++) {
                 JSONValue* item = json_array_get_ptr(filters, i);
                 FileOperationFilter* filter = &result.filters[i];
@@ -5279,43 +5281,43 @@ static FileOperationRegistrationOptions file_operation_registration_options_pars
 
 #if LSTALK_TESTS
 // This function is currently only used in testing. Add to main library when needed.
-static JSONValue file_operation_registration_json(FileOperationRegistrationOptions* options) {
+static JSONValue file_operation_registration_json(FileOperationRegistrationOptions* options, LSTalk_MemoryAllocator* allocator) {
     if (options == NULL) {
         return json_make_null();
     }
 
-    JSONValue value = json_make_object();
+    JSONValue value = json_make_object(allocator);
 
     if (options->filters_count > 0) {
-        JSONValue filters = json_make_array();
+        JSONValue filters = json_make_array(allocator);
         for (int filter_index = 0; filter_index < options->filters_count; filter_index++) {
             FileOperationFilter* item = &options->filters[filter_index];
-            JSONValue filter = json_make_object();
+            JSONValue filter = json_make_object(allocator);
             if (item->scheme != NULL) {
-                json_object_const_key_set(&filter, "scheme", json_make_string(item->scheme));
+                json_object_const_key_set(&filter, "scheme", json_make_string(item->scheme, allocator), allocator);
             }
 
-            JSONValue pattern = json_make_object();
-            json_object_const_key_set(&pattern, "glob", json_make_string(item->pattern.glob));
+            JSONValue pattern = json_make_object(allocator);
+            json_object_const_key_set(&pattern, "glob", json_make_string(item->pattern.glob, allocator), allocator);
             if (item->pattern.matches == FILEOPERATIONPATTERNKIND_FILE) {
-                json_object_const_key_set(&pattern, "matches", json_make_string_const("file"));
+                json_object_const_key_set(&pattern, "matches", json_make_string_const("file"), allocator);
             } else if (item->pattern.matches == FILEOPERATIONPATTERNKIND_FOLDER) {
-                json_object_const_key_set(&pattern, "matches", json_make_string_const("folder"));
+                json_object_const_key_set(&pattern, "matches", json_make_string_const("folder"), allocator);
             }
-            JSONValue pattern_options = json_make_object();
-            json_object_const_key_set(&pattern_options, "ignoreCase", json_make_boolean(item->pattern.options.ignore_case));
-            json_object_const_key_set(&pattern, "options", pattern_options);
-            json_object_const_key_set(&filter, "pattern", pattern);
-            json_array_push(&filters, filter);
+            JSONValue pattern_options = json_make_object(allocator);
+            json_object_const_key_set(&pattern_options, "ignoreCase", json_make_boolean(item->pattern.options.ignore_case), allocator);
+            json_object_const_key_set(&pattern, "options", pattern_options, allocator);
+            json_object_const_key_set(&filter, "pattern", pattern, allocator);
+            json_array_push(&filters, filter, allocator);
         }
-        json_object_const_key_set(&value, "filters", filters);
+        json_object_const_key_set(&value, "filters", filters, allocator);
     }
 
     return value;
 }
 #endif
 
-static void file_operation_registration_options_free(FileOperationRegistrationOptions* file_operation_registration) {
+static void file_operation_registration_options_free(FileOperationRegistrationOptions* file_operation_registration, LSTalk_MemoryAllocator* allocator) {
     if (file_operation_registration == NULL) {
         return;
     }
@@ -5324,15 +5326,15 @@ static void file_operation_registration_options_free(FileOperationRegistrationOp
         for (int i = 0; i < file_operation_registration->filters_count; i++) {
             FileOperationFilter* filter = &file_operation_registration->filters[i];
             if (filter->scheme != NULL) {
-                free(filter->scheme);
+                allocator->free(filter->scheme);
             }
 
             if (filter->pattern.glob != NULL) {
-                free(filter->pattern.glob);
+                allocator->free(filter->pattern.glob);
             }
         }
 
-        free(file_operation_registration->filters);
+        allocator->free(file_operation_registration->filters);
     }
 }
 
@@ -5611,7 +5613,7 @@ typedef struct ServerCapabilities {
     WorkspaceServer workspace;
 } ServerCapabilities;
 
-static ServerCapabilities server_capabilities_parse(JSONValue* value) {
+static ServerCapabilities server_capabilities_parse(JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     ServerCapabilities result;
     memset(&result, 0, sizeof(result));
 
@@ -5650,7 +5652,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
             size_t length = json_array_length(notebook_selector);
             result.notebook_document_sync.notebook_selector_count = (int)length;
             if (result.notebook_document_sync.notebook_selector_count > 0) {
-                NotebookSelector* selectors = (NotebookSelector*)calloc(length, sizeof(NotebookSelector));
+                NotebookSelector* selectors = (NotebookSelector*)allocator->calloc(length, sizeof(NotebookSelector));
                 for (size_t i = 0; i < length; i++) {
                     JSONValue* item = json_array_get_ptr(notebook_selector, i);
                     if (item == NULL || item->type != JSON_VALUE_OBJECT) {
@@ -5680,7 +5682,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
                     if (cells != NULL && cells->type == JSON_VALUE_ARRAY) {
                         size_t count = json_array_length(cells);
                         selectors[i].cells_count = (int)count;
-                        selectors[i].cells = (char**)malloc(count * sizeof(char*));
+                        selectors[i].cells = (char**)allocator->malloc(count * sizeof(char*));
                         for (size_t cell_idx = 0; cell_idx < count; cell_idx++) {
                             JSONValue* cell = json_array_get_ptr(cells, cell_idx);
                             JSONValue* language = json_object_get_ptr(cell, "language");
@@ -5703,10 +5705,10 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         result.completion_provider.work_done_progress = work_done_progress_parse(completion_provider);
 
         result.completion_provider.trigger_characters = 
-            parse_string_array(completion_provider, "triggerCharacters", &result.completion_provider.trigger_characters_count);
+            parse_string_array(completion_provider, "triggerCharacters", &result.completion_provider.trigger_characters_count, allocator);
 
         result.completion_provider.all_commit_characters =
-            parse_string_array(completion_provider, "allCommitCharacters", &result.completion_provider.all_commit_characters_count);
+            parse_string_array(completion_provider, "allCommitCharacters", &result.completion_provider.all_commit_characters_count, allocator);
 
         JSONValue resolve_provider = json_object_get(completion_provider, "resolveProvider");
         if (resolve_provider.type == JSON_VALUE_BOOLEAN) {
@@ -5733,9 +5735,9 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
     if (signature_help_provider != NULL && signature_help_provider->type == JSON_VALUE_OBJECT) {
         result.signature_help_provider.work_done_progress = work_done_progress_parse(signature_help_provider);
         result.signature_help_provider.trigger_characters =
-            parse_string_array(signature_help_provider, "triggerCharacters", &result.signature_help_provider.trigger_characters_count);
+            parse_string_array(signature_help_provider, "triggerCharacters", &result.signature_help_provider.trigger_characters_count, allocator);
         result.signature_help_provider.retrigger_characters =
-            parse_string_array(signature_help_provider, "retriggerCharacters", &result.signature_help_provider.retrigger_characters_count);
+            parse_string_array(signature_help_provider, "retriggerCharacters", &result.signature_help_provider.retrigger_characters_count, allocator);
     }
 
     JSONValue* declaration_provider = json_object_get_ptr(value, "declarationProvider");
@@ -5746,7 +5748,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
             result.declaration_provider.is_supported = 1;
             result.declaration_provider.work_done_progress = work_done_progress_parse(declaration_provider);
             result.declaration_provider.static_registration = static_registration_options_parse(declaration_provider);
-            result.declaration_provider.text_document_registration = text_document_registration_options_parse(declaration_provider);
+            result.declaration_provider.text_document_registration = text_document_registration_options_parse(declaration_provider, allocator);
         }
     }
 
@@ -5765,7 +5767,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (type_definition_provider->type == JSON_VALUE_OBJECT) {
             result.type_definition_provider.is_supported = 1;
             result.type_definition_provider.work_done_progress = work_done_progress_parse(type_definition_provider);
-            result.type_definition_provider.text_document_registration = text_document_registration_options_parse(type_definition_provider);
+            result.type_definition_provider.text_document_registration = text_document_registration_options_parse(type_definition_provider, allocator);
             result.type_definition_provider.static_registration = static_registration_options_parse(type_definition_provider);
         }
     }
@@ -5777,7 +5779,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (implementation_provider->type == JSON_VALUE_OBJECT) {
             result.implementation_provider.is_supported = 1;
             result.implementation_provider.work_done_progress = work_done_progress_parse(implementation_provider);
-            result.implementation_provider.text_document_registration = text_document_registration_options_parse(implementation_provider);
+            result.implementation_provider.text_document_registration = text_document_registration_options_parse(implementation_provider, allocator);
             result.implementation_provider.static_registration = static_registration_options_parse(implementation_provider);
         }
     }
@@ -5856,7 +5858,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (color_provider->type == JSON_VALUE_OBJECT) {
             result.color_provider.is_supported = 1;
             result.color_provider.work_done_progress = work_done_progress_parse(color_provider);
-            result.color_provider.text_document_registration = text_document_registration_options_parse(color_provider);
+            result.color_provider.text_document_registration = text_document_registration_options_parse(color_provider, allocator);
             result.color_provider.static_registration = static_registration_options_parse(color_provider);
         }
     }
@@ -5885,7 +5887,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         }
 
         result.document_on_type_formatting_provider.more_trigger_character =
-            parse_string_array(document_on_type_formatting_provider, "moreTriggerCharacter", &result.document_on_type_formatting_provider.more_trigger_character_count);
+            parse_string_array(document_on_type_formatting_provider, "moreTriggerCharacter", &result.document_on_type_formatting_provider.more_trigger_character_count, allocator);
     }
 
     JSONValue rename_provider = json_object_get(value, "renameProvider");
@@ -5908,7 +5910,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (folding_range_provider->type == JSON_VALUE_OBJECT) {
             result.folding_range_provider.is_supported = 1;
             result.folding_range_provider.work_done_progress = work_done_progress_parse(folding_range_provider);
-            result.folding_range_provider.text_document_registration = text_document_registration_options_parse(folding_range_provider);
+            result.folding_range_provider.text_document_registration = text_document_registration_options_parse(folding_range_provider, allocator);
             result.folding_range_provider.static_registration = static_registration_options_parse(folding_range_provider);
         }
     }
@@ -5917,7 +5919,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
     if (execute_command_provider != NULL && execute_command_provider->type == JSON_VALUE_OBJECT) {
         result.execute_command_provider.work_done_progress = work_done_progress_parse(execute_command_provider);
         result.execute_command_provider.commands =
-            parse_string_array(execute_command_provider, "commands", &result.execute_command_provider.commands_count);
+            parse_string_array(execute_command_provider, "commands", &result.execute_command_provider.commands_count, allocator);
     }
 
     JSONValue* selection_range_provider = json_object_get_ptr(value, "selectionRangeProvider");
@@ -5927,7 +5929,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (selection_range_provider->type == JSON_VALUE_OBJECT) {
             result.selection_range_provider.is_supported = 1;
             result.selection_range_provider.work_done_progress = work_done_progress_parse(selection_range_provider);
-            result.selection_range_provider.text_document_registration = text_document_registration_options_parse(selection_range_provider);
+            result.selection_range_provider.text_document_registration = text_document_registration_options_parse(selection_range_provider, allocator);
             result.selection_range_provider.static_registration = static_registration_options_parse(selection_range_provider);
         }
     }
@@ -5939,7 +5941,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (linked_editing_range_provider->type == JSON_VALUE_OBJECT) {
             result.linked_editing_range_provider.is_supported = 1;
             result.linked_editing_range_provider.work_done_progress = work_done_progress_parse(linked_editing_range_provider);
-            result.linked_editing_range_provider.text_document_registration = text_document_registration_options_parse(linked_editing_range_provider);
+            result.linked_editing_range_provider.text_document_registration = text_document_registration_options_parse(linked_editing_range_provider, allocator);
             result.linked_editing_range_provider.static_registration = static_registration_options_parse(linked_editing_range_provider);
         }
     }
@@ -5951,7 +5953,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (call_hierarchy_provider->type == JSON_VALUE_OBJECT) {
             result.call_hierarchy_provider.is_supported = 1;
             result.call_hierarchy_provider.work_done_progress = work_done_progress_parse(call_hierarchy_provider);
-            result.call_hierarchy_provider.text_document_registration = text_document_registration_options_parse(call_hierarchy_provider);
+            result.call_hierarchy_provider.text_document_registration = text_document_registration_options_parse(call_hierarchy_provider, allocator);
             result.call_hierarchy_provider.static_registration = static_registration_options_parse(call_hierarchy_provider);
         }
     }
@@ -5959,15 +5961,15 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
     JSONValue* semantic_tokens_provider = json_object_get_ptr(value, "semanticTokensProvider");
     if (semantic_tokens_provider != NULL && semantic_tokens_provider->type == JSON_VALUE_OBJECT) {
         result.semantic_tokens_provider.semantic_tokens.work_done_progress = work_done_progress_parse(semantic_tokens_provider);
-        result.semantic_tokens_provider.text_document_registration = text_document_registration_options_parse(semantic_tokens_provider);
+        result.semantic_tokens_provider.text_document_registration = text_document_registration_options_parse(semantic_tokens_provider, allocator);
         result.semantic_tokens_provider.static_registration = static_registration_options_parse(semantic_tokens_provider);
 
         JSONValue* legend = json_object_get_ptr(semantic_tokens_provider, "legend");
         if (legend != NULL && legend->type == JSON_VALUE_OBJECT) {
             result.semantic_tokens_provider.semantic_tokens.legend.token_types =
-                parse_string_array(legend, "tokenTypes", &result.semantic_tokens_provider.semantic_tokens.legend.token_types_count);
+                parse_string_array(legend, "tokenTypes", &result.semantic_tokens_provider.semantic_tokens.legend.token_types_count, allocator);
             result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers =
-                parse_string_array(legend, "tokenModifiers", &result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count);
+                parse_string_array(legend, "tokenModifiers", &result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count, allocator);
         }
 
         JSONValue range = json_object_get(semantic_tokens_provider, "range");
@@ -5991,7 +5993,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (moniker_provider->type == JSON_VALUE_OBJECT) {
             result.moniker_provider.is_supported = 1;
             result.moniker_provider.work_done_progress = work_done_progress_parse(moniker_provider);
-            result.moniker_provider.text_document_registration = text_document_registration_options_parse(moniker_provider);
+            result.moniker_provider.text_document_registration = text_document_registration_options_parse(moniker_provider, allocator);
         }
     }
 
@@ -6002,7 +6004,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (type_hierarchy_provider->type == JSON_VALUE_OBJECT) {
             result.type_hierarchy_provider.is_supported = 1;
             result.type_hierarchy_provider.work_done_progress = work_done_progress_parse(type_hierarchy_provider);
-            result.type_definition_provider.text_document_registration = text_document_registration_options_parse(type_hierarchy_provider);
+            result.type_definition_provider.text_document_registration = text_document_registration_options_parse(type_hierarchy_provider, allocator);
             result.type_definition_provider.static_registration = static_registration_options_parse(type_hierarchy_provider);
         }
     }
@@ -6014,7 +6016,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (inline_value_provider->type == JSON_VALUE_OBJECT) {
             result.inline_value_provider.is_supported = 1;
             result.inline_value_provider.work_done_progress = work_done_progress_parse(inline_value_provider);
-            result.inline_value_provider.text_document_registration = text_document_registration_options_parse(inline_value_provider);
+            result.inline_value_provider.text_document_registration = text_document_registration_options_parse(inline_value_provider, allocator);
             result.inline_value_provider.static_registration = static_registration_options_parse(inline_value_provider);
         }
     }
@@ -6026,7 +6028,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
         } else if (inlay_hint_provider->type == JSON_VALUE_OBJECT) {
             result.inlay_hint_provider.is_supported = 1;
             result.inlay_hint_provider.work_done_progress = work_done_progress_parse(inlay_hint_provider);
-            result.inlay_hint_provider.text_document_registration = text_document_registration_options_parse(inlay_hint_provider);
+            result.inlay_hint_provider.text_document_registration = text_document_registration_options_parse(inlay_hint_provider, allocator);
             result.inlay_hint_provider.static_registration = static_registration_options_parse(inlay_hint_provider);
             JSONValue resolve_provider = json_object_get(inlay_hint_provider, "resolveProvider");
             result.inlay_hint_provider.resolve_provider = resolve_provider.type == JSON_VALUE_BOOLEAN ? resolve_provider.value.bool_value : lstalk_false;
@@ -6036,7 +6038,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
     JSONValue* diagnostic_provider = json_object_get_ptr(value, "diagnosticProvider");
     if (diagnostic_provider != NULL && diagnostic_provider->type == JSON_VALUE_OBJECT) {
         result.diagnostic_provider.work_done_progress = work_done_progress_parse(diagnostic_provider);
-        result.diagnostic_provider.text_document_registration = text_document_registration_options_parse(diagnostic_provider);
+        result.diagnostic_provider.text_document_registration = text_document_registration_options_parse(diagnostic_provider, allocator);
         result.diagnostic_provider.static_registration = static_registration_options_parse(diagnostic_provider);
 
         JSONValue* identifier = json_object_get_ptr(diagnostic_provider, "identifier");
@@ -6091,12 +6093,12 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
 
         JSONValue* file_operations = json_object_get_ptr(workspace, "fileOperations");
         if (file_operations != NULL && file_operations->type == JSON_VALUE_OBJECT) {
-            result.workspace.file_operations.did_create = file_operation_registration_options_parse(file_operations, "didCreate");
-            result.workspace.file_operations.will_create = file_operation_registration_options_parse(file_operations, "will_create");
-            result.workspace.file_operations.did_rename = file_operation_registration_options_parse(file_operations, "didRename");
-            result.workspace.file_operations.will_rename = file_operation_registration_options_parse(file_operations, "willRename");
-            result.workspace.file_operations.did_delete = file_operation_registration_options_parse(file_operations, "didDelete");
-            result.workspace.file_operations.will_delete = file_operation_registration_options_parse(file_operations, "willDelete");
+            result.workspace.file_operations.did_create = file_operation_registration_options_parse(file_operations, "didCreate", allocator);
+            result.workspace.file_operations.will_create = file_operation_registration_options_parse(file_operations, "will_create", allocator);
+            result.workspace.file_operations.did_rename = file_operation_registration_options_parse(file_operations, "didRename", allocator);
+            result.workspace.file_operations.will_rename = file_operation_registration_options_parse(file_operations, "willRename", allocator);
+            result.workspace.file_operations.did_delete = file_operation_registration_options_parse(file_operations, "didDelete", allocator);
+            result.workspace.file_operations.will_delete = file_operation_registration_options_parse(file_operations, "willDelete", allocator);
         }
     }
 
@@ -6105,7 +6107,7 @@ static ServerCapabilities server_capabilities_parse(JSONValue* value) {
 
 #if LSTALK_TESTS
 // This function is currently only used in testing. Add to main library when needed.
-static JSONValue server_capabilities_json(ServerCapabilities* capabilities) {
+static JSONValue server_capabilities_json(ServerCapabilities* capabilities, LSTalk_MemoryAllocator* allocator) {
     JSONValue result = json_make_null();
 
     if (capabilities == NULL) {
@@ -6114,169 +6116,169 @@ static JSONValue server_capabilities_json(ServerCapabilities* capabilities) {
 
     #define WORK_TEXT_STATIC_OPTIONS(property, name) \
     { \
-        JSONValue value = json_make_object(); \
-        work_done_progress_json_set(&property.work_done_progress, &value); \
-        text_document_registration_options_json_set(&property.text_document_registration, &value); \
-        static_registration_options_json_set(&property.static_registration, &value); \
-        json_object_const_key_set(&result, name, value); \
+        JSONValue value = json_make_object(allocator); \
+        work_done_progress_json_set(&property.work_done_progress, &value, allocator); \
+        text_document_registration_options_json_set(&property.text_document_registration, &value, allocator); \
+        static_registration_options_json_set(&property.static_registration, &value, allocator); \
+        json_object_const_key_set(&result, name, value, allocator); \
     }
 
-    result = json_make_object();
+    result = json_make_object(allocator);
 
-    json_object_const_key_set(&result, "positionEncoding", json_make_int(capabilities->position_encoding));
+    json_object_const_key_set(&result, "positionEncoding", json_make_int(capabilities->position_encoding), allocator);
 
     {
         TextDocumentSyncOptions* options = &capabilities->text_document_sync;
-        JSONValue value = json_make_object();
-        json_object_const_key_set(&value, "openClose", json_make_boolean(options->open_close));
-        json_object_const_key_set(&value, "change", json_make_int(options->change));
-        json_object_const_key_set(&result, "textDocumentSync", value);
+        JSONValue value = json_make_object(allocator);
+        json_object_const_key_set(&value, "openClose", json_make_boolean(options->open_close), allocator);
+        json_object_const_key_set(&value, "change", json_make_int(options->change), allocator);
+        json_object_const_key_set(&result, "textDocumentSync", value, allocator);
     }
 
     {
         NotebookDocumentSyncOptions* options = &capabilities->notebook_document_sync;
-        JSONValue value = json_make_object();
-        static_registration_options_json_set(&options->static_registration, &value);
+        JSONValue value = json_make_object(allocator);
+        static_registration_options_json_set(&options->static_registration, &value, allocator);
 
-        JSONValue notebook_selector = json_make_array();
+        JSONValue notebook_selector = json_make_array(allocator);
         for (int i = 0; i < options->notebook_selector_count; i++) {
             NotebookSelector* selector = &options->notebook_selector[i];
-            JSONValue item = json_make_object();
+            JSONValue item = json_make_object(allocator);
 
-            JSONValue notebook = json_make_object();
-            json_object_const_key_set(&notebook, "notebookType", json_make_string(selector->notebook.notebook_type));
-            json_object_const_key_set(&notebook, "scheme", json_make_string(selector->notebook.scheme));
-            json_object_const_key_set(&notebook, "pattern", json_make_string(selector->notebook.pattern));
-            json_object_const_key_set(&item, "notebook", notebook);
+            JSONValue notebook = json_make_object(allocator);
+            json_object_const_key_set(&notebook, "notebookType", json_make_string(selector->notebook.notebook_type, allocator), allocator);
+            json_object_const_key_set(&notebook, "scheme", json_make_string(selector->notebook.scheme, allocator), allocator);
+            json_object_const_key_set(&notebook, "pattern", json_make_string(selector->notebook.pattern, allocator), allocator);
+            json_object_const_key_set(&item, "notebook", notebook, allocator);
 
-            JSONValue cells = json_make_array();
+            JSONValue cells = json_make_array(allocator);
             for (int j = 0; j < selector->cells_count; j++) {
-                JSONValue cell = json_make_object();
-                json_object_const_key_set(&cell, "language", json_make_string(selector->cells[j]));
+                JSONValue cell = json_make_object(allocator);
+                json_object_const_key_set(&cell, "language", json_make_string(selector->cells[j], allocator), allocator);
             }
-            json_object_const_key_set(&item, "cells", cells);
-            json_array_push(&notebook_selector, item);
+            json_object_const_key_set(&item, "cells", cells, allocator);
+            json_array_push(&notebook_selector, item, allocator);
         }
-        json_object_const_key_set(&value, "notebookSelector", notebook_selector);
+        json_object_const_key_set(&value, "notebookSelector", notebook_selector, allocator);
 
-        json_object_const_key_set(&value, "save", json_make_boolean(options->save));
-        json_object_const_key_set(&result, "notebookDocumentSync", value);
+        json_object_const_key_set(&value, "save", json_make_boolean(options->save), allocator);
+        json_object_const_key_set(&result, "notebookDocumentSync", value, allocator);
     }
 
     {
         CompletionOptions* options = &capabilities->completion_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        json_object_const_key_set(&value, "triggerCharacters", json_make_string_array(options->trigger_characters, options->trigger_characters_count));
-        json_object_const_key_set(&value, "allCommitCharacters", json_make_string_array(options->all_commit_characters, options->all_commit_characters_count));
-        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        json_object_const_key_set(&value, "triggerCharacters", json_make_string_array(options->trigger_characters, options->trigger_characters_count, allocator), allocator);
+        json_object_const_key_set(&value, "allCommitCharacters", json_make_string_array(options->all_commit_characters, options->all_commit_characters_count, allocator), allocator);
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider), allocator);
 
-        JSONValue completion_item = json_make_object();
-        json_object_const_key_set(&completion_item, "labelDetailsSupport", json_make_boolean(options->completion_item_label_details_support));
-        json_object_const_key_set(&value, "completionItem", completion_item);
-        json_object_const_key_set(&result, "completionProvider", value);
+        JSONValue completion_item = json_make_object(allocator);
+        json_object_const_key_set(&completion_item, "labelDetailsSupport", json_make_boolean(options->completion_item_label_details_support), allocator);
+        json_object_const_key_set(&value, "completionItem", completion_item, allocator);
+        json_object_const_key_set(&result, "completionProvider", value, allocator);
     }
 
-    json_object_const_key_set(&result, "hoverProvider", work_done_progress_json_make(&capabilities->hover_provider.work_done_progress));
+    json_object_const_key_set(&result, "hoverProvider", work_done_progress_json_make(&capabilities->hover_provider.work_done_progress, allocator), allocator);
 
     {
         SignatureHelpOptions* options = &capabilities->signature_help_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        json_object_const_key_set(&value, "triggerCharacters", json_make_string_array(options->trigger_characters, options->trigger_characters_count));
-        json_object_const_key_set(&value, "retriggerCharacters", json_make_string_array(options->retrigger_characters, options->retrigger_characters_count));
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        json_object_const_key_set(&value, "triggerCharacters", json_make_string_array(options->trigger_characters, options->trigger_characters_count, allocator), allocator);
+        json_object_const_key_set(&value, "retriggerCharacters", json_make_string_array(options->retrigger_characters, options->retrigger_characters_count, allocator), allocator);
 
-        json_object_const_key_set(&result, "signatureHelpProvider", value);
+        json_object_const_key_set(&result, "signatureHelpProvider", value, allocator);
     }
 
     WORK_TEXT_STATIC_OPTIONS(capabilities->declaration_provider, "declarationProvider");
-    json_object_const_key_set(&result, "definitionProvider", work_done_progress_json_make(&capabilities->definition_provider.work_done_progress));
+    json_object_const_key_set(&result, "definitionProvider", work_done_progress_json_make(&capabilities->definition_provider.work_done_progress, allocator), allocator);
     WORK_TEXT_STATIC_OPTIONS(capabilities->type_definition_provider, "typeDefinitionProvider");
     WORK_TEXT_STATIC_OPTIONS(capabilities->implementation_provider, "implementationProvider");
-    json_object_const_key_set(&result, "referencesProvider", work_done_progress_json_make(&capabilities->references_provider.work_done_progress));
-    json_object_const_key_set(&result, "documentHighlightProvider", work_done_progress_json_make(&capabilities->document_highlight_provider.work_done_progress));
+    json_object_const_key_set(&result, "referencesProvider", work_done_progress_json_make(&capabilities->references_provider.work_done_progress, allocator), allocator);
+    json_object_const_key_set(&result, "documentHighlightProvider", work_done_progress_json_make(&capabilities->document_highlight_provider.work_done_progress, allocator), allocator);
 
     {
         DocumentSymbolOptions* options = &capabilities->document_symbol_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
         if (options->label != NULL) {
-            json_object_const_key_set(&value, "label", json_make_string(options->label));
+            json_object_const_key_set(&value, "label", json_make_string(options->label, allocator), allocator);
         }
 
-        json_object_const_key_set(&result, "documentSymbolProvider", value);
+        json_object_const_key_set(&result, "documentSymbolProvider", value, allocator);
     }
 
     {
         CodeActionOptions* options = &capabilities->code_action_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        json_object_const_key_set(&value, "codeActionKinds", code_action_kind_make_array(options->code_action_kinds));
-        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        json_object_const_key_set(&value, "codeActionKinds", code_action_kind_make_array(options->code_action_kinds, allocator), allocator);
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider), allocator);
 
-        json_object_const_key_set(&result, "codeActionProvider", value);
+        json_object_const_key_set(&result, "codeActionProvider", value, allocator);
     }
 
     {
         CodeLensOptions* options = &capabilities->code_lens_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider), allocator);
 
-        json_object_const_key_set(&result, "codeLensProvider", value);
+        json_object_const_key_set(&result, "codeLensProvider", value, allocator);
     }
 
     {
         DocumentLinkOptions* options = &capabilities->document_link_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider), allocator);
 
-        json_object_const_key_set(&result, "documentLinkProvider", value);
+        json_object_const_key_set(&result, "documentLinkProvider", value, allocator);
     }
 
     WORK_TEXT_STATIC_OPTIONS(capabilities->color_provider, "colorProvider");
-    json_object_const_key_set(&result, "documentFormattingProvider", work_done_progress_json_make(&capabilities->document_formatting_provider.work_done_progress));
-    json_object_const_key_set(&result, "documentRangeFormattingProvider", work_done_progress_json_make(&capabilities->document_range_rormatting_provider.work_done_progress));
+    json_object_const_key_set(&result, "documentFormattingProvider", work_done_progress_json_make(&capabilities->document_formatting_provider.work_done_progress, allocator), allocator);
+    json_object_const_key_set(&result, "documentRangeFormattingProvider", work_done_progress_json_make(&capabilities->document_range_rormatting_provider.work_done_progress, allocator), allocator);
 
     {
         DocumentOnTypeFormattingOptions* options = &capabilities->document_on_type_formatting_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        json_object_const_key_set(&value, "firstTriggerCharacter", json_make_string(options->first_trigger_character));
+        json_object_const_key_set(&value, "firstTriggerCharacter", json_make_string(options->first_trigger_character, allocator), allocator);
         if (options->more_trigger_character_count > 0) {
-            json_object_const_key_set(&value, "moreTriggerCharacter", json_make_string_array(options->more_trigger_character, options->more_trigger_character_count));
+            json_object_const_key_set(&value, "moreTriggerCharacter", json_make_string_array(options->more_trigger_character, options->more_trigger_character_count, allocator), allocator);
         }
 
-        json_object_const_key_set(&result, "documentOnTypeFormattingProvider", value);
+        json_object_const_key_set(&result, "documentOnTypeFormattingProvider", value, allocator);
     }
 
     {
         RenameOptions* options = &capabilities->rename_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        json_object_const_key_set(&value, "prepareProvider", json_make_boolean(options->prepare_provider));
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        json_object_const_key_set(&value, "prepareProvider", json_make_boolean(options->prepare_provider), allocator);
 
-        json_object_const_key_set(&result, "renameProvider", value);
+        json_object_const_key_set(&result, "renameProvider", value, allocator);
     }
 
     WORK_TEXT_STATIC_OPTIONS(capabilities->folding_range_provider, "foldingRangeProvider");
 
     {
         ExecuteCommandOptions* options = &capabilities->execute_command_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        json_object_const_key_set(&value, "commands", json_make_string_array(options->commands, options->commands_count));
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        json_object_const_key_set(&value, "commands", json_make_string_array(options->commands, options->commands_count, allocator), allocator);
 
-        json_object_const_key_set(&result, "executeCommandProvider", value);
+        json_object_const_key_set(&result, "executeCommandProvider", value, allocator);
     }
 
     WORK_TEXT_STATIC_OPTIONS(capabilities->selection_range_provider, "selectionRangeProvider");
@@ -6285,33 +6287,33 @@ static JSONValue server_capabilities_json(ServerCapabilities* capabilities) {
 
     {
         SemanticTokensRegistrationOptions* options = &capabilities->semantic_tokens_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->semantic_tokens.work_done_progress, &value);
-        text_document_registration_options_json_set(&options->text_document_registration, &value);
-        static_registration_options_json_set(&options->static_registration, &value);
+        work_done_progress_json_set(&options->semantic_tokens.work_done_progress, &value, allocator);
+        text_document_registration_options_json_set(&options->text_document_registration, &value, allocator);
+        static_registration_options_json_set(&options->static_registration, &value, allocator);
 
-        JSONValue legend = json_make_object();
-        json_object_const_key_set(&legend, "tokenTypes", json_make_string_array(options->semantic_tokens.legend.token_types, options->semantic_tokens.legend.token_types_count));
-        json_object_const_key_set(&legend, "tokenModifiers", json_make_string_array(options->semantic_tokens.legend.token_modifiers, options->semantic_tokens.legend.token_modifiers_count));
-        json_object_const_key_set(&value, "legend", legend);
-        json_object_const_key_set(&value, "range", json_make_boolean(options->semantic_tokens.range));
+        JSONValue legend = json_make_object(allocator);
+        json_object_const_key_set(&legend, "tokenTypes", json_make_string_array(options->semantic_tokens.legend.token_types, options->semantic_tokens.legend.token_types_count, allocator), allocator);
+        json_object_const_key_set(&legend, "tokenModifiers", json_make_string_array(options->semantic_tokens.legend.token_modifiers, options->semantic_tokens.legend.token_modifiers_count, allocator), allocator);
+        json_object_const_key_set(&value, "legend", legend, allocator);
+        json_object_const_key_set(&value, "range", json_make_boolean(options->semantic_tokens.range), allocator);
         
-        JSONValue full = json_make_object();
-        json_object_const_key_set(&full, "delta", json_make_boolean(options->semantic_tokens.full_delta));
-        json_object_const_key_set(&value, "full", full);
+        JSONValue full = json_make_object(allocator);
+        json_object_const_key_set(&full, "delta", json_make_boolean(options->semantic_tokens.full_delta), allocator);
+        json_object_const_key_set(&value, "full", full, allocator);
 
-        json_object_const_key_set(&result, "semanticTokensProvider", value);
+        json_object_const_key_set(&result, "semanticTokensProvider", value, allocator);
     }
 
     {
         MonikerRegistrationOptions* options = &capabilities->moniker_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        text_document_registration_options_json_set(&options->text_document_registration, &value);
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        text_document_registration_options_json_set(&options->text_document_registration, &value, allocator);
 
-        json_object_const_key_set(&result, "monikerProvider", value);
+        json_object_const_key_set(&result, "monikerProvider", value, allocator);
     }
 
     WORK_TEXT_STATIC_OPTIONS(capabilities->type_hierarchy_provider, "typeHierarchyProvider");
@@ -6319,170 +6321,170 @@ static JSONValue server_capabilities_json(ServerCapabilities* capabilities) {
 
     {
         InlayHintRegistrationOptions* options = &capabilities->inlay_hint_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        text_document_registration_options_json_set(&options->text_document_registration, &value);
-        static_registration_options_json_set(&options->static_registration, &value);
-        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        text_document_registration_options_json_set(&options->text_document_registration, &value, allocator);
+        static_registration_options_json_set(&options->static_registration, &value, allocator);
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider), allocator);
 
-        json_object_const_key_set(&result, "inlayHintProvider", value);
+        json_object_const_key_set(&result, "inlayHintProvider", value, allocator);
     }
 
     {
         DiagnosticRegistrationOptions* options = &capabilities->diagnostic_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        text_document_registration_options_json_set(&options->text_document_registration, &value);
-        static_registration_options_json_set(&options->static_registration, &value);
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        text_document_registration_options_json_set(&options->text_document_registration, &value, allocator);
+        static_registration_options_json_set(&options->static_registration, &value, allocator);
         if (options->identifier != NULL) {
-            json_object_const_key_set(&value, "identifier", json_make_string(options->identifier));
+            json_object_const_key_set(&value, "identifier", json_make_string(options->identifier, allocator), allocator);
         }
-        json_object_const_key_set(&value, "interFileDependencies", json_make_boolean(options->inter_file_dependencies));
-        json_object_const_key_set(&value, "workspaceDiagnostics", json_make_boolean(options->workspace_diagnostics));
+        json_object_const_key_set(&value, "interFileDependencies", json_make_boolean(options->inter_file_dependencies), allocator);
+        json_object_const_key_set(&value, "workspaceDiagnostics", json_make_boolean(options->workspace_diagnostics), allocator);
 
-        json_object_const_key_set(&result, "diagnosticProvider", value);
+        json_object_const_key_set(&result, "diagnosticProvider", value, allocator);
     }
 
     {
         WorkspaceSymbolOptions* options = &capabilities->workspace_symbol_provider;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
-        work_done_progress_json_set(&options->work_done_progress, &value);
-        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider));
+        work_done_progress_json_set(&options->work_done_progress, &value, allocator);
+        json_object_const_key_set(&value, "resolveProvider", json_make_boolean(options->resolve_provider), allocator);
 
-        json_object_const_key_set(&result, "workspaceSymbolProvider", value);
+        json_object_const_key_set(&result, "workspaceSymbolProvider", value, allocator);
     }
 
     {
         WorkspaceServer* workspace = &capabilities->workspace;
-        JSONValue value = json_make_object();
+        JSONValue value = json_make_object(allocator);
 
         WorkspaceFoldersServerCapabilities* folders = &workspace->workspace_folders;
-        JSONValue workspace_folders = json_make_object();
-        json_object_const_key_set(&workspace_folders, "supported", json_make_boolean(folders->supported));
+        JSONValue workspace_folders = json_make_object(allocator);
+        json_object_const_key_set(&workspace_folders, "supported", json_make_boolean(folders->supported), allocator);
         if (folders->change_notifications != NULL) {
-            json_object_const_key_set(&workspace_folders, "changeNotifications", json_make_string(folders->change_notifications));
+            json_object_const_key_set(&workspace_folders, "changeNotifications", json_make_string(folders->change_notifications, allocator), allocator);
         } else {
-            json_object_const_key_set(&workspace_folders, "changeNotifications", json_make_boolean(folders->change_notifications_boolean));
+            json_object_const_key_set(&workspace_folders, "changeNotifications", json_make_boolean(folders->change_notifications_boolean), allocator);
         }
-        json_object_const_key_set(&value, "workspaceFolders", workspace_folders);
+        json_object_const_key_set(&value, "workspaceFolders", workspace_folders, allocator);
 
         FileOperationsServer* operations = &workspace->file_operations;
-        JSONValue file_operations = json_make_object();
-        json_object_const_key_set(&file_operations, "didCreate", file_operation_registration_json(&operations->did_create));
-        json_object_const_key_set(&file_operations, "willCreate", file_operation_registration_json(&operations->will_create));
-        json_object_const_key_set(&file_operations, "didRename", file_operation_registration_json(&operations->did_rename));
-        json_object_const_key_set(&file_operations, "willRename", file_operation_registration_json(&operations->will_rename));
-        json_object_const_key_set(&file_operations, "didDelete", file_operation_registration_json(&operations->did_delete));
-        json_object_const_key_set(&file_operations, "willDelete", file_operation_registration_json(&operations->will_delete));
-        json_object_const_key_set(&value, "fileOperations", file_operations);
+        JSONValue file_operations = json_make_object(allocator);
+        json_object_const_key_set(&file_operations, "didCreate", file_operation_registration_json(&operations->did_create, allocator), allocator);
+        json_object_const_key_set(&file_operations, "willCreate", file_operation_registration_json(&operations->will_create, allocator), allocator);
+        json_object_const_key_set(&file_operations, "didRename", file_operation_registration_json(&operations->did_rename, allocator), allocator);
+        json_object_const_key_set(&file_operations, "willRename", file_operation_registration_json(&operations->will_rename, allocator), allocator);
+        json_object_const_key_set(&file_operations, "didDelete", file_operation_registration_json(&operations->did_delete, allocator), allocator);
+        json_object_const_key_set(&file_operations, "willDelete", file_operation_registration_json(&operations->will_delete, allocator), allocator);
+        json_object_const_key_set(&value, "fileOperations", file_operations, allocator);
 
-        json_object_const_key_set(&result, "workspace", value);
+        json_object_const_key_set(&result, "workspace", value, allocator);
     }
 
     return result;
 }
 #endif
 
-static void server_capabilities_free(ServerCapabilities* capabilities) {
+static void server_capabilities_free(ServerCapabilities* capabilities, LSTalk_MemoryAllocator* allocator) {
     for (int i = 0; i < capabilities->notebook_document_sync.notebook_selector_count; i++) {
         NotebookSelector* selector = &capabilities->notebook_document_sync.notebook_selector[i];
 
         if (selector->notebook.notebook_type != NULL) {
-            free(selector->notebook.notebook_type);
+            allocator->free(selector->notebook.notebook_type);
         }
 
         if (selector->notebook.scheme != NULL) {
-            free(selector->notebook.scheme);
+            allocator->free(selector->notebook.scheme);
         }
 
         if (selector->notebook.pattern != NULL) {
-            free(selector->notebook.pattern);
+            allocator->free(selector->notebook.pattern);
         }
 
-        string_free_array(selector->cells, selector->cells_count);
+        string_free_array(selector->cells, selector->cells_count, allocator);
     }
 
-    static_registration_options_free(&capabilities->notebook_document_sync.static_registration);
+    static_registration_options_free(&capabilities->notebook_document_sync.static_registration, allocator);
 
     if (capabilities->notebook_document_sync.notebook_selector != NULL) {
-        free(capabilities->notebook_document_sync.notebook_selector);
+        allocator->free(capabilities->notebook_document_sync.notebook_selector);
     }
 
-    string_free_array(capabilities->completion_provider.trigger_characters, capabilities->completion_provider.trigger_characters_count);
-    string_free_array(capabilities->completion_provider.all_commit_characters, capabilities->completion_provider.all_commit_characters_count);
-    string_free_array(capabilities->signature_help_provider.trigger_characters, capabilities->signature_help_provider.trigger_characters_count);
-    string_free_array(capabilities->signature_help_provider.retrigger_characters, capabilities->signature_help_provider.retrigger_characters_count);
+    string_free_array(capabilities->completion_provider.trigger_characters, capabilities->completion_provider.trigger_characters_count, allocator);
+    string_free_array(capabilities->completion_provider.all_commit_characters, capabilities->completion_provider.all_commit_characters_count, allocator);
+    string_free_array(capabilities->signature_help_provider.trigger_characters, capabilities->signature_help_provider.trigger_characters_count, allocator);
+    string_free_array(capabilities->signature_help_provider.retrigger_characters, capabilities->signature_help_provider.retrigger_characters_count, allocator);
 
-    static_registration_options_free(&capabilities->declaration_provider.static_registration);
-    text_document_registration_options_free(&capabilities->declaration_provider.text_document_registration);
+    static_registration_options_free(&capabilities->declaration_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->declaration_provider.text_document_registration, allocator);
 
-    static_registration_options_free(&capabilities->type_definition_provider.static_registration);
-    text_document_registration_options_free(&capabilities->type_definition_provider.text_document_registration);
+    static_registration_options_free(&capabilities->type_definition_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->type_definition_provider.text_document_registration, allocator);
 
-    static_registration_options_free(&capabilities->implementation_provider.static_registration);
-    text_document_registration_options_free(&capabilities->implementation_provider.text_document_registration);
+    static_registration_options_free(&capabilities->implementation_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->implementation_provider.text_document_registration, allocator);
 
     if (capabilities->document_symbol_provider.label != NULL) {
-        free(capabilities->document_symbol_provider.label);
+        allocator->free(capabilities->document_symbol_provider.label);
     }
 
-    static_registration_options_free(&capabilities->color_provider.static_registration);
-    text_document_registration_options_free(&capabilities->color_provider.text_document_registration);
+    static_registration_options_free(&capabilities->color_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->color_provider.text_document_registration, allocator);
 
     if (capabilities->document_on_type_formatting_provider.first_trigger_character != NULL) {
-        free(capabilities->document_on_type_formatting_provider.first_trigger_character);
+        allocator->free(capabilities->document_on_type_formatting_provider.first_trigger_character);
     }
 
-    string_free_array(capabilities->document_on_type_formatting_provider.more_trigger_character, capabilities->document_on_type_formatting_provider.more_trigger_character_count);
+    string_free_array(capabilities->document_on_type_formatting_provider.more_trigger_character, capabilities->document_on_type_formatting_provider.more_trigger_character_count, allocator);
 
-    static_registration_options_free(&capabilities->folding_range_provider.static_registration);
-    text_document_registration_options_free(&capabilities->folding_range_provider.text_document_registration);
+    static_registration_options_free(&capabilities->folding_range_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->folding_range_provider.text_document_registration, allocator);
 
-    string_free_array(capabilities->execute_command_provider.commands, capabilities->execute_command_provider.commands_count);
+    string_free_array(capabilities->execute_command_provider.commands, capabilities->execute_command_provider.commands_count, allocator);
 
-    static_registration_options_free(&capabilities->selection_range_provider.static_registration);
-    text_document_registration_options_free(&capabilities->selection_range_provider.text_document_registration);
+    static_registration_options_free(&capabilities->selection_range_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->selection_range_provider.text_document_registration, allocator);
 
-    static_registration_options_free(&capabilities->linked_editing_range_provider.static_registration);
-    text_document_registration_options_free(&capabilities->linked_editing_range_provider.text_document_registration);
+    static_registration_options_free(&capabilities->linked_editing_range_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->linked_editing_range_provider.text_document_registration, allocator);
 
-    static_registration_options_free(&capabilities->call_hierarchy_provider.static_registration);
-    text_document_registration_options_free(&capabilities->call_hierarchy_provider.text_document_registration);
+    static_registration_options_free(&capabilities->call_hierarchy_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->call_hierarchy_provider.text_document_registration, allocator);
 
     string_free_array(capabilities->semantic_tokens_provider.semantic_tokens.legend.token_types,
-        capabilities->semantic_tokens_provider.semantic_tokens.legend.token_types_count);
+        capabilities->semantic_tokens_provider.semantic_tokens.legend.token_types_count, allocator);
     string_free_array(capabilities->semantic_tokens_provider.semantic_tokens.legend.token_modifiers,
-        capabilities->semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count);
-    static_registration_options_free(&capabilities->semantic_tokens_provider.static_registration);
-    text_document_registration_options_free(&capabilities->semantic_tokens_provider.text_document_registration);
+        capabilities->semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count, allocator);
+    static_registration_options_free(&capabilities->semantic_tokens_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->semantic_tokens_provider.text_document_registration, allocator);
 
-    text_document_registration_options_free(&capabilities->moniker_provider.text_document_registration);
+    text_document_registration_options_free(&capabilities->moniker_provider.text_document_registration, allocator);
 
-    static_registration_options_free(&capabilities->type_hierarchy_provider.static_registration);
-    text_document_registration_options_free(&capabilities->type_hierarchy_provider.text_document_registration);
+    static_registration_options_free(&capabilities->type_hierarchy_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->type_hierarchy_provider.text_document_registration, allocator);
 
-    static_registration_options_free(&capabilities->inline_value_provider.static_registration);
-    text_document_registration_options_free(&capabilities->inline_value_provider.text_document_registration);
+    static_registration_options_free(&capabilities->inline_value_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->inline_value_provider.text_document_registration, allocator);
 
-    static_registration_options_free(&capabilities->inlay_hint_provider.static_registration);
-    text_document_registration_options_free(&capabilities->inlay_hint_provider.text_document_registration);
+    static_registration_options_free(&capabilities->inlay_hint_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->inlay_hint_provider.text_document_registration, allocator);
 
     if (capabilities->diagnostic_provider.identifier != NULL) {
-        free(capabilities->diagnostic_provider.identifier);
+        allocator->free(capabilities->diagnostic_provider.identifier);
     }
 
-    static_registration_options_free(&capabilities->diagnostic_provider.static_registration);
-    text_document_registration_options_free(&capabilities->diagnostic_provider.text_document_registration);
+    static_registration_options_free(&capabilities->diagnostic_provider.static_registration, allocator);
+    text_document_registration_options_free(&capabilities->diagnostic_provider.text_document_registration, allocator);
 
-    file_operation_registration_options_free(&capabilities->workspace.file_operations.did_create);
-    file_operation_registration_options_free(&capabilities->workspace.file_operations.will_create);
-    file_operation_registration_options_free(&capabilities->workspace.file_operations.did_rename);
-    file_operation_registration_options_free(&capabilities->workspace.file_operations.will_rename);
-    file_operation_registration_options_free(&capabilities->workspace.file_operations.did_delete);
-    file_operation_registration_options_free(&capabilities->workspace.file_operations.will_delete);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.did_create, allocator);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.will_create, allocator);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.did_rename, allocator);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.will_rename, allocator);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.did_delete, allocator);
+    file_operation_registration_options_free(&capabilities->workspace.file_operations.will_delete, allocator);
 }
 
 //
@@ -6514,11 +6516,11 @@ static LSTalk_Position position_parse(JSONValue* value) {
     return result;
 }
 
-static JSONValue position_json(LSTalk_Position position) {
-    JSONValue result = json_make_object();
+static JSONValue position_json(LSTalk_Position position, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
 
-    json_object_const_key_set(&result, "line", json_make_int(position.line));
-    json_object_const_key_set(&result, "character", json_make_int(position.character));
+    json_object_const_key_set(&result, "line", json_make_int(position.line), allocator);
+    json_object_const_key_set(&result, "character", json_make_int(position.character), allocator);
 
     return result;
 }
@@ -6544,11 +6546,11 @@ static LSTalk_Range range_parse(JSONValue* value) {
     return result;
 }
 
-static JSONValue range_json(LSTalk_Range range) {
-    JSONValue result = json_make_object();
+static JSONValue range_json(LSTalk_Range range, LSTalk_MemoryAllocator* allocator) {
+    JSONValue result = json_make_object(allocator);
 
-    json_object_const_key_set(&result, "start", position_json(range.start));
-    json_object_const_key_set(&result, "end", position_json(range.end));
+    json_object_const_key_set(&result, "start", position_json(range.start, allocator), allocator);
+    json_object_const_key_set(&result, "end", position_json(range.end, allocator), allocator);
 
     return result;
 }
@@ -6574,18 +6576,18 @@ static LSTalk_Location location_parse(JSONValue* value) {
     return result;
 }
 
-MAYBE_UNUSED static JSONValue location_json(LSTalk_Location* location) {
+MAYBE_UNUSED static JSONValue location_json(LSTalk_Location* location, LSTalk_MemoryAllocator* allocator) {
     if (location == NULL) {
         return json_make_null();
     }
 
-    JSONValue result = json_make_object();
+    JSONValue result = json_make_object(allocator);
 
     if (location->uri != NULL) {
-        json_object_const_key_set(&result, "uri", json_make_string(location->uri));
+        json_object_const_key_set(&result, "uri", json_make_string(location->uri, allocator), allocator);
     }
 
-    json_object_const_key_set(&result, "range", range_json(location->range));
+    json_object_const_key_set(&result, "range", range_json(location->range, allocator), allocator);
 
     return result;
 }
@@ -6594,7 +6596,7 @@ MAYBE_UNUSED static JSONValue location_json(LSTalk_Location* location) {
 // LSTalk_PublishDiagnostics
 //
 
-static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
+static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     LSTalk_PublishDiagnostics result;
     memset(&result, 0, sizeof(LSTalk_PublishDiagnostics));
 
@@ -6614,7 +6616,7 @@ static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
     if (diagnostics != NULL && diagnostics->type == JSON_VALUE_ARRAY) {
         result.diagnostics_count = (int)json_array_length(diagnostics);
         if (result.diagnostics_count > 0) {
-            result.diagnostics = (LSTalk_Diagnostic*)calloc(result.diagnostics_count, sizeof(LSTalk_Diagnostic));
+            result.diagnostics = (LSTalk_Diagnostic*)allocator->calloc(result.diagnostics_count, sizeof(LSTalk_Diagnostic));
             for (size_t i = 0; i < (size_t)result.diagnostics_count; i++) {
                 JSONValue* item = json_array_get_ptr(diagnostics, i);
                 LSTalk_Diagnostic* diagnostic = &result.diagnostics[i];
@@ -6636,7 +6638,7 @@ static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
                     } else if (code->type == JSON_VALUE_INT) {
                         char buffer[40] = "";
                         sprintf_s(buffer, sizeof(buffer), "%d", code->value.int_value);
-                        diagnostic->code = string_alloc_copy(buffer);
+                        diagnostic->code = string_alloc_copy(buffer, allocator);
                     }
                 }
 
@@ -6668,7 +6670,7 @@ static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
                     diagnostic->related_information_count = (int)json_array_length(related_information);
                     if (diagnostic->related_information_count > 0) {
                         size_t size = sizeof(LSTalk_DiagnosticRelatedInformation) * diagnostic->related_information_count;
-                        diagnostic->related_information = (LSTalk_DiagnosticRelatedInformation*)malloc(size);
+                        diagnostic->related_information = (LSTalk_DiagnosticRelatedInformation*)allocator->malloc(size);
                         for (size_t j = 0; j < (size_t)diagnostic->related_information_count; j++) {
                             JSONValue* related_information_item = json_array_get_ptr(related_information, j);
                             LSTalk_DiagnosticRelatedInformation* diagnostic_related_information = &diagnostic->related_information[i];
@@ -6692,53 +6694,53 @@ static LSTalk_PublishDiagnostics publish_diagnostics_parse(JSONValue* value) {
     return result;
 }
 
-static void publish_diagnostics_free(LSTalk_PublishDiagnostics* publish_diagnostics) {
+static void publish_diagnostics_free(LSTalk_PublishDiagnostics* publish_diagnostics, LSTalk_MemoryAllocator* allocator) {
     if (publish_diagnostics == NULL) {
         return;
     }
 
     if (publish_diagnostics->uri != NULL) {
-        free(publish_diagnostics->uri);
+        allocator->free(publish_diagnostics->uri);
     }
 
     for (int i = 0; i < publish_diagnostics->diagnostics_count; i++) {
         LSTalk_Diagnostic* diagnostics = &publish_diagnostics->diagnostics[i];
 
         if (diagnostics->code != NULL) {
-            free(diagnostics->code);
+            allocator->free(diagnostics->code);
         }
 
         if (diagnostics->code_description.href != NULL) {
-            free(diagnostics->code_description.href);
+            allocator->free(diagnostics->code_description.href);
         }
 
         if (diagnostics->source != NULL) {
-            free(diagnostics->source);
+            allocator->free(diagnostics->source);
         }
 
         if (diagnostics->message != NULL) {
-            free(diagnostics->message);
+            allocator->free(diagnostics->message);
         }
 
         for (size_t j = 0; j < (size_t)diagnostics->related_information_count; j++) {
             LSTalk_DiagnosticRelatedInformation* related_information = &diagnostics->related_information[j];
 
             if (related_information->location.uri != NULL) {
-                free(related_information->location.uri);
+                allocator->free(related_information->location.uri);
             }
 
             if (related_information->message != NULL) {
-                free(related_information->message);
+                allocator->free(related_information->message);
             }
         }
 
         if (diagnostics->related_information != NULL) {
-            free(diagnostics->related_information);
+            allocator->free(diagnostics->related_information);
         }
     }
 
     if (publish_diagnostics->diagnostics != NULL) {
-        free(publish_diagnostics->diagnostics);
+        allocator->free(publish_diagnostics->diagnostics);
     }
 }
 
@@ -6746,7 +6748,7 @@ static void publish_diagnostics_free(LSTalk_PublishDiagnostics* publish_diagnost
 // LSTalk_DocumentSymbol
 //
 
-static LSTalk_DocumentSymbol document_symbol_parse(JSONValue* value) {
+static LSTalk_DocumentSymbol document_symbol_parse(JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     LSTalk_DocumentSymbol result;
     memset(&result, 0, sizeof(result));
 
@@ -6781,10 +6783,10 @@ static LSTalk_DocumentSymbol document_symbol_parse(JSONValue* value) {
     if (children != NULL && children->type == JSON_VALUE_ARRAY) {
         result.children_count = (int)json_array_length(children);
         if (result.children_count > 0) {
-            result.children = (LSTalk_DocumentSymbol*)calloc(json_array_length(children), sizeof(LSTalk_DocumentSymbol));
+            result.children = (LSTalk_DocumentSymbol*)allocator->calloc(json_array_length(children), sizeof(LSTalk_DocumentSymbol));
             for (size_t i = 0; i < json_array_length(children); i++) {
                 JSONValue* item = json_array_get_ptr(children, i);
-                result.children[i] = document_symbol_parse(item);
+                result.children[i] = document_symbol_parse(item, allocator);
             }
         }
     }
@@ -6792,55 +6794,55 @@ static LSTalk_DocumentSymbol document_symbol_parse(JSONValue* value) {
     return result;
 }
 
-static JSONValue document_symbol_json(LSTalk_DocumentSymbol* document_symbol) {
+static JSONValue document_symbol_json(LSTalk_DocumentSymbol* document_symbol, LSTalk_MemoryAllocator* allocator) {
     if (document_symbol == NULL) {
         return json_make_null();
     }
 
-    JSONValue result = json_make_object();
+    JSONValue result = json_make_object(allocator);
 
     if (document_symbol->name != NULL) {
-        json_object_const_key_set(&result, "name", json_make_string(document_symbol->name));
+        json_object_const_key_set(&result, "name", json_make_string(document_symbol->name, allocator), allocator);
     }
 
     if (document_symbol->detail != NULL) {
-        json_object_const_key_set(&result, "detail", json_make_string(document_symbol->detail));
+        json_object_const_key_set(&result, "detail", json_make_string(document_symbol->detail, allocator), allocator);
     }
 
-    json_object_const_key_set(&result, "kind", json_make_int((int)document_symbol->kind));
-    json_object_const_key_set(&result, "range", range_json(document_symbol->range));
-    json_object_const_key_set(&result, "selectionRange", range_json(document_symbol->selection_range));
+    json_object_const_key_set(&result, "kind", json_make_int((int)document_symbol->kind), allocator);
+    json_object_const_key_set(&result, "range", range_json(document_symbol->range, allocator), allocator);
+    json_object_const_key_set(&result, "selectionRange", range_json(document_symbol->selection_range, allocator), allocator);
 
     if (document_symbol->children_count > 0) {
-        JSONValue children = json_make_array();
+        JSONValue children = json_make_array(allocator);
         for (int i = 0; i < document_symbol->children_count; i++) {
             LSTalk_DocumentSymbol* child = &document_symbol->children[i];
-            json_array_push(&children, document_symbol_json(child));
+            json_array_push(&children, document_symbol_json(child, allocator), allocator);
         }
     }
 
     return result;
 }
 
-static void document_symbol_free(LSTalk_DocumentSymbol* document_symbol) {
+static void document_symbol_free(LSTalk_DocumentSymbol* document_symbol, LSTalk_MemoryAllocator* allocator) {
     if (document_symbol == NULL) {
         return;
     }
 
     if (document_symbol->name != NULL) {
-        free(document_symbol->name);
+        allocator->free(document_symbol->name);
     }
 
     if (document_symbol->detail != NULL) {
-        free(document_symbol->detail);
+        allocator->free(document_symbol->detail);
     }
 
     if (document_symbol->children != NULL) {
         for (int i = 0; i < document_symbol->children_count; i++) {
-            document_symbol_free(&document_symbol->children[i]);
+            document_symbol_free(&document_symbol->children[i], allocator);
         }
 
-        free(document_symbol->children);
+        allocator->free(document_symbol->children);
     }
 }
 
@@ -6848,7 +6850,7 @@ static void document_symbol_free(LSTalk_DocumentSymbol* document_symbol) {
 // LSTalk_DocumentSymbolNotification
 //
 
-static LSTalk_DocumentSymbolNotification document_symbol_notification_parse(JSONValue* value) {
+static LSTalk_DocumentSymbolNotification document_symbol_notification_parse(JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     LSTalk_DocumentSymbolNotification result;
     memset(&result, 0, sizeof(result));
 
@@ -6858,45 +6860,45 @@ static LSTalk_DocumentSymbolNotification document_symbol_notification_parse(JSON
 
     result.symbols_count = (int)json_array_length(value);
     if (result.symbols_count > 0) {
-        result.symbols = (LSTalk_DocumentSymbol*)calloc(json_array_length(value), sizeof(LSTalk_DocumentSymbol));
+        result.symbols = (LSTalk_DocumentSymbol*)allocator->calloc(json_array_length(value), sizeof(LSTalk_DocumentSymbol));
         for (size_t i = 0; i < json_array_length(value); i++) {
             JSONValue* item = json_array_get_ptr(value, i);
-            result.symbols[i] = document_symbol_parse(item);
+            result.symbols[i] = document_symbol_parse(item, allocator);
         }
     }
 
     return result;
 }
 
-MAYBE_UNUSED static JSONValue document_symbol_notification_json(LSTalk_DocumentSymbolNotification* notification) {
+MAYBE_UNUSED static JSONValue document_symbol_notification_json(LSTalk_DocumentSymbolNotification* notification, LSTalk_MemoryAllocator* allocator) {
     if (notification == NULL) {
         return json_make_null();
     }
 
-    JSONValue result = json_make_array();
+    JSONValue result = json_make_array(allocator);
     for (int i = 0; i < notification->symbols_count; i++) {
         LSTalk_DocumentSymbol* document_symbol = &notification->symbols[i];
-        json_array_push(&result, document_symbol_json(document_symbol));
+        json_array_push(&result, document_symbol_json(document_symbol, allocator), allocator);
     }
 
     return result;
 }
 
-static void document_symbol_notification_free(LSTalk_DocumentSymbolNotification* notification) {
+static void document_symbol_notification_free(LSTalk_DocumentSymbolNotification* notification, LSTalk_MemoryAllocator* allocator) {
     if (notification == NULL) {
         return;
     }
 
     if (notification->uri != NULL) {
-        free(notification->uri);
+        allocator->free(notification->uri);
     }
 
     if (notification->symbols != NULL) {
         for (size_t i = 0; i < (size_t)notification->symbols_count; i++) {
-            document_symbol_free(&notification->symbols[i]);
+            document_symbol_free(&notification->symbols[i], allocator);
         }
 
-        free(notification->symbols);
+        allocator->free(notification->symbols);
     }
 }
 
@@ -6904,7 +6906,7 @@ static void document_symbol_notification_free(LSTalk_DocumentSymbolNotification*
 // Semantic Tokens
 //
 
-static LSTalk_SemanticTokens semantic_tokens_parse(JSONValue* value, SemanticTokensLegend* legend) {
+static LSTalk_SemanticTokens semantic_tokens_parse(JSONValue* value, SemanticTokensLegend* legend, LSTalk_MemoryAllocator* allocator) {
     LSTalk_SemanticTokens result;
     memset(&result, 0, sizeof(result));
 
@@ -6921,7 +6923,7 @@ static LSTalk_SemanticTokens semantic_tokens_parse(JSONValue* value, SemanticTok
     size_t count = json_array_length(data);
     if (count > 0) {
         result.tokens_count = (int)(count / 5);
-        result.tokens = malloc((size_t)result.tokens_count * sizeof(LSTalk_SemanticToken));
+        result.tokens = allocator->malloc((size_t)result.tokens_count * sizeof(LSTalk_SemanticToken));
         int previous_line = 0;
         int previous_character = 0;
         int index = 0;
@@ -6945,34 +6947,34 @@ static LSTalk_SemanticTokens semantic_tokens_parse(JSONValue* value, SemanticTok
             previous_line += line;
             previous_character += character;
 
-            Vector modifiers = vector_create(sizeof(int));
+            Vector modifiers = vector_create(sizeof(int), allocator);
             for (int pos = 0; pos < 32; pos++) {
                 if ((token_modifiers & (1 << pos)) != 0) {
-                    vector_push(&modifiers, &pos);
+                    vector_push(&modifiers, &pos, allocator);
                 }
             }
 
             token->token_modifiers_count = (int)modifiers.length;
-            token->token_modifiers = (char**)malloc(sizeof(char*) * modifiers.length);
+            token->token_modifiers = (char**)allocator->malloc(sizeof(char*) * modifiers.length);
             for (size_t j = 0; j < modifiers.length; j++) {
                 int pos = *(int*)vector_get(&modifiers, j);
                 token->token_modifiers[j] = legend->token_modifiers[pos];
             }
-            vector_destroy(&modifiers);
+            vector_destroy(&modifiers, allocator);
         }
     }
 
     return result;
 }
 
-static void semantic_token_json(LSTalk_SemanticToken* semantic_token, JSONValue* array, SemanticTokensLegend* legend) {
+static void semantic_token_json(LSTalk_SemanticToken* semantic_token, JSONValue* array, SemanticTokensLegend* legend, LSTalk_MemoryAllocator* allocator) {
     if (semantic_token == NULL || array == NULL || array->type != JSON_VALUE_ARRAY || legend == NULL) {
         return;
     }
 
-    json_array_push(array, json_make_int(semantic_token->line));
-    json_array_push(array, json_make_int(semantic_token->character));
-    json_array_push(array, json_make_int(semantic_token->length));
+    json_array_push(array, json_make_int(semantic_token->line), allocator);
+    json_array_push(array, json_make_int(semantic_token->character), allocator);
+    json_array_push(array, json_make_int(semantic_token->length), allocator);
 
     int token_type = 0;
     for (int i = 0; i < legend->token_types_count; i++) {
@@ -6982,7 +6984,7 @@ static void semantic_token_json(LSTalk_SemanticToken* semantic_token, JSONValue*
         }
     }
 
-    json_array_push(array, json_make_int(token_type));
+    json_array_push(array, json_make_int(token_type), allocator);
 
     int token_modifiers = 0;
     for (int i = 0; i < semantic_token->token_modifiers_count; i++) {
@@ -6994,48 +6996,48 @@ static void semantic_token_json(LSTalk_SemanticToken* semantic_token, JSONValue*
         }
     }
 
-    json_array_push(array, json_make_int(token_modifiers));
+    json_array_push(array, json_make_int(token_modifiers), allocator);
 }
 
-MAYBE_UNUSED static JSONValue semantic_tokens_json(LSTalk_SemanticTokens* semantic_tokens, SemanticTokensLegend* legend) {
+MAYBE_UNUSED static JSONValue semantic_tokens_json(LSTalk_SemanticTokens* semantic_tokens, SemanticTokensLegend* legend, LSTalk_MemoryAllocator* allocator) {
     if (semantic_tokens == NULL || legend == NULL) {
         return json_make_null();
     }
 
-    JSONValue result = json_make_object();
+    JSONValue result = json_make_object(allocator);
 
-    json_object_const_key_set(&result, "resultId", json_make_string(semantic_tokens->result_id));
+    json_object_const_key_set(&result, "resultId", json_make_string(semantic_tokens->result_id, allocator), allocator);
 
-    JSONValue tokens = json_make_array();
+    JSONValue tokens = json_make_array(allocator);
     for (int i = 0; i < semantic_tokens->tokens_count; i++) {
-        semantic_token_json(&semantic_tokens->tokens[i], &tokens, legend);
+        semantic_token_json(&semantic_tokens->tokens[i], &tokens, legend, allocator);
     }
 
-    json_object_const_key_set(&result, "data", tokens);
+    json_object_const_key_set(&result, "data", tokens, allocator);
 
     return result;
 }
 
-static void semantic_tokens_free(LSTalk_SemanticTokens* semantic_tokens) {
+static void semantic_tokens_free(LSTalk_SemanticTokens* semantic_tokens, LSTalk_MemoryAllocator* allocator) {
     if (semantic_tokens == NULL) {
         return;
     }
 
     if (semantic_tokens->result_id != NULL) {
-        free(semantic_tokens->result_id);
+        allocator->free(semantic_tokens->result_id);
     }
 
     if (semantic_tokens->tokens != NULL) {
         for (int i = 0; i < semantic_tokens->tokens_count; i++) {
             if (semantic_tokens->tokens[i].token_modifiers != NULL) {
-                free(semantic_tokens->tokens[i].token_modifiers);
+                allocator->free(semantic_tokens->tokens[i].token_modifiers);
             }
         }
-        free(semantic_tokens->tokens);
+        allocator->free(semantic_tokens->tokens);
     }
 }
 
-static LSTalk_Hover hover_parse(JSONValue* value) {
+static LSTalk_Hover hover_parse(JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     LSTalk_Hover result;
     memset(&result, 0, sizeof(result));
 
@@ -7052,7 +7054,7 @@ static LSTalk_Hover hover_parse(JSONValue* value) {
             if (kind.type == JSON_VALUE_STRING) {
                 JSONValue* text = json_object_get_ptr(contents, "value");
                 if (text != NULL && text->type == JSON_VALUE_STRING) {
-                    result.contents = json_unescape_string(text->value.string_value);
+                    result.contents = json_unescape_string(text->value.string_value, allocator);
                 }
             }
 
@@ -7074,37 +7076,37 @@ static LSTalk_Hover hover_parse(JSONValue* value) {
     return result;
 }
 
-static JSONValue hover_json(LSTalk_Hover* hover) {
+static JSONValue hover_json(LSTalk_Hover* hover, LSTalk_MemoryAllocator* allocator) {
     if (hover == NULL) {
         return json_make_null();
     }
 
-    JSONValue result = json_make_object();
+    JSONValue result = json_make_object(allocator);
 
     if (hover->uri != NULL) {
-        json_object_const_key_set(&result, "uri", json_make_string(hover->uri));
+        json_object_const_key_set(&result, "uri", json_make_string(hover->uri, allocator), allocator);
     }
 
     if (hover->contents != NULL) {
-        json_object_const_key_set(&result, "contents", json_make_string(hover->contents));
+        json_object_const_key_set(&result, "contents", json_make_string(hover->contents, allocator), allocator);
     }
 
-    json_object_const_key_set(&result, "range", range_json(hover->range));
+    json_object_const_key_set(&result, "range", range_json(hover->range, allocator), allocator);
 
     return result;
 }
 
-static void hover_free(LSTalk_Hover* hover) {
+static void hover_free(LSTalk_Hover* hover, LSTalk_MemoryAllocator* allocator) {
     if (hover == NULL) {
         return;
     }
 
     if (hover->uri != NULL) {
-        free(hover->uri);
+        allocator->free(hover->uri);
     }
 
     if (hover->contents != NULL) {
-        free(hover->contents);
+        allocator->free(hover->contents);
     }
 }
 
@@ -7129,17 +7131,17 @@ static LSTalk_Log log_parse(JSONValue* value) {
     return result;
 }
 
-static void log_free(LSTalk_Log* log) {
+static void log_free(LSTalk_Log* log, LSTalk_MemoryAllocator* allocator) {
     if (log == NULL) {
         return;
     }
 
     if (log->message != NULL) {
-        free(log->message);
+        allocator->free(log->message);
     }
 
     if (log->verbose != NULL) {
-        free(log->verbose);
+        allocator->free(log->verbose);
     }
 }
 
@@ -7150,34 +7152,34 @@ static LSTalk_Notification notification_make(LSTalk_NotificationType type) {
     return result;
 }
 
-static void notification_free(LSTalk_Notification* notification) {
+static void notification_free(LSTalk_Notification* notification, LSTalk_MemoryAllocator* allocator) {
     if (notification == NULL) {
         return;
     }
 
     switch (notification->type) {
         case LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS: {
-            document_symbol_notification_free(&notification->data.document_symbols);
+            document_symbol_notification_free(&notification->data.document_symbols, allocator);
             break;
         }
 
         case LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS: {
-            publish_diagnostics_free(&notification->data.publish_diagnostics);
+            publish_diagnostics_free(&notification->data.publish_diagnostics, allocator);
             break;
         }
 
         case LSTALK_NOTIFICATION_SEMANTIC_TOKENS: {
-            semantic_tokens_free(&notification->data.semantic_tokens);
+            semantic_tokens_free(&notification->data.semantic_tokens, allocator);
             break;
         }
 
         case LSTALK_NOTIFICATION_HOVER: {
-            hover_free(&notification->data.hover);
+            hover_free(&notification->data.hover, allocator);
             break;
         }
 
         case LSTALK_NOTIFICATION_LOG: {
-            log_free(&notification->data.log);
+            log_free(&notification->data.log, allocator);
             break;
         }
 
@@ -7217,21 +7219,21 @@ typedef struct TextDocumentItem {
     char* text;
 } TextDocumentItem;
 
-static void text_document_item_free(TextDocumentItem* item) {
+static void text_document_item_free(TextDocumentItem* item, LSTalk_MemoryAllocator* allocator) {
     if (item == NULL) {
         return;
     }
 
     if (item->uri != NULL) {
-        free(item->uri);
+        allocator->free(item->uri);
     }
 
     if (item->language_id != NULL) {
-        free(item->language_id);
+        allocator->free(item->language_id);
     }
 
     if (item->text != NULL) {
-        free(item->text);
+        allocator->free(item->text);
     }
 }
 
@@ -7247,13 +7249,13 @@ static Message message_create() {
     return message;
 }
 
-static void message_free(Message* message) {
+static void message_free(Message* message, LSTalk_MemoryAllocator* allocator) {
     if (message == NULL) {
         return;
     }
 
     if (message->buffer != NULL) {
-        free(message->buffer);
+        allocator->free(message->buffer);
     }
 
     memset(message, 0, sizeof(Message));
@@ -7267,7 +7269,7 @@ static int message_has_pending(Message* message) {
     return message->buffer != NULL && message->expected_length > 0;
 }
 
-static JSONValue message_to_json(Message* message, char** request) {
+static JSONValue message_to_json(Message* message, char** request, LSTalk_MemoryAllocator* allocator) {
     JSONValue result = json_make_null();
 
     if (message == NULL || request == NULL) {
@@ -7283,7 +7285,7 @@ static JSONValue message_to_json(Message* message, char** request) {
             // Still not enough data. Store the rest of this response into the current
             // pending buffer and continue waiting.
             size_t size = message->length + length;
-            message->buffer = (char*)realloc(message->buffer, size + 1);
+            message->buffer = (char*)allocator->realloc(message->buffer, size + 1);
             strncpy_s(message->buffer + message->length, size + 1, anchor, length);
             message->buffer[size] = 0;
             message->length = size;
@@ -7292,14 +7294,14 @@ static JSONValue message_to_json(Message* message, char** request) {
             // The data has arrived. Parse the contents into a JSON object.
             size_t remaining = message->expected_length - message->length;
             size_t size = message->expected_length + 1;
-            char* content = (char*)malloc(sizeof(char) * size);
+            char* content = (char*)allocator->malloc(sizeof(char) * size);
             strncpy_s(content, size, message->buffer, message->length);
             strncpy_s(content + message->length, size - message->length, anchor, remaining);
             content[message->expected_length] = 0;
-            result = json_decode(content);
+            result = json_decode(content, allocator);
             *request += remaining + 1;
-            free(content);
-            message_free(message);
+            allocator->free(content);
+            message_free(message, allocator);
         }
     } else {
         size_t content_length = 0;
@@ -7329,18 +7331,18 @@ static JSONValue message_to_json(Message* message, char** request) {
                 // The full content string is not part of this read. Store for the
                 // next read.
                 message->expected_length = content_length;
-                message->buffer = string_alloc_copy(content_start);
+                message->buffer = string_alloc_copy(content_start, allocator);
                 message->length = strlen(content_start);
                 *request = NULL;
             } else {
                 // The full content is available. Decode the response into a JSON object.
-                char* content = (char*)malloc(sizeof(char) * content_length + 1);
+                char* content = (char*)allocator->malloc(sizeof(char) * content_length + 1);
                 strncpy_s(content, content_length + 1, content_start, content_length);
                 content[content_length] = 0;
-                result = json_decode(content);
-                free(content);
+                result = json_decode(content, allocator);
+                allocator->free(content);
                 *request = content_start + content_length;
-                message_free(message);
+                message_free(message, allocator);
             }
         } else {
             // The length may have been parsed, but the content hasn't been parsed.
@@ -7390,7 +7392,7 @@ static LSTalk_ServerInfo server_info_parse(JSONValue* value) {
     return info;
 }
 
-static void server_initialized_parse(Server* server, JSONValue* value) {
+static void server_initialized_parse(Server* server, JSONValue* value, LSTalk_MemoryAllocator* allocator) {
     if (server == NULL || value == NULL || value->type != JSON_VALUE_OBJECT) {
         return;
     }
@@ -7398,53 +7400,53 @@ static void server_initialized_parse(Server* server, JSONValue* value) {
     JSONValue* result = json_object_get_ptr(value, "result");
     if (result != NULL && result->type == JSON_VALUE_OBJECT) {
         JSONValue* capabilities = json_object_get_ptr(result, "capabilities");
-        server->capabilities = server_capabilities_parse(capabilities);
+        server->capabilities = server_capabilities_parse(capabilities, allocator);
 
         JSONValue* server_info = json_object_get_ptr(result, "serverInfo");
         server->info = server_info_parse(server_info);
     }
 }
 
-static void server_send_request(Server* server, Request* request, int debug_flags) {
-    rpc_send_request(server->process, request, debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS);
+static void server_send_request(Server* server, Request* request, int debug_flags, LSTalk_MemoryAllocator* allocator) {
+    rpc_send_request(server->process, request, debug_flags & LSTALK_DEBUGFLAGS_PRINT_REQUESTS, allocator);
 }
 
-static void server_close(Server* server) {
+static void server_close(Server* server, LSTalk_MemoryAllocator* allocator) {
     if (server == NULL) {
         return;
     }
 
-    process_close(server->process);
+    process_close(server->process, allocator);
 
     for (size_t i = 0; i < server->requests.length; i++) {
         Request* request = (Request*)vector_get(&server->requests, i);
-        rpc_close_request(request);
+        rpc_close_request(request, allocator);
     }
-    vector_destroy(&server->requests);
+    vector_destroy(&server->requests, allocator);
 
     if (server->info.name != NULL) {
-        free(server->info.name);
+        allocator->free(server->info.name);
     }
 
     if (server->info.version != NULL) {
-        free(server->info.version);
+        allocator->free(server->info.version);
     }
 
-    server_capabilities_free(&server->capabilities);
+    server_capabilities_free(&server->capabilities, allocator);
 
     for (size_t i = 0; i < server->text_documents.length; i++) {
         TextDocumentItem* item = (TextDocumentItem*)vector_get(&server->text_documents, i);
-        text_document_item_free(item);
+        text_document_item_free(item, allocator);
     }
-    vector_destroy(&server->text_documents);
+    vector_destroy(&server->text_documents, allocator);
 
     for (size_t i = 0; i < server->notifications.length; i++) {
         LSTalk_Notification* notification = (LSTalk_Notification*)vector_get(&server->notifications, i);
-        notification_free(notification);
+        notification_free(notification, allocator);
     }
-    vector_destroy(&server->notifications);
+    vector_destroy(&server->notifications, allocator);
 
-    message_free(&server->pending_message);
+    message_free(&server->pending_message, allocator);
 }
 
 static int server_has_text_document(Server* server, const char* uri) {
@@ -7467,28 +7469,28 @@ typedef struct ClientInfo {
     char* version;
 } ClientInfo;
 
-static void client_info_clear(ClientInfo* info) {
+static void client_info_clear(ClientInfo* info, LSTalk_MemoryAllocator* allocator) {
     if (info == NULL) {
         return;
     }
 
     if (info->name != NULL) {
-        free(info->name);
+        allocator->free(info->name);
     }
 
     if (info->version != NULL) {
-        free(info->version);
+        allocator->free(info->version);
     }
 }
 
-static JSONValue client_info(ClientInfo* info) {
+static JSONValue client_info(ClientInfo* info, LSTalk_MemoryAllocator* allocator) {
     if (info == NULL) {
         return json_make_null();
     }
 
-    JSONValue result = json_make_object();
-    json_object_const_key_set(&result, "name", json_make_string_const(info->name));
-    json_object_const_key_set(&result, "version", json_make_string_const(info->version));
+    JSONValue result = json_make_object(allocator);
+    json_object_const_key_set(&result, "name", json_make_string_const(info->name), allocator);
+    json_object_const_key_set(&result, "version", json_make_string_const(info->version), allocator);
     return result;
 }
 
@@ -7507,15 +7509,15 @@ typedef struct LSTalk_Context {
 } LSTalk_Context;
 
 static void server_make_and_send_notification(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
-    Request request = rpc_make_notification_request(method, params);
-    server_send_request(server, &request, context->debug_flags);
-    rpc_close_request(&request);
+    Request request = rpc_make_notification_request(method, params, &context->allocator);
+    server_send_request(server, &request, context->debug_flags, &context->allocator);
+    rpc_close_request(&request, &context->allocator);
 }
 
 static void server_make_and_send_request(LSTalk_Context* context, Server* server, char* method, JSONValue params) {
-    Request request = rpc_make_request(&server->request_id, method, params);
-    server_send_request(server, &request, context->debug_flags);
-    vector_push(&server->requests, &request);
+    Request request = rpc_make_request(&server->request_id, method, params, &context->allocator);
+    server_send_request(server, &request, context->debug_flags, &context->allocator);
+    vector_push(&server->requests, &request, &context->allocator);
 }
 
 static Server* context_get_server(LSTalk_Context* context, LSTalk_ServerID id) {
@@ -7550,13 +7552,13 @@ LSTalk_Context* lstalk_init_with_allocator(LSTalk_MemoryAllocator allocator) {
     allocator.realloc = allocator.realloc != NULL ? allocator.realloc : realloc;
     allocator.free = allocator.free != NULL ? allocator.free : free;
     LSTalk_Context* result = (LSTalk_Context*)allocator.malloc(sizeof(LSTalk_Context));
-    result->servers = vector_create(sizeof(Server));
+    result->servers = vector_create(sizeof(Server), &allocator);
     result->server_id = 1;
     char buffer[40];
     sprintf_s(buffer, sizeof(buffer), "%d.%d.%d", LSTALK_MAJOR, LSTALK_MINOR, LSTALK_REVISION);
-    result->client_info.name = string_alloc_copy("lstalk");
-    result->client_info.version = string_alloc_copy(buffer);
-    result->locale = string_alloc_copy("en");
+    result->client_info.name = string_alloc_copy("lstalk", &allocator);
+    result->client_info.version = string_alloc_copy(buffer, &allocator);
+    result->locale = string_alloc_copy("en", &allocator);
     memset(&result->client_capabilities, 0, sizeof(result->client_capabilities));
     result->debug_flags = LSTALK_DEBUGFLAGS_NONE;
     result->allocator = allocator;
@@ -7571,15 +7573,15 @@ void lstalk_shutdown(LSTalk_Context* context) {
     // Close all connected servers.
     for (size_t i = 0; i < context->servers.length; i++) {
         Server* server = (Server*)vector_get(&context->servers, i);
-        server_close(server);
+        server_close(server, &context->allocator);
     }
-    vector_destroy(&context->servers);
+    vector_destroy(&context->servers, &context->allocator);
 
-    client_info_clear(&context->client_info);
+    client_info_clear(&context->client_info, &context->allocator);
     if (context->locale != NULL) {
-        free(context->locale);
+        context->allocator.free(context->locale);
     }
-    free(context);
+    context->allocator.free(context);
 }
 
 void lstalk_version(int* major, int* minor, int* revision) {
@@ -7601,14 +7603,14 @@ void lstalk_set_client_info(LSTalk_Context* context, const char* name, const cha
         return;
     }
 
-    client_info_clear(&context->client_info);
+    client_info_clear(&context->client_info, &context->allocator);
 
     if (name != NULL) {
-        context->client_info.name = string_alloc_copy(name);
+        context->client_info.name = string_alloc_copy(name, &context->allocator);
     }
 
     if (version != NULL) {
-        context->client_info.version = string_alloc_copy(version);
+        context->client_info.version = string_alloc_copy(version, &context->allocator);
     }
 }
 
@@ -7618,10 +7620,10 @@ void lstalk_set_locale(LSTalk_Context* context, const char* locale) {
     }
 
     if (context->locale != NULL) {
-        free(context->locale);
+        context->allocator.free(context->locale);
     }
 
-    context->locale = string_alloc_copy(locale);
+    context->locale = string_alloc_copy(locale, &context->allocator);
 }
 
 void lstalk_set_debug_flags(LSTalk_Context* context, int flags) {
@@ -7639,30 +7641,30 @@ LSTalk_ServerID lstalk_connect(LSTalk_Context* context, const char* uri, LSTalk_
 
     Server server;
     memset(&server, 0, sizeof(server));
-    server.process = process_create(uri, connect_params->seek_path_env);
+    server.process = process_create(uri, connect_params->seek_path_env, &context->allocator);
     if (server.process == NULL) {
         return LSTALK_INVALID_SERVER_ID;
     }
 
     server.id = context->server_id++;
     server.request_id = 1;
-    server.requests = vector_create(sizeof(Request));
+    server.requests = vector_create(sizeof(Request), &context->allocator);
     memset(&server.info, 0, sizeof(server.info));
-    server.text_documents = vector_create(sizeof(TextDocumentItem));
-    server.notifications = vector_create(sizeof(LSTalk_Notification));
+    server.text_documents = vector_create(sizeof(TextDocumentItem), &context->allocator);
+    server.notifications = vector_create(sizeof(LSTalk_Notification), &context->allocator);
     server.pending_message = message_create();
 
-    JSONValue params = json_make_object();
-    json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()));
-    json_object_const_key_set(&params, "clientInfo", client_info(&context->client_info));
-    json_object_const_key_set(&params, "locale", json_make_string_const(context->locale));
-    json_object_const_key_set(&params, "rootUri", json_make_string(connect_params->root_uri));
-    json_object_const_key_set(&params, "clientCapabilities", client_capabilities_make(&context->client_capabilities));
-    json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params->trace)));
+    JSONValue params = json_make_object(&context->allocator);
+    json_object_const_key_set(&params, "processId", json_make_int(process_get_current_id()), &context->allocator);
+    json_object_const_key_set(&params, "clientInfo", client_info(&context->client_info, &context->allocator), &context->allocator);
+    json_object_const_key_set(&params, "locale", json_make_string_const(context->locale), &context->allocator);
+    json_object_const_key_set(&params, "rootUri", json_make_string(connect_params->root_uri, &context->allocator), &context->allocator);
+    json_object_const_key_set(&params, "clientCapabilities", client_capabilities_make(&context->client_capabilities, &context->allocator), &context->allocator);
+    json_object_const_key_set(&params, "trace", json_make_string_const(trace_to_string(connect_params->trace)), &context->allocator);
 
     server_make_and_send_request(context, &server, "initialize", params);
     server.connection_status = LSTALK_CONNECTION_STATUS_CONNECTING;
-    vector_push(&context->servers, &server);
+    vector_push(&context->servers, &server, &context->allocator);
     return server.id;
 }
 
@@ -7701,7 +7703,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
 
     for (size_t i = 0; i < context->servers.length; i++) {
         Server* server = (Server*)vector_get(&context->servers, i);
-        char* response = process_read(server->process);
+        char* response = process_read(server->process, &context->allocator);
 
         if (response != NULL) {
             if (context->debug_flags & LSTALK_DEBUGFLAGS_PRINT_RESPONSES) {
@@ -7710,7 +7712,7 @@ int lstalk_process_responses(LSTalk_Context* context) {
 
             char* anchor = response;
             while (anchor != NULL) {
-                JSONValue value = message_to_json(&server->pending_message, &anchor);
+                JSONValue value = message_to_json(&server->pending_message, &anchor, &context->allocator);
 
                 if (value.type == JSON_VALUE_OBJECT) {
                     JSONValue id = json_object_get(&value, "id");
@@ -7724,36 +7726,36 @@ int lstalk_process_responses(LSTalk_Context* context) {
                             JSONValue* result = json_object_get_ptr(&value, "result");
                             if (strcmp(method, "initialize") == 0) {
                                 server->connection_status = LSTALK_CONNECTION_STATUS_CONNECTED;
-                                server_initialized_parse(server, &value);
+                                server_initialized_parse(server, &value, &context->allocator);
                                 server_make_and_send_notification(context, server, "initialized", json_make_null());
                             } else if (strcmp(method, "shutdown") == 0) {
                                 server_make_and_send_notification(context, server, "exit", json_make_null());
-                                server_close(server);
+                                server_close(server, &context->allocator);
                                 vector_remove(&context->servers, i);
                                 i--;
                                 remove_request = 0;
                             } else if (strcmp(method, "textDocument/documentSymbol") == 0) {
                                 LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_TEXT_DOCUMENT_SYMBOLS);
-                                notification.data.document_symbols = document_symbol_notification_parse(result);
+                                notification.data.document_symbols = document_symbol_notification_parse(result, &context->allocator);
                                 JSONValue params = json_object_get(&request->payload, "params");
                                 JSONValue text_document = json_object_get(&params, "textDocument");
-                                notification.data.document_symbols.uri = json_unescape_string(json_object_get(&text_document, "uri").value.string_value);
-                                vector_push(&server->notifications, &notification);
+                                notification.data.document_symbols.uri = json_unescape_string(json_object_get(&text_document, "uri").value.string_value, &context->allocator);
+                                vector_push(&server->notifications, &notification, &context->allocator);
                             } else if (strcmp(method, "textDocument/semanticTokens/full") == 0) {
                                 LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_SEMANTIC_TOKENS);
-                                notification.data.semantic_tokens = semantic_tokens_parse(result, &server->capabilities.semantic_tokens_provider.semantic_tokens.legend);
-                                vector_push(&server->notifications, &notification);
+                                notification.data.semantic_tokens = semantic_tokens_parse(result, &server->capabilities.semantic_tokens_provider.semantic_tokens.legend, &context->allocator);
+                                vector_push(&server->notifications, &notification, &context->allocator);
                             } else if (strcmp(method, "textDocument/hover") == 0) {
                                 LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_HOVER);
-                                notification.data.hover = hover_parse(result);
+                                notification.data.hover = hover_parse(result, &context->allocator);
                                 JSONValue params = json_object_get(&request->payload, "params");
                                 JSONValue text_document = json_object_get(&params, "textDocument");
-                                notification.data.hover.uri = json_unescape_string(json_object_get(&text_document, "uri").value.string_value);
-                                vector_push(&server->notifications, &notification);
+                                notification.data.hover.uri = json_unescape_string(json_object_get(&text_document, "uri").value.string_value, &context->allocator);
+                                vector_push(&server->notifications, &notification, &context->allocator);
                             }
 
                             if (remove_request) {
-                                rpc_close_request(request);
+                                rpc_close_request(request, &context->allocator);
                                 vector_remove(&server->requests, request_index);
                                 request_index--;
                             }
@@ -7768,25 +7770,25 @@ int lstalk_process_responses(LSTalk_Context* context) {
                         JSONValue* params = json_object_get_ptr(&value, "params");
                         if (strcmp(method_str, "textDocument/publishDiagnostics") == 0) {
                             LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_PUBLISHDIAGNOSTICS);
-                            notification.data.publish_diagnostics = publish_diagnostics_parse(params);
-                            vector_push(&server->notifications, &notification);
+                            notification.data.publish_diagnostics = publish_diagnostics_parse(params, &context->allocator);
+                            vector_push(&server->notifications, &notification, &context->allocator);
                         } else if (strcmp(method_str, "$/logTrace") == 0) {
                             LSTalk_Notification notification = notification_make(LSTALK_NOTIFICATION_LOG);
                             notification.data.log = log_parse(params);
-                            vector_push(&server->notifications, &notification);
+                            vector_push(&server->notifications, &notification, &context->allocator);
                         }
                     }
 
-                    json_destroy_value(&value);
+                    json_destroy_value(&value, &context->allocator);
                 }
             }
-            free(response);
+            context->allocator.free(response);
         }
 
         for (size_t notify_index = 0; notify_index < server->notifications.length; notify_index++) {
             LSTalk_Notification* notification = (LSTalk_Notification*)vector_get(&server->notifications, notify_index);
             if (notification->polled) {
-                notification_free(notification);
+                notification_free(notification, &context->allocator);
                 vector_remove(&server->notifications, notify_index);
                 notify_index--;
             }
@@ -7826,8 +7828,8 @@ int lstalk_set_trace(LSTalk_Context* context, LSTalk_ServerID id, LSTalk_Trace t
         return 0;
     }
 
-    JSONValue params = json_make_object();
-    json_object_set(&params, json_make_string_const("value"), json_make_string_const(trace_to_string(trace)));
+    JSONValue params = json_make_object(&context->allocator);
+    json_object_const_key_set(&params, "value", json_make_string_const(trace_to_string(trace)), &context->allocator);
     server_make_and_send_notification(context, server, "$/setTrace", params);
     return 1;
 }
@@ -7842,38 +7844,38 @@ int lstalk_text_document_did_open(LSTalk_Context* context, LSTalk_ServerID id, c
         return 0;
     }
 
-    char* uri = file_uri(path);
+    char* uri = file_uri(path, &context->allocator);
     TextDocumentItem item;
-    item.uri = json_escape_string(uri);
+    item.uri = json_escape_string(uri, &context->allocator);
 
     if (server_has_text_document(server, item.uri)) {
-        free(uri);
-        free(item.uri);
+        context->allocator.free(uri);
+        context->allocator.free(item.uri);
         return 1;
     }
 
-    char* contents = file_get_contents(path);
+    char* contents = file_get_contents(path, &context->allocator);
     if (contents == NULL) {
         return 0;
     }
 
-    item.language_id = file_extension(path);
+    item.language_id = file_extension(path, &context->allocator);
     item.version = 1;
-    item.text = json_escape_string(contents);
-    free(uri);
-    free(contents);
+    item.text = json_escape_string(contents, &context->allocator);
+    context->allocator.free(uri);
+    context->allocator.free(contents);
 
-    JSONValue text_document = json_make_object();
-    json_object_const_key_set(&text_document, "uri", json_make_string_const(item.uri));
-    json_object_const_key_set(&text_document, "languageId", json_make_string_const(item.language_id));
-    json_object_const_key_set(&text_document, "version", json_make_int(item.version));
-    json_object_const_key_set(&text_document, "text", json_make_string_const(item.text));
+    JSONValue text_document = json_make_object(&context->allocator);
+    json_object_const_key_set(&text_document, "uri", json_make_string_const(item.uri), &context->allocator);
+    json_object_const_key_set(&text_document, "languageId", json_make_string_const(item.language_id), &context->allocator);
+    json_object_const_key_set(&text_document, "version", json_make_int(item.version), &context->allocator);
+    json_object_const_key_set(&text_document, "text", json_make_string_const(item.text), &context->allocator);
 
-    JSONValue params = json_make_object();
-    json_object_const_key_set(&params, "textDocument", text_document);
+    JSONValue params = json_make_object(&context->allocator);
+    json_object_const_key_set(&params, "textDocument", text_document, &context->allocator);
 
     server_make_and_send_notification(context, server, "textDocument/didOpen", params);
-    vector_push(&server->text_documents, &item);
+    vector_push(&server->text_documents, &item, &context->allocator);
     return 1;
 }
 
@@ -7883,42 +7885,42 @@ int lstalk_text_document_did_close(LSTalk_Context* context, LSTalk_ServerID id, 
         return 0;
     }
 
-    char* uri = file_uri(path);
-    char* escaped_uri = json_escape_string(uri);
+    char* uri = file_uri(path, &context->allocator);
+    char* escaped_uri = json_escape_string(uri, &context->allocator);
 
     for (size_t i = 0; i < server->text_documents.length; i++) {
         TextDocumentItem* item = (TextDocumentItem*)vector_get(&server->text_documents, i);
         if (strcmp(item->uri, escaped_uri) == 0) {
-            text_document_item_free(item);
+            text_document_item_free(item, &context->allocator);
             vector_remove(&server->text_documents, i);
             break;
         }
     }
 
-    JSONValue text_document_identifier = json_make_object();
-    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(escaped_uri));
-    free(uri);
+    JSONValue text_document_identifier = json_make_object(&context->allocator);
+    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(escaped_uri), &context->allocator);
+    context->allocator.free(uri);
 
-    JSONValue params = json_make_object();
-    json_object_const_key_set(&params, "textDocument", text_document_identifier);
+    JSONValue params = json_make_object(&context->allocator);
+    json_object_const_key_set(&params, "textDocument", text_document_identifier, &context->allocator);
 
     server_make_and_send_notification(context, server, "textDocument/didClose", params);
     return 1;
 }
 
-static JSONValue text_document_identifier_json(const char* path) {
+static JSONValue text_document_identifier_json(const char* path, LSTalk_MemoryAllocator* allocator) {
     JSONValue result = json_make_null();
     if (path == NULL) {
         return result;
     }
 
-    char* uri = file_uri(path);
-    JSONValue text_document_identifier = json_make_object();
-    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(json_escape_string(uri)));
-    free(uri);
+    char* uri = file_uri(path, allocator);
+    JSONValue text_document_identifier = json_make_object(allocator);
+    json_object_const_key_set(&text_document_identifier, "uri", json_make_owned_string(json_escape_string(uri, allocator)), allocator);
+    allocator->free(uri);
 
-    result = json_make_object();
-    json_object_const_key_set(&result, "textDocument", text_document_identifier);
+    result = json_make_object(allocator);
+    json_object_const_key_set(&result, "textDocument", text_document_identifier, allocator);
 
     return result;
 }
@@ -7929,7 +7931,7 @@ int lstalk_text_document_symbol(LSTalk_Context* context, LSTalk_ServerID id, con
         return 0;
     }
 
-    server_make_and_send_request(context, server, "textDocument/documentSymbol", text_document_identifier_json(path));
+    server_make_and_send_request(context, server, "textDocument/documentSymbol", text_document_identifier_json(path, &context->allocator));
     return 1;
 }
 
@@ -7939,7 +7941,7 @@ int lstalk_text_document_semantic_tokens(LSTalk_Context* context, LSTalk_ServerI
         return 0;
     }
 
-    server_make_and_send_request(context, server, "textDocument/semanticTokens/full", text_document_identifier_json(path));
+    server_make_and_send_request(context, server, "textDocument/semanticTokens/full", text_document_identifier_json(path, &context->allocator));
     return 1;
 }
 
@@ -7953,8 +7955,8 @@ int lstalk_text_document_hover(LSTalk_Context* context, LSTalk_ServerID id, cons
     position.line = line;
     position.character = character;
 
-    JSONValue params = text_document_identifier_json(path);
-    json_object_const_key_set(&params, "position", position_json(position));
+    JSONValue params = text_document_identifier_json(path, &context->allocator);
+    json_object_const_key_set(&params, "position", position_json(position, &context->allocator), &context->allocator);
 
     server_make_and_send_request(context, server, "textDocument/hover", params);
     return 1;
@@ -8012,7 +8014,7 @@ typedef struct TestResults {
     int fail;
 } TestResults;
 
-static void add_test(Vector* tests, TestCaseFn fn, char* name) {
+static void add_test(Vector* tests, TestCaseFn fn, char* name, LSTalk_MemoryAllocator* allocator) {
     if (tests == NULL) {
         return;
     }
@@ -8020,10 +8022,19 @@ static void add_test(Vector* tests, TestCaseFn fn, char* name) {
     TestCase test_case;
     test_case.fn = fn;
     test_case.name = name;
-    vector_push(tests, &test_case);
+    vector_push(tests, &test_case, allocator);
 }
 
-#define REGISTER_TEST(tests, fn) add_test(tests, fn, #fn)
+static LSTalk_MemoryAllocator tests_default_allocator() {
+    LSTalk_MemoryAllocator allocator;
+    allocator.malloc = malloc;
+    allocator.calloc = calloc;
+    allocator.realloc = realloc;
+    allocator.free = free;
+    return allocator;
+}
+
+#define REGISTER_TEST(tests, fn, allocator) add_test(tests, fn, #fn, allocator)
 #define RED_TEXT(text) printf("\033[0;31m"); printf("%s", text); printf("\033[0m");
 #define GREEN_TEXT(text) printf("\033[0;32m"); printf("%s", text); printf("\033[0m");
 
@@ -8060,89 +8071,97 @@ static int tests_run(Vector* tests) {
 // Vector Tests
 
 static int test_vector_create() {
-    Vector vector = vector_create(sizeof(int));
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector vector = vector_create(sizeof(int), &allocator);
     const size_t capacity = vector.capacity;
     const size_t element_size = vector.element_size;
-    vector_destroy(&vector);
+    vector_destroy(&vector, &allocator);
     return capacity == 1 && element_size == sizeof(int);
 }
 
 static int test_vector_destroy() {
-    Vector vector = vector_create(sizeof(int));
-    vector_destroy(&vector);
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector vector = vector_create(sizeof(int), &allocator);
+    vector_destroy(&vector, &allocator);
     return vector.length == 0 && vector.data == NULL;
 }
 
 static int test_vector_resize() {
-    Vector vector = vector_create(sizeof(int));
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector vector = vector_create(sizeof(int), &allocator);
     int result = vector.length == 0 && vector.capacity == 1;
-    vector_resize(&vector, 5);
+    vector_resize(&vector, 5, &allocator);
     result &= vector.length == 0 && vector.capacity == 5;
-    vector_destroy(&vector);
+    vector_destroy(&vector, &allocator);
     return result;
 }
 
 static int test_vector_push() {
-    Vector vector = vector_create(sizeof(int));
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector vector = vector_create(sizeof(int), &allocator);
     int i = 5;
-    vector_push(&vector, &i);
+    vector_push(&vector, &i, &allocator);
     i = 10;
-    vector_push(&vector, &i);
+    vector_push(&vector, &i, &allocator);
     int result = vector.length == 2;
-    vector_destroy(&vector);
+    vector_destroy(&vector, &allocator);
     return result;
 }
 
 static int test_vector_append() {
-    Vector vector = vector_create(sizeof(char));
-    vector_append(&vector, (void*)"Hello", 5);
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector vector = vector_create(sizeof(char), &allocator);
+    vector_append(&vector, (void*)"Hello", 5, &allocator);
     int result = strncmp(vector.data, "Hello", 5) == 0;
-    vector_append(&vector, (void*)" World", 6);
+    vector_append(&vector, (void*)" World", 6, &allocator);
     result &= strncmp(vector.data, "Hello World", 11) == 0;
-    vector_destroy(&vector);
+    vector_destroy(&vector, &allocator);
     return result;
 }
 
 static int test_vector_remove() {
-    Vector vector = vector_create(sizeof(int));
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector vector = vector_create(sizeof(int), &allocator);
     for (int i = 0; i < 5; i++) {
-        vector_push(&vector, &i);
+        vector_push(&vector, &i, &allocator);
     }
     int result = vector.length == 5;
     result &= *(int*)vector_get(&vector, 2) == 2;
     vector_remove(&vector, 2);
     result &= *(int*)vector_get(&vector, 2) == 3;
     result &= vector.length == 4;
-    vector_destroy(&vector);
+    vector_destroy(&vector, &allocator);
     return result;
 }
 
 static int test_vector_get() {
-    Vector vector = vector_create(sizeof(int));
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector vector = vector_create(sizeof(int), &allocator);
     int i = 5;
-    vector_push(&vector, &i);
+    vector_push(&vector, &i, &allocator);
     i = 10;
-    vector_push(&vector, &i);
+    vector_push(&vector, &i, &allocator);
     int result = *(int*)vector_get(&vector, 0) == 5 && *(int*)vector_get(&vector, 1) == 10;
-    vector_destroy(&vector);
+    vector_destroy(&vector, &allocator);
     return result;
 }
 
 static TestResults tests_vector() {
     TestResults result;
-    Vector tests = vector_create(sizeof(TestCase));
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector tests = vector_create(sizeof(TestCase), &allocator);
 
-    REGISTER_TEST(&tests, test_vector_create);
-    REGISTER_TEST(&tests, test_vector_destroy);
-    REGISTER_TEST(&tests, test_vector_resize);
-    REGISTER_TEST(&tests, test_vector_push);
-    REGISTER_TEST(&tests, test_vector_append);
-    REGISTER_TEST(&tests, test_vector_remove);
-    REGISTER_TEST(&tests, test_vector_get);
+    REGISTER_TEST(&tests, test_vector_create, &allocator);
+    REGISTER_TEST(&tests, test_vector_destroy, &allocator);
+    REGISTER_TEST(&tests, test_vector_resize, &allocator);
+    REGISTER_TEST(&tests, test_vector_push, &allocator);
+    REGISTER_TEST(&tests, test_vector_append, &allocator);
+    REGISTER_TEST(&tests, test_vector_remove, &allocator);
+    REGISTER_TEST(&tests, test_vector_get, &allocator);
 
     result.fail = tests_run(&tests);
     result.pass = (int)tests.length - result.fail;
-    vector_destroy(&tests);
+    vector_destroy(&tests, &allocator);
 
     return result;
 }
@@ -8150,257 +8169,284 @@ static TestResults tests_vector() {
 // JSON Tests
 
 static int test_json_decode_boolean_false() {
-    JSONValue value = json_decode("false");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("false", &allocator);
     return value.type == JSON_VALUE_BOOLEAN && value.value.bool_value == 0;
 }
 
 static int test_json_decode_boolean_true() {
-    JSONValue value = json_decode("true");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("true", &allocator);
     return value.type == JSON_VALUE_BOOLEAN && value.value.bool_value == 1;
 }
 
 static int test_json_decode_int() {
-    JSONValue value = json_decode("42");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("42", &allocator);
     return value.type == JSON_VALUE_INT && value.value.int_value == 42;
 }
 
 static int test_json_decode_float() {
-    JSONValue value = json_decode("3.14");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("3.14", &allocator);
     return value.type == JSON_VALUE_FLOAT && value.value.float_value == 3.14f;
 }
 
 static int test_json_decode_string() {
-    JSONValue value = json_decode("\"Hello World\"");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("\"Hello World\"", &allocator);
     int result = value.type == JSON_VALUE_STRING && strcmp(value.value.string_value, "Hello World") == 0;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_decode_escaped_string() {
-    JSONValue value = json_decode("\"Hello \\\"World\\\"");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("\"Hello \\\"World\\\"", &allocator);
     int result = value.type == JSON_VALUE_STRING && strcmp(value.value.string_value, "Hello \"World\"") == 0;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_decode_single_escaped_string() {
-    JSONValue value = json_decode("[\"'\", \"\\\\\"\", \":\"]");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("[\"'\", \"\\\\\"\", \":\"]", &allocator);
     int result = strcmp(json_array_get(&value, 0).value.string_value, "'") == 0;
     result &= strcmp(json_array_get(&value, 1).value.string_value, "\\\"") == 0;
     result &= strcmp(json_array_get(&value, 2).value.string_value, ":") == 0;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_decode_object() {
-    JSONValue value = json_decode("{\"Int\": 42, \"Float\": 3.14}");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("{\"Int\": 42, \"Float\": 3.14}", &allocator);
     int result = json_object_get(&value, "Int").value.int_value == 42 && json_object_get(&value, "Float").value.float_value == 3.14f;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_decode_sub_object() {
-    JSONValue value = json_decode("{\"object\": {\"Int\": 42, \"Float\": 3.14}}");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("{\"object\": {\"Int\": 42, \"Float\": 3.14}}", &allocator);
     JSONValue object = json_object_get(&value, "object");
     int result = json_object_get(&object, "Int").value.int_value == 42 && json_object_get(&object, "Float").value.float_value == 3.14f;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_decode_empty_object() {
-    JSONValue value = json_decode("{}");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("{}", &allocator);
     int result = value.type == JSON_VALUE_OBJECT && value.value.object_value->pairs.length == 0;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_decode_empty_sub_object() {
-    JSONValue value = json_decode("{\"Int\": 42, \"object\": {}}");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("{\"Int\": 42, \"object\": {}}", &allocator);
     int result = json_object_get(&value, "Int").value.int_value == 42;
     result &= json_object_get(&value, "object").value.object_value->pairs.length == 0;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_decode_array() {
-    JSONValue value = json_decode("[42, 3.14, \"Hello World\"]");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("[42, 3.14, \"Hello World\"]", &allocator);
     int result = json_array_get(&value, 0).value.int_value == 42;
     result &= json_array_get(&value, 1).value.float_value == 3.14f;
     result &= strcmp(json_array_get(&value, 2).value.string_value, "Hello World") == 0;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_decode_array_of_objects() {
-    JSONValue value = json_decode("[{\"Int\": 42}, {\"Float\": 3.14}]");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("[{\"Int\": 42}, {\"Float\": 3.14}]", &allocator);
     JSONValue object = json_array_get(&value, 0);
     int result = json_object_get(&object, "Int").value.int_value == 42;
     object = json_array_get(&value, 1);
     result &= json_object_get(&object, "Float").value.float_value == 3.14f;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_decode_empty_array() {
-    JSONValue value = json_decode("[]");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_decode("[]", &allocator);
     int result = value.type == JSON_VALUE_ARRAY && value.value.array_value->values.length == 0;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_encode_boolean_false() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     JSONValue value = json_make_boolean(0);
-    JSONEncoder encoder = json_encode(&value);
+    JSONEncoder encoder = json_encode(&value, &allocator);
     int result = strcmp(encoder.string.data, "false") == 0;
-    json_destroy_encoder(&encoder);
+    json_destroy_encoder(&encoder, &allocator);
     return result;
 }
 
 static int test_json_encode_boolean_true() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     JSONValue value = json_make_boolean(1);
-    JSONEncoder encoder = json_encode(&value);
+    JSONEncoder encoder = json_encode(&value, &allocator);
     int result = strcmp(encoder.string.data, "true") == 0;
-    json_destroy_encoder(&encoder);
+    json_destroy_encoder(&encoder, &allocator);
     return result;
 }
 
 static int test_json_encode_int() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     JSONValue value = json_make_int(42);
-    JSONEncoder encoder = json_encode(&value);
+    JSONEncoder encoder = json_encode(&value, &allocator);
     int result = strcmp(encoder.string.data, "42") == 0;
-    json_destroy_encoder(&encoder);
+    json_destroy_encoder(&encoder, &allocator);
     return result;
 }
 
 static int test_json_encode_float() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     JSONValue value = json_make_float(3.14f);
-    JSONEncoder encoder = json_encode(&value);
+    JSONEncoder encoder = json_encode(&value, &allocator);
     char buffer[40];
     sprintf_s(buffer, sizeof(buffer), "%f", 3.14f);
     int result = strcmp(encoder.string.data, buffer) == 0;
-    json_destroy_encoder(&encoder);
+    json_destroy_encoder(&encoder, &allocator);
     return result;
 }
 
 static int test_json_encode_string() {
-    JSONValue value = json_make_string("Hello World");
-    JSONEncoder encoder = json_encode(&value);
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_make_string("Hello World", &allocator);
+    JSONEncoder encoder = json_encode(&value, &allocator);
     int result = strcmp(encoder.string.data, "\"Hello World\"") == 0;
-    json_destroy_encoder(&encoder);
-    json_destroy_value(&value);
+    json_destroy_encoder(&encoder, &allocator);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_encode_object() {
-    JSONValue value = json_make_object();
-    json_object_const_key_set(&value, "Int", json_make_int(42));
-    json_object_const_key_set(&value, "String", json_make_string_const("Hello World"));
-    JSONEncoder encoder = json_encode(&value);
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_make_object(&allocator);
+    json_object_const_key_set(&value, "Int", json_make_int(42), &allocator);
+    json_object_const_key_set(&value, "String", json_make_string_const("Hello World"), &allocator);
+    JSONEncoder encoder = json_encode(&value, &allocator);
     int result = strcmp(encoder.string.data, "{\"Int\": 42, \"String\": \"Hello World\"}") == 0;
-    json_destroy_encoder(&encoder);
-    json_destroy_value(&value);
+    json_destroy_encoder(&encoder, &allocator);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_encode_sub_object() {
-    JSONValue object = json_make_object();
-    json_object_const_key_set(&object, "Int", json_make_int(42));
-    json_object_const_key_set(&object, "String", json_make_string_const("Hello World"));
-    JSONValue value = json_make_object();
-    json_object_const_key_set(&value, "object", object);
-    JSONEncoder encoder = json_encode(&value);
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue object = json_make_object(&allocator);
+    json_object_const_key_set(&object, "Int", json_make_int(42), &allocator);
+    json_object_const_key_set(&object, "String", json_make_string_const("Hello World"), &allocator);
+    JSONValue value = json_make_object(&allocator);
+    json_object_const_key_set(&value, "object", object, &allocator);
+    JSONEncoder encoder = json_encode(&value, &allocator);
     int result = strcmp(encoder.string.data, "{\"object\": {\"Int\": 42, \"String\": \"Hello World\"}}") == 0;
-    json_destroy_encoder(&encoder);
-    json_destroy_value(&value);
+    json_destroy_encoder(&encoder, &allocator);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_encode_array() {
-    JSONValue value = json_make_array();
-    json_array_push(&value, json_make_int(42));
-    json_array_push(&value, json_make_string("Hello World"));
-    JSONEncoder encoder = json_encode(&value);
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_make_array(&allocator);
+    json_array_push(&value, json_make_int(42), &allocator);
+    json_array_push(&value, json_make_string("Hello World", &allocator), &allocator);
+    JSONEncoder encoder = json_encode(&value, &allocator);
     int result = strcmp(encoder.string.data, "[42, \"Hello World\"]") == 0;
-    json_destroy_encoder(&encoder);
-    json_destroy_value(&value);
+    json_destroy_encoder(&encoder, &allocator);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_encode_array_of_objects() {
-    JSONValue value = json_make_array();
-    JSONValue object = json_make_object();
-    json_object_const_key_set(&object, "Int", json_make_int(42));
-    json_array_push(&value, object);
-    object = json_make_object();
-    json_object_const_key_set(&object, "String", json_make_string_const("Hello World"));
-    json_array_push(&value, object);
-    JSONEncoder encoder = json_encode(&value);
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_make_array(&allocator);
+    JSONValue object = json_make_object(&allocator);
+    json_object_const_key_set(&object, "Int", json_make_int(42), &allocator);
+    json_array_push(&value, object, &allocator);
+    object = json_make_object(&allocator);
+    json_object_const_key_set(&object, "String", json_make_string_const("Hello World"), &allocator);
+    json_array_push(&value, object, &allocator);
+    JSONEncoder encoder = json_encode(&value, &allocator);
     int result = strcmp(encoder.string.data, "[{\"Int\": 42}, {\"String\": \"Hello World\"}]") == 0;
-    json_destroy_encoder(&encoder);
-    json_destroy_value(&value);
+    json_destroy_encoder(&encoder, &allocator);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_json_move_string() {
-    JSONValue value = json_make_string("Hello World");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    JSONValue value = json_make_string("Hello World", &allocator);
     size_t length = strlen(value.value.string_value);
     int result = strncmp(value.value.string_value, "Hello World", length) == 0;
     char* moved = json_move_string(&value);
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     result &= strncmp(moved, "Hello World", length) == 0;
-    free(moved);
+    allocator.free(moved);
     return result;
 }
 
 static int test_json_escape_string() {
-    char* escaped = json_escape_string("Hello\nworld\tfoo\\bar/");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    char* escaped = json_escape_string("Hello\nworld\tfoo\\bar/", &allocator);
     int result = strcmp(escaped, "Hello\\nworld\\tfoo\\\\bar\\/") == 0;
-    free(escaped);
+    allocator.free(escaped);
     return result;
 }
 
 static int test_json_unescape_string() {
-    char* unescaped = json_unescape_string("Hello\\nworld\\tfoo\\\\bar\\/");
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    char* unescaped = json_unescape_string("Hello\\nworld\\tfoo\\\\bar\\/", &allocator);
     int result = strcmp(unescaped, "Hello\nworld\tfoo\\bar/") == 0;
-    free(unescaped);
+    allocator.free(unescaped);
     return result;
 }
 
 static TestResults tests_json() {
     TestResults result;
-    Vector tests = vector_create(sizeof(TestCase));
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector tests = vector_create(sizeof(TestCase), &allocator);
 
-    REGISTER_TEST(&tests, test_json_decode_boolean_false);
-    REGISTER_TEST(&tests, test_json_decode_boolean_true);
-    REGISTER_TEST(&tests, test_json_decode_int);
-    REGISTER_TEST(&tests, test_json_decode_float);
-    REGISTER_TEST(&tests, test_json_decode_string);
-    REGISTER_TEST(&tests, test_json_decode_escaped_string);
-    REGISTER_TEST(&tests, test_json_decode_single_escaped_string);
-    REGISTER_TEST(&tests, test_json_decode_object);
-    REGISTER_TEST(&tests, test_json_decode_sub_object);
-    REGISTER_TEST(&tests, test_json_decode_empty_object);
-    REGISTER_TEST(&tests, test_json_decode_empty_sub_object);
-    REGISTER_TEST(&tests, test_json_decode_array);
-    REGISTER_TEST(&tests, test_json_decode_array_of_objects);
-    REGISTER_TEST(&tests, test_json_decode_empty_array);
-    REGISTER_TEST(&tests, test_json_encode_boolean_false);
-    REGISTER_TEST(&tests, test_json_encode_boolean_true);
-    REGISTER_TEST(&tests, test_json_encode_int);
-    REGISTER_TEST(&tests, test_json_encode_float);
-    REGISTER_TEST(&tests, test_json_encode_string);
-    REGISTER_TEST(&tests, test_json_encode_object);
-    REGISTER_TEST(&tests, test_json_encode_array);
-    REGISTER_TEST(&tests, test_json_encode_sub_object);
-    REGISTER_TEST(&tests, test_json_encode_array_of_objects);
-    REGISTER_TEST(&tests, test_json_move_string);
-    REGISTER_TEST(&tests, test_json_escape_string);
-    REGISTER_TEST(&tests, test_json_unescape_string);
+    REGISTER_TEST(&tests, test_json_decode_boolean_false, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_boolean_true, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_int, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_float, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_string, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_escaped_string, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_single_escaped_string, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_object, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_sub_object, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_empty_object, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_empty_sub_object, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_array, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_array_of_objects, &allocator);
+    REGISTER_TEST(&tests, test_json_decode_empty_array, &allocator);
+    REGISTER_TEST(&tests, test_json_encode_boolean_false, &allocator);
+    REGISTER_TEST(&tests, test_json_encode_boolean_true, &allocator);
+    REGISTER_TEST(&tests, test_json_encode_int, &allocator);
+    REGISTER_TEST(&tests, test_json_encode_float, &allocator);
+    REGISTER_TEST(&tests, test_json_encode_string, &allocator);
+    REGISTER_TEST(&tests, test_json_encode_object, &allocator);
+    REGISTER_TEST(&tests, test_json_encode_array, &allocator);
+    REGISTER_TEST(&tests, test_json_encode_sub_object, &allocator);
+    REGISTER_TEST(&tests, test_json_encode_array_of_objects, &allocator);
+    REGISTER_TEST(&tests, test_json_move_string, &allocator);
+    REGISTER_TEST(&tests, test_json_escape_string, &allocator);
+    REGISTER_TEST(&tests, test_json_unescape_string, &allocator);
 
     result.fail = tests_run(&tests);
     result.pass = (int)tests.length - result.fail;
 
-    vector_destroy(&tests);
+    vector_destroy(&tests, &allocator);
     return result;
 }
 
@@ -8414,43 +8460,47 @@ static void test_message_set(char* content, char* out, size_t out_size) {
 }
 
 static int test_message_empty_object() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     Message message = message_create();
     char buffer[TEST_BUFFER_SIZE];
     test_message_set("{}", buffer, sizeof(buffer));
     char* ptr = &buffer[0];
-    JSONValue value = message_to_json(&message, &ptr);
+    JSONValue value = message_to_json(&message, &ptr, &allocator);
     int result = value.type == JSON_VALUE_OBJECT && value.value.object_value->pairs.length == 0;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_message_object() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     Message message = message_create();
     char buffer[TEST_BUFFER_SIZE];
     test_message_set("{\"Int\": 42}", buffer, sizeof(buffer));
     char* ptr = &buffer[0];
-    JSONValue value = message_to_json(&message, &ptr);
+    JSONValue value = message_to_json(&message, &ptr, &allocator);
     int result = value.type == JSON_VALUE_OBJECT;
     JSONValue obj = json_object_get(&value, "Int");
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result && obj.type == JSON_VALUE_INT && obj.value.int_value == 42;
 }
 
 static int test_message_object_and_invalid() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     Message message = message_create();
     char buffer[TEST_BUFFER_SIZE];
     test_message_set("{}", buffer, sizeof(buffer));
     char* ptr = &buffer[0];
-    JSONValue first = message_to_json(&message, &ptr);
-    JSONValue second = message_to_json(&message, &ptr);
+    JSONValue first = message_to_json(&message, &ptr, &allocator);
+    JSONValue second = message_to_json(&message, &ptr, &allocator);
     int result = first.type == JSON_VALUE_OBJECT && first.value.object_value->pairs.length == 0;
     result &= second.type == JSON_VALUE_NULL;
-    json_destroy_value(&first);
-    json_destroy_value(&second);
+    json_destroy_value(&first, &allocator);
+    json_destroy_value(&second, &allocator);
     return result;
 }
 
 static int test_message_two_objects() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     Message message = message_create();
     char buffer_1[TEST_BUFFER_SIZE];
     test_message_set("{\"Int\": 42}", buffer_1, sizeof(buffer_1));
@@ -8459,18 +8509,19 @@ static int test_message_two_objects() {
     char buffer[TEST_BUFFER_SIZE * 3];
     sprintf_s(buffer, sizeof(buffer), "%s\r\n%s", buffer_1, buffer_2);
     char* ptr = &buffer[0];
-    JSONValue first = message_to_json(&message, &ptr);
-    JSONValue second = message_to_json(&message, &ptr);
+    JSONValue first = message_to_json(&message, &ptr, &allocator);
+    JSONValue second = message_to_json(&message, &ptr, &allocator);
     JSONValue first_int = json_object_get(&first, "Int");
     JSONValue second_float = json_object_get(&second, "Float");
     int result = first_int.type == JSON_VALUE_INT && first_int.value.int_value == 42;
     result &= second_float.type == JSON_VALUE_FLOAT && second_float.value.float_value == 3.14f;
-    json_destroy_value(&first);
-    json_destroy_value(&second);
+    json_destroy_value(&first, &allocator);
+    json_destroy_value(&second, &allocator);
     return result;
 }
 
 static int test_message_partial() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     char* data = "{\"String\": \"Hello World\"}";
     size_t data_length = strlen(data);
     Message message = message_create();
@@ -8481,57 +8532,58 @@ static int test_message_partial() {
     strncpy_s(partial, sizeof(partial), buffer, offset);
     partial[offset] = 0;
     char* ptr = &partial[0];
-    JSONValue value = message_to_json(&message, &ptr);
+    JSONValue value = message_to_json(&message, &ptr, &allocator);
     int result = value.type == JSON_VALUE_NULL && message.expected_length == data_length;
     size_t remaining = strlen(buffer) - offset;
     strncpy_s(partial, sizeof(partial), buffer + offset, remaining);
     partial[remaining] = 0;
     ptr = &partial[0];
-    value = message_to_json(&message, &ptr);
+    value = message_to_json(&message, &ptr, &allocator);
     result &= value.type == JSON_VALUE_OBJECT;
     result &= message.buffer == NULL && message.length == 0 && message.expected_length == 0;
     JSONValue string_value = json_object_get(&value, "String");
     result &= string_value.type == JSON_VALUE_STRING && strcmp(string_value.value.string_value, "Hello World") == 0;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static int test_message_partial_no_content() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     char* data = "{\"Int\": 42}";
     size_t data_length = strlen(data);
     char buffer[TEST_BUFFER_SIZE];
     sprintf_s(buffer, sizeof(buffer), "Content-Length: %zu\r\n", data_length);
     Message message = message_create();
     char* ptr = &buffer[0];
-    JSONValue value = message_to_json(&message, &ptr);
+    JSONValue value = message_to_json(&message, &ptr, &allocator);
     int result = value.type == JSON_VALUE_NULL && message.expected_length == data_length;
     sprintf_s(buffer, sizeof(buffer), "%s", data);
     ptr = &buffer[0];
-    value = message_to_json(&message, &ptr);
+    value = message_to_json(&message, &ptr, &allocator);
     result &= value.type == JSON_VALUE_OBJECT;
     result &= message.buffer == NULL && message.length == 0 && message.expected_length == 0;
     JSONValue int_value = json_object_get(&value, "Int");
     result &= int_value.type == JSON_VALUE_INT && int_value.value.int_value == 42;
-    json_destroy_value(&value);
+    json_destroy_value(&value, &allocator);
     return result;
 }
 
 static TestResults tests_message() {
     TestResults result;
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector tests = vector_create(sizeof(TestCase), &allocator);
 
-    Vector tests = vector_create(sizeof(TestCase));
-
-    REGISTER_TEST(&tests, test_message_empty_object);
-    REGISTER_TEST(&tests, test_message_object);
-    REGISTER_TEST(&tests, test_message_object_and_invalid);
-    REGISTER_TEST(&tests, test_message_two_objects);
-    REGISTER_TEST(&tests, test_message_partial);
-    REGISTER_TEST(&tests, test_message_partial_no_content);
+    REGISTER_TEST(&tests, test_message_empty_object, &allocator);
+    REGISTER_TEST(&tests, test_message_object, &allocator);
+    REGISTER_TEST(&tests, test_message_object_and_invalid, &allocator);
+    REGISTER_TEST(&tests, test_message_two_objects, &allocator);
+    REGISTER_TEST(&tests, test_message_partial, &allocator);
+    REGISTER_TEST(&tests, test_message_partial_no_content, &allocator);
 
     result.fail = tests_run(&tests);
     result.pass = (int)tests.length - result.fail;
 
-    vector_destroy(&tests);
+    vector_destroy(&tests, &allocator);
     return result;
 }
 
@@ -8806,29 +8858,29 @@ static int test_server_shutdown() {
 
 static TestResults tests_server() {
     TestResults results;
-
-    Vector tests = vector_create(sizeof(TestCase));
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector tests = vector_create(sizeof(TestCase), &allocator);
 
     char file_name[PATH_MAX];
     test_server_get_source_file_name(file_name, sizeof(file_name));
 
     file_write_contents(file_name, test_source);
 
-    REGISTER_TEST(&tests, test_server_init);
-    REGISTER_TEST(&tests, test_server_connect);
-    REGISTER_TEST(&tests, test_server_trace);
-    REGISTER_TEST(&tests, test_server_text_document_did_open);
-    REGISTER_TEST(&tests, test_server_document_symbols);
-    REGISTER_TEST(&tests, test_server_document_semantic_tokens);
-    REGISTER_TEST(&tests, test_server_text_document_hover);
-    REGISTER_TEST(&tests, test_server_text_document_did_close);
-    REGISTER_TEST(&tests, test_server_close);
-    REGISTER_TEST(&tests, test_server_shutdown);
+    REGISTER_TEST(&tests, test_server_init, &allocator);
+    REGISTER_TEST(&tests, test_server_connect, &allocator);
+    REGISTER_TEST(&tests, test_server_trace, &allocator);
+    REGISTER_TEST(&tests, test_server_text_document_did_open, &allocator);
+    REGISTER_TEST(&tests, test_server_document_symbols, &allocator);
+    REGISTER_TEST(&tests, test_server_document_semantic_tokens, &allocator);
+    REGISTER_TEST(&tests, test_server_text_document_hover, &allocator);
+    REGISTER_TEST(&tests, test_server_text_document_did_close, &allocator);
+    REGISTER_TEST(&tests, test_server_close, &allocator);
+    REGISTER_TEST(&tests, test_server_shutdown, &allocator);
 
     results.fail = tests_run(&tests);
     results.pass = (int)tests.length - results.fail;
 
-    vector_destroy(&tests);
+    vector_destroy(&tests, &allocator);
     remove(file_name);
 
     return results;
@@ -8839,7 +8891,7 @@ typedef struct TestSuite {
     char* name;
 } TestSuite;
 
-static void add_test_suite(Vector* suites, TestResults (*fn)(), char* name) {
+static void add_test_suite(Vector* suites, TestResults (*fn)(), char* name, LSTalk_MemoryAllocator* allocator) {
     if (suites == NULL) {
         return;
     }
@@ -8847,10 +8899,10 @@ static void add_test_suite(Vector* suites, TestResults (*fn)(), char* name) {
     TestSuite suite;
     suite.fn = fn;
     suite.name = name;
-    vector_push(suites, &suite);
+    vector_push(suites, &suite, allocator);
 }
 
-#define ADD_TEST_SUITE(suites, fn) add_test_suite(suites, fn, #fn)
+#define ADD_TEST_SUITE(suites, fn, allocator) add_test_suite(suites, fn, #fn, allocator)
 
 void lstalk_tests(int argc, char** argv) {
     (void)argc;
@@ -8870,11 +8922,12 @@ void lstalk_tests(int argc, char** argv) {
     strncat_s(test_server_path, size, "/", size);
     strncat_s(test_server_path, size, TEST_SERVER_NAME, size);
 
-    Vector suites = vector_create(sizeof(TestSuite));
-    ADD_TEST_SUITE(&suites, tests_vector);
-    ADD_TEST_SUITE(&suites, tests_json);
-    ADD_TEST_SUITE(&suites, tests_message);
-    ADD_TEST_SUITE(&suites, tests_server);
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
+    Vector suites = vector_create(sizeof(TestSuite), &allocator);
+    ADD_TEST_SUITE(&suites, tests_vector, &allocator);
+    ADD_TEST_SUITE(&suites, tests_json, &allocator);
+    ADD_TEST_SUITE(&suites, tests_message, &allocator);
+    ADD_TEST_SUITE(&suites, tests_server, &allocator);
 
     TestResults results;
     results.pass = 0;
@@ -8896,89 +8949,90 @@ void lstalk_tests(int argc, char** argv) {
     printf("TESTS PASSED: %d\n", results.pass);
     printf("TESTS FAILED: %d\n", results.fail);
 
-    vector_destroy(&suites);
+    vector_destroy(&suites, &allocator);
 }
 
 static ServerCapabilities test_server_make_capabilities() {
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     ServerCapabilities result;
     memset(&result, 0, sizeof(result));
 
     #define ALLOC_TEXT_DOCUMENT_REGISTRATION(property) \
     property.text_document_registration.document_selector_count = 1; \
-    property.text_document_registration.document_selector = (DocumentFilter*)malloc(sizeof(DocumentFilter)); \
-    property.text_document_registration.document_selector[0].language = string_alloc_copy("language"); \
-    property.text_document_registration.document_selector[0].scheme = string_alloc_copy("scheme"); \
-    property.text_document_registration.document_selector[0].pattern = string_alloc_copy("pattern");
+    property.text_document_registration.document_selector = (DocumentFilter*)allocator.malloc(sizeof(DocumentFilter)); \
+    property.text_document_registration.document_selector[0].language = string_alloc_copy("language", &allocator); \
+    property.text_document_registration.document_selector[0].scheme = string_alloc_copy("scheme", &allocator); \
+    property.text_document_registration.document_selector[0].pattern = string_alloc_copy("pattern", &allocator);
 
     #define ALLOC_FILE_OPERATIONS_REGISTRATION(property) \
     property.filters_count = 1; \
-    property.filters = (FileOperationFilter*)malloc(sizeof(FileOperationFilter)); \
-    property.filters[0].scheme = string_alloc_copy("scheme"); \
-    property.filters[0].pattern.glob = string_alloc_copy("glob");
+    property.filters = (FileOperationFilter*)allocator.malloc(sizeof(FileOperationFilter)); \
+    property.filters[0].scheme = string_alloc_copy("scheme", &allocator); \
+    property.filters[0].pattern.glob = string_alloc_copy("glob", &allocator);
 
-    result.notebook_document_sync.static_registration.id = string_alloc_copy("id");
+    result.notebook_document_sync.static_registration.id = string_alloc_copy("id", &allocator);
     result.notebook_document_sync.notebook_selector_count = 1;
-    result.notebook_document_sync.notebook_selector = (NotebookSelector*)malloc(sizeof(NotebookSelector));
-    result.notebook_document_sync.notebook_selector[0].notebook.notebook_type = string_alloc_copy("notebook_type");
-    result.notebook_document_sync.notebook_selector[0].notebook.scheme = string_alloc_copy("scheme");
-    result.notebook_document_sync.notebook_selector[0].notebook.pattern = string_alloc_copy("pattern");
+    result.notebook_document_sync.notebook_selector = (NotebookSelector*)allocator.malloc(sizeof(NotebookSelector));
+    result.notebook_document_sync.notebook_selector[0].notebook.notebook_type = string_alloc_copy("notebook_type", &allocator);
+    result.notebook_document_sync.notebook_selector[0].notebook.scheme = string_alloc_copy("scheme", &allocator);
+    result.notebook_document_sync.notebook_selector[0].notebook.pattern = string_alloc_copy("pattern", &allocator);
     result.notebook_document_sync.notebook_selector[0].cells_count = 1;
-    result.notebook_document_sync.notebook_selector[0].cells = (char**)malloc(sizeof(char*));
-    result.notebook_document_sync.notebook_selector[0].cells[0] = string_alloc_copy("cells");
+    result.notebook_document_sync.notebook_selector[0].cells = (char**)allocator.malloc(sizeof(char*));
+    result.notebook_document_sync.notebook_selector[0].cells[0] = string_alloc_copy("cells", &allocator);
     result.completion_provider.trigger_characters_count = 1;
-    result.completion_provider.trigger_characters = (char**)malloc(sizeof(char*));
-    result.completion_provider.trigger_characters[0] = string_alloc_copy("trigger_characters");
+    result.completion_provider.trigger_characters = (char**)allocator.malloc(sizeof(char*));
+    result.completion_provider.trigger_characters[0] = string_alloc_copy("trigger_characters", &allocator);
     result.completion_provider.all_commit_characters_count = 1;
-    result.completion_provider.all_commit_characters = (char**)malloc(sizeof(char*));
-    result.completion_provider.all_commit_characters[0] = string_alloc_copy("all_commit_characters");
+    result.completion_provider.all_commit_characters = (char**)allocator.malloc(sizeof(char*));
+    result.completion_provider.all_commit_characters[0] = string_alloc_copy("all_commit_characters", &allocator);
     result.signature_help_provider.trigger_characters_count = 1;
-    result.signature_help_provider.trigger_characters = (char**)malloc(sizeof(char*));
-    result.signature_help_provider.trigger_characters[0] = string_alloc_copy("trigger_characters");
+    result.signature_help_provider.trigger_characters = (char**)allocator.malloc(sizeof(char*));
+    result.signature_help_provider.trigger_characters[0] = string_alloc_copy("trigger_characters", &allocator);
     result.signature_help_provider.retrigger_characters_count = 1;
-    result.signature_help_provider.retrigger_characters = (char**)malloc(sizeof(char*));
-    result.signature_help_provider.retrigger_characters[0] = string_alloc_copy("retrigger_characters");
-    result.declaration_provider.static_registration.id = string_alloc_copy("id");
+    result.signature_help_provider.retrigger_characters = (char**)allocator.malloc(sizeof(char*));
+    result.signature_help_provider.retrigger_characters[0] = string_alloc_copy("retrigger_characters", &allocator);
+    result.declaration_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.declaration_provider);
-    result.type_definition_provider.static_registration.id = string_alloc_copy("id");
+    result.type_definition_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.type_definition_provider);
-    result.implementation_provider.static_registration.id = string_alloc_copy("id");
+    result.implementation_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.implementation_provider);
-    result.document_symbol_provider.label = string_alloc_copy("label");
-    result.color_provider.static_registration.id = string_alloc_copy("id");
+    result.document_symbol_provider.label = string_alloc_copy("label", &allocator);
+    result.color_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.color_provider);
-    result.document_on_type_formatting_provider.first_trigger_character = string_alloc_copy("first_trigger_character");
+    result.document_on_type_formatting_provider.first_trigger_character = string_alloc_copy("first_trigger_character", &allocator);
     result.document_on_type_formatting_provider.more_trigger_character_count = 1;
-    result.document_on_type_formatting_provider.more_trigger_character = (char**)malloc(sizeof(char*));
-    result.document_on_type_formatting_provider.more_trigger_character[0] = string_alloc_copy("more_trigger_character");
-    result.folding_range_provider.static_registration.id = string_alloc_copy("id");
+    result.document_on_type_formatting_provider.more_trigger_character = (char**)allocator.malloc(sizeof(char*));
+    result.document_on_type_formatting_provider.more_trigger_character[0] = string_alloc_copy("more_trigger_character", &allocator);
+    result.folding_range_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.folding_range_provider);
     result.execute_command_provider.commands_count = 1;
-    result.execute_command_provider.commands = (char**)malloc(sizeof(char*));
-    result.execute_command_provider.commands[0] = string_alloc_copy("commands");
-    result.selection_range_provider.static_registration.id = string_alloc_copy("id");
+    result.execute_command_provider.commands = (char**)allocator.malloc(sizeof(char*));
+    result.execute_command_provider.commands[0] = string_alloc_copy("commands", &allocator);
+    result.selection_range_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.selection_range_provider);
-    result.linked_editing_range_provider.static_registration.id = string_alloc_copy("id");
+    result.linked_editing_range_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.linked_editing_range_provider);
-    result.call_hierarchy_provider.static_registration.id = string_alloc_copy("id");
+    result.call_hierarchy_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.call_hierarchy_provider);
     result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers_count = 1;
-    result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers = (char**)malloc(sizeof(char*));
-    result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers[0] = string_alloc_copy("token_modifiers");
+    result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers = (char**)allocator.malloc(sizeof(char*));
+    result.semantic_tokens_provider.semantic_tokens.legend.token_modifiers[0] = string_alloc_copy("token_modifiers", &allocator);
     result.semantic_tokens_provider.semantic_tokens.legend.token_types_count = 1;
-    result.semantic_tokens_provider.semantic_tokens.legend.token_types = (char**)malloc(sizeof(char*));
-    result.semantic_tokens_provider.semantic_tokens.legend.token_types[0] = string_alloc_copy("token_types");
-    result.semantic_tokens_provider.static_registration.id = string_alloc_copy("id");
+    result.semantic_tokens_provider.semantic_tokens.legend.token_types = (char**)allocator.malloc(sizeof(char*));
+    result.semantic_tokens_provider.semantic_tokens.legend.token_types[0] = string_alloc_copy("token_types", &allocator);
+    result.semantic_tokens_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.semantic_tokens_provider);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.moniker_provider);
-    result.type_hierarchy_provider.static_registration.id = string_alloc_copy("id");
+    result.type_hierarchy_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.type_hierarchy_provider);
-    result.inline_value_provider.static_registration.id = string_alloc_copy("id");
+    result.inline_value_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.inline_value_provider);
-    result.inlay_hint_provider.static_registration.id = string_alloc_copy("id");
+    result.inlay_hint_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.inlay_hint_provider);
-    result.diagnostic_provider.static_registration.id = string_alloc_copy("id");
+    result.diagnostic_provider.static_registration.id = string_alloc_copy("id", &allocator);
     ALLOC_TEXT_DOCUMENT_REGISTRATION(result.diagnostic_provider);
-    result.workspace.workspace_folders.change_notifications = string_alloc_copy("change_notifications");
+    result.workspace.workspace_folders.change_notifications = string_alloc_copy("change_notifications", &allocator);
     ALLOC_FILE_OPERATIONS_REGISTRATION(result.workspace.file_operations.did_create);
     ALLOC_FILE_OPERATIONS_REGISTRATION(result.workspace.file_operations.will_create);
     ALLOC_FILE_OPERATIONS_REGISTRATION(result.workspace.file_operations.did_rename);
@@ -8991,16 +9045,16 @@ static ServerCapabilities test_server_make_capabilities() {
     return result;
 }
 
-static LSTalk_DocumentSymbolNotification test_server_make_document_symbols() {
+static LSTalk_DocumentSymbolNotification test_server_make_document_symbols(LSTalk_MemoryAllocator* allocator) {
     LSTalk_DocumentSymbolNotification result;
     memset(&result, 0, sizeof(result));
 
     result.symbols_count = 1;
-    result.symbols = (LSTalk_DocumentSymbol*)calloc(result.symbols_count, sizeof(LSTalk_DocumentSymbol));
+    result.symbols = (LSTalk_DocumentSymbol*)allocator->calloc(result.symbols_count, sizeof(LSTalk_DocumentSymbol));
 
     LSTalk_DocumentSymbol* document_symbol = &result.symbols[0];
-    document_symbol->name = string_alloc_copy("foo");
-    document_symbol->detail = string_alloc_copy("Detail");
+    document_symbol->name = string_alloc_copy("foo", allocator);
+    document_symbol->detail = string_alloc_copy("Detail", allocator);
     document_symbol->kind = SYMBOLKIND_Function;
     document_symbol->range.start.line = 1;
     document_symbol->range.start.character = 2;
@@ -9011,36 +9065,36 @@ static LSTalk_DocumentSymbolNotification test_server_make_document_symbols() {
     document_symbol->selection_range.end.line = 7;
     document_symbol->selection_range.end.character = 8;
     document_symbol->children_count = 1;
-    document_symbol->children = (LSTalk_DocumentSymbol*)calloc(document_symbol->children_count, sizeof(LSTalk_DocumentSymbol));
-    document_symbol->children[0].name = string_alloc_copy("child");
-    document_symbol->children[0].detail = string_alloc_copy("child detail");
+    document_symbol->children = (LSTalk_DocumentSymbol*)allocator->calloc(document_symbol->children_count, sizeof(LSTalk_DocumentSymbol));
+    document_symbol->children[0].name = string_alloc_copy("child", allocator);
+    document_symbol->children[0].detail = string_alloc_copy("child detail", allocator);
 
     return result;
 }
 
-static LSTalk_SemanticTokens test_server_make_semantic_tokens() {
+static LSTalk_SemanticTokens test_server_make_semantic_tokens(LSTalk_MemoryAllocator* allocator) {
     LSTalk_SemanticTokens result;
     memset(&result, 0, sizeof(result));
 
-    result.result_id = string_alloc_copy("1");
+    result.result_id = string_alloc_copy("1", allocator);
     result.tokens_count = 1;
-    result.tokens = (LSTalk_SemanticToken*)calloc(1, sizeof(LSTalk_SemanticToken));
+    result.tokens = (LSTalk_SemanticToken*)allocator->calloc(1, sizeof(LSTalk_SemanticToken));
     result.tokens[0].line = 0;
     result.tokens[0].character = 0;
     result.tokens[0].length = 0;
     result.tokens[0].token_type = "token_type";
     result.tokens[0].token_modifiers_count = 1;
-    result.tokens[0].token_modifiers = (char**)calloc(1, sizeof(char*));
-    result.tokens[0].token_modifiers[0] = string_alloc_copy("token_modifiers");
+    result.tokens[0].token_modifiers = (char**)allocator->calloc(1, sizeof(char*));
+    result.tokens[0].token_modifiers[0] = string_alloc_copy("token_modifiers", allocator);
 
     return result;
 }
 
-static LSTalk_Hover test_server_make_hover() {
+static LSTalk_Hover test_server_make_hover(LSTalk_MemoryAllocator* allocator) {
     LSTalk_Hover result;
     memset(&result, 0, sizeof(result));
 
-    result.contents = string_alloc_copy("contents");
+    result.contents = string_alloc_copy("contents", allocator);
     result.range.start.line = 0;
     result.range.start.character = 0;
     result.range.end.line = 0;
@@ -9049,7 +9103,7 @@ static LSTalk_Hover test_server_make_hover() {
     return result;
 }
 
-static JSONValue test_server_build_response(JSONValue* request) {
+static JSONValue test_server_build_response(JSONValue* request, LSTalk_MemoryAllocator* allocator) {
     JSONValue result = json_make_null();
 
     if (request == NULL || request->type != JSON_VALUE_OBJECT) {
@@ -9058,103 +9112,104 @@ static JSONValue test_server_build_response(JSONValue* request) {
 
     JSONValue method = json_object_get(request, "method");
     if (method.type == JSON_VALUE_STRING) {
-        result = json_make_object();
+        result = json_make_object(allocator);
         JSONValue id = json_object_get(request, "id");
 
         char* method_str = method.value.string_value;
         JSONValue* params = json_object_get_ptr(request, "params");
         if (strcmp(method_str, "initialize") == 0) {
-            json_object_const_key_set(&result, "id", id);
-            JSONValue results = json_make_object();
-            json_object_const_key_set(&result, "results", results);
+            json_object_const_key_set(&result, "id", id, allocator);
+            JSONValue results = json_make_object(allocator);
+            json_object_const_key_set(&result, "results", results, allocator);
             char version[40];
             sprintf_s(version, sizeof(version), "%d.%d.%d", LSTALK_MAJOR, LSTALK_MINOR, LSTALK_REVISION);
-            JSONValue server_info = json_make_object();
-            json_object_const_key_set(&server_info, "name", json_make_string_const("Test Server"));
-            json_object_const_key_set(&server_info, "version", json_make_string(version));
-            json_object_const_key_set(&results, "serverInfo", server_info);
+            JSONValue server_info = json_make_object(allocator);
+            json_object_const_key_set(&server_info, "name", json_make_string_const("Test Server"), allocator);
+            json_object_const_key_set(&server_info, "version", json_make_string(version, allocator), allocator);
+            json_object_const_key_set(&results, "serverInfo", server_info, allocator);
             
             ServerCapabilities server_capabilities = test_server_make_capabilities();
-            JSONValue capabilities = server_capabilities_json(&server_capabilities);
-            json_object_const_key_set(&results, "capabilities", capabilities);
-            server_capabilities_free(&server_capabilities);
+            JSONValue capabilities = server_capabilities_json(&server_capabilities, allocator);
+            json_object_const_key_set(&results, "capabilities", capabilities, allocator);
+            server_capabilities_free(&server_capabilities, allocator);
         } else if (strcmp(method_str, "$/setTrace") == 0) {
             JSONValue value = json_object_get(params, "value");
             if (value.type == JSON_VALUE_STRING) {
                 LSTalk_Trace trace = trace_from_string(value.value.string_value);
-                json_destroy_value(&result);
+                json_destroy_value(&result, allocator);
                 if (trace == LSTALK_TRACE_MESSAGES) {
-                    JSONValue result_params = json_make_object();
-                    json_object_const_key_set(&result_params, "message", json_make_string_const("message"));
-                    result = rpc_make_notification("$/logTrace", result_params);
+                    JSONValue result_params = json_make_object(allocator);
+                    json_object_const_key_set(&result_params, "message", json_make_string_const("message"), allocator);
+                    result = rpc_make_notification("$/logTrace", result_params, allocator);
                 } else if (trace == LSTALK_TRACE_VERBOSE) {
-                    JSONValue result_params = json_make_object();
-                    json_object_const_key_set(&result_params, "message", json_make_string_const("message"));
-                    json_object_const_key_set(&result_params, "verbose", json_make_string_const("verbose"));
-                    result = rpc_make_notification("$/logTrace", result_params);
+                    JSONValue result_params = json_make_object(allocator);
+                    json_object_const_key_set(&result_params, "message", json_make_string_const("message"), allocator);
+                    json_object_const_key_set(&result_params, "verbose", json_make_string_const("verbose"), allocator);
+                    result = rpc_make_notification("$/logTrace", result_params, allocator);
                 }
             }
         } else if (strcmp(method_str, "textDocument/documentSymbol") == 0) {
-            LSTalk_DocumentSymbolNotification notification = test_server_make_document_symbols();
-            JSONValue results = document_symbol_notification_json(&notification);
-            json_object_const_key_set(&result, "id", id);
-            json_object_const_key_set(&result, "result", results);
-            document_symbol_notification_free(&notification);
+            LSTalk_DocumentSymbolNotification notification = test_server_make_document_symbols(allocator);
+            JSONValue results = document_symbol_notification_json(&notification, allocator);
+            json_object_const_key_set(&result, "id", id, allocator);
+            json_object_const_key_set(&result, "result", results, allocator);
+            document_symbol_notification_free(&notification, allocator);
         } else if (strcmp(method_str, "textDocument/semanticTokens/full") == 0) {
-            LSTalk_SemanticTokens notification = test_server_make_semantic_tokens();
+            LSTalk_SemanticTokens notification = test_server_make_semantic_tokens(allocator);
             SemanticTokensLegend legend;
             memset(&legend, 0, sizeof(legend));
-            JSONValue results = semantic_tokens_json(&notification, &legend);
-            json_object_const_key_set(&result, "id", id);
-            json_object_const_key_set(&result, "result", results);
-            semantic_tokens_free(&notification);
+            JSONValue results = semantic_tokens_json(&notification, &legend, allocator);
+            json_object_const_key_set(&result, "id", id, allocator);
+            json_object_const_key_set(&result, "result", results, allocator);
+            semantic_tokens_free(&notification, allocator);
         } else if (strcmp(method_str, "textDocument/hover") == 0) {
-            LSTalk_Hover notification = test_server_make_hover();
-            JSONValue results = hover_json(&notification);
-            json_object_const_key_set(&result, "id", id);
-            json_object_const_key_set(&result, "result", results);
-            hover_free(&notification);
+            LSTalk_Hover notification = test_server_make_hover(allocator);
+            JSONValue results = hover_json(&notification, allocator);
+            json_object_const_key_set(&result, "id", id, allocator);
+            json_object_const_key_set(&result, "result", results, allocator);
+            hover_free(&notification, allocator);
         }
     }
 
     return result;
 }
 
-static void test_server_send_response(JSONValue* response) {
+static void test_server_send_response(JSONValue* response, LSTalk_MemoryAllocator* allocator) {
     if (response == NULL || response->type == JSON_VALUE_NULL) {
         return;
     }
 
-    JSONEncoder encoder = json_encode(response);
+    JSONEncoder encoder = json_encode(response, allocator);
     if (encoder.string.length > 0) {
         printf("Content-Length: %zu\r\n%s\r\n", encoder.string.length, encoder.string.data);
         fflush(stdout);
     }
 
-    json_destroy_encoder(&encoder);
+    json_destroy_encoder(&encoder, allocator);
 }
 
 void lstalk_test_server(int argc, char** argv) {
     (void)argc;
     (void)argv;
 
+    LSTalk_MemoryAllocator allocator = tests_default_allocator();
     Message message = message_create();
     while (1) {
-        char* request = file_async_read_stdin();
+        char* request = file_async_read_stdin(&allocator);
         if (request != NULL) {
             char* anchor = request;
             while (anchor != NULL) {
-                JSONValue value = message_to_json(&message, &anchor);
+                JSONValue value = message_to_json(&message, &anchor, &allocator);
 
-                JSONValue response = test_server_build_response(&value);
-                test_server_send_response(&response);
+                JSONValue response = test_server_build_response(&value, &allocator);
+                test_server_send_response(&response, &allocator);
 
-                json_destroy_value(&value);
+                json_destroy_value(&value, &allocator);
             }
-            free(request);
+            allocator.free(request);
         }
     }
-    message_free(&message);
+    message_free(&message, &allocator);
 }
 
 #endif
