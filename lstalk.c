@@ -9055,7 +9055,7 @@ static LSTalk_DocumentSymbolNotification test_server_make_document_symbols(LSTal
     LSTalk_DocumentSymbol* document_symbol = &result.symbols[0];
     document_symbol->name = string_alloc_copy("foo", allocator);
     document_symbol->detail = string_alloc_copy("Detail", allocator);
-    document_symbol->kind = SYMBOLKIND_Function;
+    document_symbol->kind = LSTALK_SYMBOLKIND_FUNCTION;
     document_symbol->range.start.line = 1;
     document_symbol->range.start.character = 2;
     document_symbol->range.end.line = 3;
