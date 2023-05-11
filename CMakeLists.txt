@@ -199,4 +199,10 @@ add_program(
     example_hover
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/hover.c
 )
+
+add_program(
+    example_custom_allocator
+    example_custom_allocator
+    ${CMAKE_CURRENT_SOURCE_DIR}/examples/custom_allocator.c
+)
 endif()
