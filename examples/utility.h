@@ -18,6 +18,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if _MSC_VER
+    #define MAYBE_UNUSED
+#elif __GNUC__
+    #define MAYBE_UNUSED __attribute__((unused))
+#endif
+
 #if !WINDOWS && __STDC_VERSION__ <= 199901L
 static int fopen_s(FILE* restrict* restrict streamptr, const char* restrict filename, const char* restrict mode) {
     *streamptr = fopen(filename, mode);
@@ -33,20 +39,14 @@ static int strncpy_s(char* restrict dest, size_t destsz, const char* restrict sr
     return 0;
 }
 
-static int strcat_s(char* restrict dest, size_t destsz, const char* restrict src) {
+MAYBE_UNUSED static int strcat_s(char* restrict dest, size_t destsz, const char* restrict src) {
     (void)destsz;
     strcat(dest, src);
     return 0;
 }
 #endif
 
-#if _MSC_VER
-    #define MAYBE_UNUSED
-#elif __GNUC__
-    #define MAYBE_UNUSED __attribute__((unused))
-#endif
-
-static void utility_get_directory(char* path, char* out, size_t out_size) {
+MAYBE_UNUSED static void utility_get_directory(char* path, char* out, size_t out_size) {
     char* anchor = path;
     char* ptr = anchor;
     while (*ptr != 0) {
@@ -67,7 +67,7 @@ static void utility_get_directory(char* path, char* out, size_t out_size) {
     out[length] = 0;
 }
 
-static void utility_absolute_path(char* relative_path, char* out, size_t out_size) {
+MAYBE_UNUSED static void utility_absolute_path(char* relative_path, char* out, size_t out_size) {
     if (out == NULL) {
         return;
     }
