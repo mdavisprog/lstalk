@@ -8587,6 +8587,70 @@ static TestResults tests_message() {
     return result;
 }
 
+// Custom allocator tests
+
+static LSTalk_MemoryAllocator tests_custom_memory_allocator;
+static int tests_custom_allocation_count = 0;
+static size_t tests_custom_allocation_size = 0;
+
+static void* tests_custom_malloc(size_t size) {
+    tests_custom_allocation_count++;
+    tests_custom_allocation_size += size;
+    return malloc(size);
+}
+
+static void* tests_custom_calloc(size_t num, size_t size) {
+    tests_custom_allocation_count++;
+    tests_custom_allocation_size += num * size;
+    return calloc(num, size);
+}
+
+static void* tests_custom_realloc(void* ptr, size_t new_size) {
+    return realloc(ptr, new_size);
+}
+
+static void tests_custom_free(void* ptr) {
+    tests_custom_allocation_count--;
+    free(ptr);
+}
+
+static int tests_custom_allocator_malloc() {
+    tests_custom_allocation_count = 0;
+    tests_custom_allocation_size = 0;
+    Vector array = vector_create(sizeof(int), &tests_custom_memory_allocator);
+    int result = tests_custom_allocation_count == 1;
+    result &= tests_custom_allocation_size == sizeof(int);
+    vector_destroy(&array, &tests_custom_memory_allocator);
+    return result;
+}
+
+static int tests_custom_allocator_free() {
+    tests_custom_allocation_count = 0;
+    Vector array = vector_create(sizeof(int), &tests_custom_memory_allocator);
+    int result = tests_custom_allocation_count == 1;
+    vector_destroy(&array, &tests_custom_memory_allocator);
+    result &= tests_custom_allocation_count == 0;
+    return result;
+}
+
+static TestResults tests_custom_allocator() {
+    TestResults result;
+    tests_custom_memory_allocator.malloc = tests_custom_malloc;
+    tests_custom_memory_allocator.calloc = tests_custom_calloc;
+    tests_custom_memory_allocator.realloc = tests_custom_realloc;
+    tests_custom_memory_allocator.free = tests_custom_free;
+    Vector tests = vector_create(sizeof(TestCase), &tests_custom_memory_allocator);
+
+    REGISTER_TEST(&tests, tests_custom_allocator_malloc, &tests_custom_memory_allocator);
+    REGISTER_TEST(&tests, tests_custom_allocator_free, &tests_custom_memory_allocator);
+
+    result.fail = tests_run(&tests);
+    result.pass = (int)tests.length - result.fail;
+
+    vector_destroy(&tests, &tests_custom_memory_allocator);
+    return result;
+}
+
 // Server tests
 
 static LSTalk_Context* test_context = NULL;
@@ -8927,6 +8991,7 @@ void lstalk_tests(int argc, char** argv) {
     ADD_TEST_SUITE(&suites, tests_vector, &allocator);
     ADD_TEST_SUITE(&suites, tests_json, &allocator);
     ADD_TEST_SUITE(&suites, tests_message, &allocator);
+    ADD_TEST_SUITE(&suites, tests_custom_allocator, &allocator);
     ADD_TEST_SUITE(&suites, tests_server, &allocator);
 
     TestResults results;
