@@ -220,7 +220,7 @@ int main(int argc, char** argv) {
             }
 
             char* cmd = args[0].data;
-            if (is_command(cmd, "quit")) {
+            if (is_command(cmd, "quit") || is_command(cmd, "exit")) {
                 quit = 1;
             } else if (is_command(cmd, "close")) {
                 if (lstalk_close(context, server_id)) {
