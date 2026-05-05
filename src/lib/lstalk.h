@@ -24,22 +24,51 @@ SOFTWARE.
 
 */
 
-#include "../lib/lstalk.h"
-#include <stdlib.h>
+#ifndef __LSTALK_H__
+#define __LSTALK_H__
 
-int main(int argc, char** argv) {
-    (void)argc;
-    (void)argv;
+#include <stddef.h>
 
-    LSTalk_Allocator allocator = {
-        .malloc = malloc,
-        .calloc = calloc,
-        .realloc = realloc,
-        .free = free
-    };
+#if LSTALK_LIB
+    #if LSTALK_STATIC
+        #define LSTALK_API
+    #else
+        #ifndef LSTALK_API
+            #if defined(_WIN32) || defined(_WIN64)
+                #if LSTALK_EXPORT
+                    #define LSTALK_API __declspec(dllexport)
+                #else
+                    #define LSTALK_API __declspec(dllimport)
+                #endif
+            #else
+                #define LSTALK_API
+            #endif
+        #endif
+    #endif
+#else
+    #define LSTALK_API
+#endif
 
-    LSTalk_Context* context = lstalk_init(allocator);
-    lstalk_shutdown(context);
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
-    return 0;
+typedef struct LSTalk_Allocator {
+    void* (*malloc)(size_t);
+    void* (*calloc)(size_t, size_t);
+    void* (*realloc)(void*, size_t);
+    void (*free)(void*);
+} LSTalk_Allocator;
+
+typedef struct LSTalk_Context {
+    LSTalk_Allocator allocator;
+} LSTalk_Context;
+
+LSTALK_API LSTalk_Context* lstalk_init(LSTalk_Allocator allocator);
+LSTALK_API void lstalk_shutdown(LSTalk_Context* context);
+
+#if defined(__cplusplus)
 }
+#endif
+
+#endif // __LSTALK_H__

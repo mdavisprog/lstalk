@@ -24,22 +24,16 @@ SOFTWARE.
 
 */
 
-#include "../lib/lstalk.h"
-#include <stdlib.h>
+#include "lstalk.h"
 
-int main(int argc, char** argv) {
-    (void)argc;
-    (void)argv;
+LSTalk_Context* lstalk_init(LSTalk_Allocator allocator) {
+    (void)allocator;
+    return NULL;
+}
 
-    LSTalk_Allocator allocator = {
-        .malloc = malloc,
-        .calloc = calloc,
-        .realloc = realloc,
-        .free = free
-    };
+void lstalk_shutdown(LSTalk_Context* context) {
+    if (context == NULL) return;
 
-    LSTalk_Context* context = lstalk_init(allocator);
-    lstalk_shutdown(context);
-
-    return 0;
+    LSTalk_Allocator allocator = context->allocator;
+    allocator.free(context);
 }
