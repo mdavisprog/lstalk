@@ -21,4 +21,17 @@ if [[ -d "$LIB_PATH" ]] ; then
     rm -rf $LIB_PATH
 fi
 
+ZIG_CACHE=../.zig-cache
+ZIG_OUT=../zig-out
+
+if [[ -d "$ZIG_CACHE" ]] ; then
+    echo "Cleaning $ZIG_CACHE"
+    rm -rf $ZIG_CACHE
+fi
+
+if [[ -d "$ZIG_OUT" ]] ; then
+    echo "Cleaning $ZIG_OUT"
+    rm -rf $ZIG_OUT
+fi
+
 popd

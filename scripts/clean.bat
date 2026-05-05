@@ -20,5 +20,18 @@ IF EXIST %LIB_PATH% (
     RMDIR /S /Q %LIB_PATH%
 )
 
+SET ZIG_CACHE=..\.zig-cache
+SET ZIG_OUT=..\zig-out
+
+IF EXIST %ZIG_CACHE% (
+    ECHO Cleaning %ZIG_CACHE%
+    RMDIR /S /Q %ZIG_CACHE%
+)
+
+IF EXIST %ZIG_OUT% (
+    ECHO Cleaning %ZIG_OUT%
+    RMDIR /S /Q %ZIG_OUT%
+)
+
 POPD
 ENDLOCAL
