@@ -1,0 +1,11 @@
+.{
+    .name = .lstalk,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.16.0",
+    .fingerprint = 0xcee6fe3a7619ccba,
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+    },
+}

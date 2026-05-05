@@ -1,4 +1,6 @@
 .cache
+.zig-cache
 bin
 build
 lib
+zig-out
