@@ -24,19 +24,24 @@ SOFTWARE.
 
 */
 
-#include "lstalk.h"
+#ifndef __ARRAY_H__
+#define __ARRAY_H__
 
-// Compile internal source files.
-#include "internal/array.c"
+#include "../lstalk.h"
 
-LSTalk_Context* lstalk_init(LSTalk_Allocator allocator) {
-    (void)allocator;
-    return NULL;
-}
+typedef struct Array {
+    char* data;
+    size_t element_size;
+    size_t length;
+    size_t capacity;
+} Array;
 
-void lstalk_shutdown(LSTalk_Context* context) {
-    if (context == NULL) return;
+Array array_create(size_t element_size);
+void array_destroy(Array* array, LSTalk_Allocator allocator);
+void array_resize(Array* array, size_t capacity, LSTalk_Allocator allocator);
+void array_push(Array* array, void* element, LSTalk_Allocator allocator);
+void array_append(Array* array, void* elements, size_t count, LSTalk_Allocator allocator);
+int array_remove(Array* array, size_t index);
+char* array_get(Array* array, size_t index);
 
-    LSTalk_Allocator allocator = context->allocator;
-    allocator.free(context);
-}
+#endif // __ARRAY_H__

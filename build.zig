@@ -18,7 +18,6 @@ pub fn build(b: *std.Build) !void {
     lib_module.addCSourceFiles(.{
         .files = &.{
             "src/lib/lstalk.c",
-            "src/lib/internal/array.c",
         },
         .flags = c_flags,
     });
