@@ -29,6 +29,14 @@ SOFTWARE.
 // Compile internal source files.
 #include "internal/array.c"
 
+//
+// Version information
+//
+
+#define LSTALK_MAJOR 0
+#define LSTALK_MINOR 2
+#define LSTALK_REVISION 0
+
 LSTalk_Context* lstalk_init(LSTalk_Allocator allocator) {
     (void)allocator;
     return NULL;
@@ -39,4 +47,18 @@ void lstalk_shutdown(LSTalk_Context* context) {
 
     LSTalk_Allocator allocator = context->allocator;
     allocator.free(context);
+}
+
+void lstalk_version(int* major, int* minor, int* revision) {
+    if (major != NULL) {
+        *major = LSTALK_MAJOR;
+    }
+
+    if (minor != NULL) {
+        *minor = LSTALK_MINOR;
+    }
+
+    if (revision != NULL) {
+        *revision = LSTALK_REVISION;
+    }
 }

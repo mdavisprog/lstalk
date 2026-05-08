@@ -64,8 +64,30 @@ typedef struct LSTalk_Context {
     LSTalk_Allocator allocator;
 } LSTalk_Context;
 
+/**
+ * Initializes a LSTalk_Context object given the memory allocator. The context is to
+ * be used with all of the API functions.
+ *
+ * @return A heap-allocated LSTalk_Context object. Must be freed with lstalk_shutdown.
+ */
 LSTALK_API LSTalk_Context* lstalk_init(LSTalk_Allocator allocator);
+
+/**
+ * Cleans up a LSTalk_Context object. This will close any existing connections to servers
+ * and send shutdown/exit requests to them. The context object memory is then freed.
+ *
+ * @param context - The context object to shutdown.
+ */
 LSTALK_API void lstalk_shutdown(LSTalk_Context* context);
+
+/**
+ * Retrieves the current version number for the LSTalk library.
+ *
+ * @param major - A pointer to store the major version number.
+ * @param minor - A pointer to store the minor version number.
+ * @param revision - A pointer to store the revision number.
+ */
+LSTALK_API void lstalk_version(int* major, int* minor, int* revision);
 
 #if defined(__cplusplus)
 }

@@ -26,10 +26,18 @@ SOFTWARE.
 
 #include "../lib/lstalk.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
+
+    int major = 0;
+    int minor = 0;
+    int revision = 0;
+    lstalk_version(&major, &minor, &revision);
+
+    printf("Running tests for lstalk version %d.%d.%d.\n", major, minor, revision);
 
     LSTalk_Allocator allocator = {
         .malloc = malloc,
