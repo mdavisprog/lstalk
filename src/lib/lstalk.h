@@ -60,6 +60,8 @@ typedef struct LSTalk_Allocator {
     void (*free)(void*);
 } LSTalk_Allocator;
 
+typedef enum { false, true } bool;
+
 typedef struct LSTalk_Context {
     LSTalk_Allocator allocator;
 } LSTalk_Context;

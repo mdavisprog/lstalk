@@ -24,9 +24,10 @@ SOFTWARE.
 
 */
 
-#include "../lib/lstalk.h"
+#include "../lib/internal/array.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "test.h"
 
 int main(int argc, char** argv) {
     (void)argc;
@@ -37,8 +38,6 @@ int main(int argc, char** argv) {
     int revision = 0;
     lstalk_version(&major, &minor, &revision);
 
-    printf("Running tests for lstalk version %d.%d.%d.\n", major, minor, revision);
-
     LSTalk_Allocator allocator = {
         .malloc = malloc,
         .calloc = calloc,
@@ -47,6 +46,37 @@ int main(int argc, char** argv) {
     };
 
     LSTalk_Context* context = lstalk_init(allocator);
+
+    Array test_suites = array_create(sizeof(TestSuite));
+
+    printf("Running %zu test suites for lstalk version %d.%d.%d.\n",
+        test_suites.length,
+        major,
+        minor,
+        revision
+    );
+
+    for (size_t i = 0; i < test_suites.length; ++i) {
+        TestSuite* suite = (TestSuite*)array_get(&test_suites, i);
+
+        printf("Running %zu '%s' tests...\n", suite->tests.length, suite->name);
+
+        for (size_t test_index = 0; test_index < suite->tests.length; ++test_index) {
+            TestCase* test = (TestCase*)array_get(&suite->tests, test_index);
+
+            const bool success = test->fn(allocator);
+            printf("   '%s' %s\n", test->name, success == false ? "false" : "true");
+        }
+
+        printf("   completed\n");
+    }
+
+    for (size_t i = 0; i < test_suites.length; ++i) {
+        TestSuite* suite = (TestSuite*)array_get(&test_suites, i);
+        array_destroy(&suite->tests, allocator);
+    }
+    array_destroy(&test_suites, allocator);
+
     lstalk_shutdown(context);
 
     return 0;
